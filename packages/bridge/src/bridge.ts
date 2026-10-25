@@ -18,7 +18,13 @@ import {
   type DesignManifest,
 } from "@weft/core";
 import { DevServerError, DevServerManager, type DevServerSnapshot } from "@weft/dev-server";
-import { readDesign, writePageFile, WeftIoError } from "@weft/design-io";
+import {
+  readDesign,
+  readSnapshotPayloads,
+  writePageFile,
+  WeftIoError,
+  type SnapshotPayload,
+} from "@weft/design-io";
 import { PageSession } from "@weft/session";
 import { listProjects, readWorkspace } from "@weft/workspace";
 import {
@@ -176,6 +182,7 @@ export class WeftBridge {
   private readonly unsubs = new Map<string, () => void>();
 
   private manifest: DesignManifest | null = null;
+  private snapshots: Record<string, SnapshotPayload> = {};
   private revision = 0;
   private port = 0;
   private watcher?: FSWatcher;
@@ -359,6 +366,7 @@ export class WeftBridge {
   private async loadInitial(): Promise<void> {
     const design = await readDesign(this.designDir, { requireFiles: false });
     this.manifest = design.manifest;
+    this.snapshots = await readSnapshotPayloads(this.designDir, design.pages);
     this.rebuildSessions(design);
     this.revision = 1;
   }
@@ -473,11 +481,26 @@ export class WeftBridge {
       const version = this.designVersion;
       const design = await readDesign(this.designDir, { requireFiles: false });
       if (version !== this.designVersion) return;
+      const snapshots = await readSnapshotPayloads(this.designDir, design.pages);
+      if (version !== this.designVersion) return;
       const manifestChanged =
         !this.manifest || !sameManifest(this.manifest, design.manifest);
+      const snapshotsChanged =
+        JSON.stringify(this.snapshots) !== JSON.stringify(snapshots);
+      this.snapshots = snapshots;
 
       if (manifestChanged) {
         this.manifest = design.manifest;
+        this.rebuildSessions(design);
+        this.revision += 1;
+        this.broadcastInit();
+        return;
+      }
+
+      if (snapshotsChanged) {
+        // Snapshot payloads and the page that references them can change in
+        // the same capture. Rebuild before init so clients never receive the
+        // new payload map with an old page session.
         this.rebuildSessions(design);
         this.revision += 1;
         this.broadcastInit();
@@ -797,6 +820,7 @@ export class WeftBridge {
       revision: this.revision,
       manifest: this.manifest,
       pages,
+      snapshots: this.snapshots,
       ...(this.workspace ? { workspace: this.workspace } : {}),
     };
   }
@@ -824,8 +848,10 @@ export class WeftBridge {
     }
     if (target === this.designDir) return;
 
-    this.designVersion += 1;
+    const version = ++this.designVersion;
     const design = await readDesign(target, { requireFiles: false });
+    const snapshots = await readSnapshotPayloads(target, design.pages);
+    if (version !== this.designVersion) return;
     if (this.reloadTimer) {
       clearTimeout(this.reloadTimer);
       this.reloadTimer = undefined;
@@ -835,6 +861,7 @@ export class WeftBridge {
 
     this.designDir = target;
     this.manifest = design.manifest;
+    this.snapshots = snapshots;
     this.workspace = { ...this.workspace, activeDesignPath: target };
     this.rebuildSessions(design);
     this.revision += 1;

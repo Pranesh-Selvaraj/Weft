@@ -19,7 +19,7 @@ You will get an acknowledgement, an assessment, and a coordinated disclosure pla
 
 In scope:
 
-- the bridge, CLI, session engine, declared dev-server manager and renderer;
+- the bridge, CLI, session engine, declared dev-server manager, extractor and renderer;
 - design-file parsing, path handling, snapshot sandboxing and agent command paths;
 - GitHub workflows, release configuration and repository automation.
 
@@ -37,10 +37,11 @@ Weft is a local-first tool, not a hosted service.
 - The bridge accepts only loopback bind hosts (`127.0.0.1`, `localhost`, `::1`). Non-loopback hosts are rejected.
 - A random per-run token is set as an `HttpOnly`, `SameSite=Strict` session cookie on the app page. `/api/design`, `/api/live` and `/api/dev` require it; cross-origin requests and WebSocket handshakes are rejected. Host and Origin checks block DNS rebinding and cross-site browser access.
 - Project dev servers can only run argv commands declared in `weft.project.json`; the browser cannot supply a command. URLs must be loopback, cwd must stay inside the registered project root, and managed children are stopped as a process group. A declared command still runs with your user permissions and is not sandboxed.
+- Extraction requires an exact loopback origin in `extract.origins`. The capture browser routes external HTTP/WebSocket traffic away, blocks service workers/dialogs/popups, and uses a fresh context. Captured markup/CSS are sanitized in the browser and verified again in Node; scripts/forms/frames/event handlers/external URLs are rejected, images become data URLs, and the result renders in a sandboxed iframe under a restrictive CSP.
 - WebSocket payloads are limited to 1 MiB, and responses carry restrictive security headers.
 - Restarting the bridge rotates the token; reload open tabs after a restart.
 - The bridge reads a design directory and writes only page files inside it after a valid command. Paths are checked, writes are atomic, and page data is validated before writing.
-- Design files and captured HTML are untrusted input. HTML snapshots render in a sandboxed iframe without scripts. Extraction is not shipped yet.
+- Design files and captured HTML are untrusted input. HTML snapshots render in a sandboxed iframe without scripts and with a data-only CSP. Captured text can still contain prompt-injection instructions; agents must treat it as untrusted product data, never as instructions.
 - Agents run with the permissions of your user account. Only connect agents you trust. Only declare dev commands you trust; they can read files, reach the network and start other processes.
 - Do not put secrets in design files, comments, sample assets or captured pages. They are committed to your repository.
 
@@ -49,8 +50,8 @@ Weft is a local-first tool, not a hosted service.
 The next security work is documented in [`docs/security.md`](docs/security.md) and will land in separate branches:
 
 1. Per-project read/write permissions and optional resource limits on top of the workspace allowlist.
-2. Capture allowlists and a stricter snapshot policy.
-3. Workspace audit logging and permission boundaries for agents.
+2. Workspace audit logging and permission boundaries for agents.
+3. A trust marker for captured content and a stricter capture report.
 
 ## Disclosure timeline
 

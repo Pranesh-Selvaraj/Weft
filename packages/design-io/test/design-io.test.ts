@@ -10,6 +10,7 @@ import {
   serialize,
   WeftValidationError,
   type DesignFile,
+  type SnapshotNode,
   type TextNode,
 } from "@weft/core";
 import {
@@ -18,10 +19,12 @@ import {
   inspectDesign,
   MANIFEST_FILE,
   readDesign,
+  readSnapshotPayloads,
   resolveDesignPath,
   summarizeDesign,
   writeDesign,
   writePageFile,
+  writeSnapshotFiles,
   WeftIoError,
 } from "../src/index.js";
 
@@ -310,5 +313,62 @@ describe("writePageFile", () => {
     await expect(
       writePageFile(designDir, design.manifest.pages[0].file, page),
     ).rejects.toBeInstanceOf(WeftValidationError);
+  });
+});
+
+describe("snapshot payloads", () => {
+  it("writes and reads snapshot files with derived safe paths", async () => {
+    const design = buildDesign();
+    const nodeId = newId("nd");
+    const written = await writeSnapshotFiles(designDir, nodeId, {
+      html: '<div data-weft-k="0">captured</div>',
+      css: '[data-weft-k="0"]{color:#111}',
+    });
+    expect(written.files.html).toBe(`snapshots/${nodeId}.html`);
+    expect(written.files.css).toBe(`snapshots/${nodeId}.css`);
+
+    const snapshot = createNode({
+      type: "snapshot",
+      id: nodeId,
+      source: {
+        url: "http://127.0.0.1:3000/",
+        viewport: { width: 800, height: 600 },
+        capturedAt: "2026-10-25T00:00:00.000Z",
+      },
+      files: written.files,
+    }) as SnapshotNode;
+    const page = insertNode(design.pages[0], snapshot);
+    await writeDesign(designDir, { ...design, pages: [page] });
+
+    const payloads = await readSnapshotPayloads(designDir, [page]);
+    expect(payloads[nodeId]).toEqual({
+      html: '<div data-weft-k="0">captured</div>',
+      css: '[data-weft-k="0"]{color:#111}',
+    });
+  });
+
+  it("skips missing payloads and rejects unsafe paths", async () => {
+    const design = buildDesign();
+    const nodeId = newId("nd");
+    const written = await writeSnapshotFiles(designDir, nodeId, { html: "<div />" });
+    const snapshot = createNode({
+      type: "snapshot",
+      id: nodeId,
+      source: {
+        url: "http://127.0.0.1:3000/",
+        viewport: { width: 800, height: 600 },
+        capturedAt: "2026-10-25T00:00:00.000Z",
+      },
+      files: { html: written.files.html, css: "snapshots/missing.css" },
+    }) as SnapshotNode;
+    const page = insertNode(design.pages[0], snapshot);
+    const payloads = await readSnapshotPayloads(designDir, [page]);
+    expect(payloads[nodeId]).toEqual({ html: "<div />" });
+
+    const unsafe = structuredClone(snapshot);
+    unsafe.files.html = "../outside.html";
+    await expect(readSnapshotPayloads(designDir, [insertNode(design.pages[0], unsafe)])).rejects.toBeInstanceOf(
+      WeftIoError,
+    );
   });
 });

@@ -47,7 +47,7 @@ The **bridge** is a small local process. It serves the editor, owns file materia
 
 Pre-alpha, foundation-and-preview phase. The founding decisions are recorded in [`docs/decisions/`](docs/decisions/); the working system design is in [`docs/architecture.md`](docs/architecture.md).
 
-The core document model is implemented in [`@weft/core`](packages/core): the schema, pure node operations, a deterministic JSON writer, and a dependency-free validator. The filesystem layer and the `weft` CLI are implemented in [`@weft/design-io`](packages/design-io) and [`@weft/cli`](packages/cli). Together they are covered by 203 tests and a readable [starter design](examples/starter.weft/). The CLI can validate, format, inspect, read pages and nodes, and apply attributed commands with an inverse for undo. A published JSON Schema and conformance fixtures make the structural contract available to non-TypeScript clients. A Yjs-backed session applies the same commands live and merges whole-page file writes without silently dropping live edits. The browser preview renders the starter design as real DOM. Served by `weft dev`, it becomes an editor: select a layer, change its properties, write the page to disk, and undo or redo through command inverses. `weft workspace dev` adds a project/design picker and a Project server panel that starts or attaches to a dev server declared in `weft.project.json`, waits for readiness, shows logs and stops the process group. The agent contract and extraction are next.
+The core document model is implemented in [`@weft/core`](packages/core): the schema, pure node operations, a deterministic JSON writer, and a dependency-free validator. The filesystem layer and the `weft` CLI are implemented in [`@weft/design-io`](packages/design-io) and [`@weft/cli`](packages/cli). Together they are covered by 218 tests and a readable [starter design](examples/starter.weft/). The CLI can validate, format, inspect, read pages and nodes, and apply attributed commands with an inverse for undo. A published JSON Schema and conformance fixtures make the structural contract available to non-TypeScript clients. A Yjs-backed session applies the same commands live and merges whole-page file writes without silently dropping live edits. The browser preview renders the starter design as real DOM. Served by `weft dev`, it becomes an editor: select a layer, change its properties, write the page to disk, and undo or redo through command inverses. `weft workspace dev` adds a project/design picker and a Project server panel that starts or attaches to a dev server declared in `weft.project.json`, waits for readiness, shows logs and stops the process group. The extraction loop now works from the CLI: `weft extract` captures an allowlisted loopback page into sanitized HTML/CSS beside the design, inserts a snapshot frame that renders in a sandboxed iframe, and serves the payload through the static preview and live bridge. The agent tool contract is next.
 
 The first milestone is deliberately small: open a file in the browser, edit it, have an external agent change it live, and extract one real page into it. See the [MVP exit criteria](docs/product.md#mvp-exit-criteria).
 
@@ -69,6 +69,11 @@ pnpm weft dev examples/starter.weft
 # Workspace picker and declared project servers.
 pnpm weft workspace dev
 # Select a project design, open Server, then Start server.
+
+# Capture a running page declared in a project's weft.project.json.
+# Requires Chromium; see docs/extraction.md.
+pnpm weft extract path/to/design.weft http://127.0.0.1:3000/ \
+  --project path/to/project --selector main --name "Landing"
 
 # CLI commands, from another terminal.
 pnpm weft validate examples/starter.weft
@@ -93,7 +98,7 @@ weft/
 └── examples/      # sample design files and host integrations
 ```
 
-The layout is the intended shape; packages are added as decisions land. Founding records: [ADR 0001](docs/decisions/0001-project-name.md) (the name), [ADR 0002](docs/decisions/0002-design-files-as-plain-text.md) (design files as plain text), [ADR 0003](docs/decisions/0003-document-schema-v1.md) (the schema), [ADR 0004](docs/decisions/0004-headless-cli-and-design-io.md) (headless-first tooling), [ADR 0005](docs/decisions/0005-command-protocol.md) (the command protocol), [ADR 0006](docs/decisions/0006-published-json-schema.md) (the published schema), [ADR 0007](docs/decisions/0007-yjs-live-sessions.md) (the live session and file-write merge), [ADR 0008](docs/decisions/0008-editor-stack-dom-renderer.md) (the editor stack and DOM renderer), [ADR 0009](docs/decisions/0009-local-bridge-live-preview.md) (the local live bridge), [ADR 0010](docs/decisions/0010-editor-interaction.md) (the editor interaction model), [ADR 0011](docs/decisions/0011-bridge-security-boundary.md) (the bridge security boundary), and [ADR 0012](docs/decisions/0012-declared-dev-servers.md) (declared project dev servers).
+The layout is the intended shape; packages are added as decisions land. Founding records: [ADR 0001](docs/decisions/0001-project-name.md) (the name), [ADR 0002](docs/decisions/0002-design-files-as-plain-text.md) (design files as plain text), [ADR 0003](docs/decisions/0003-document-schema-v1.md) (the schema), [ADR 0004](docs/decisions/0004-headless-cli-and-design-io.md) (headless-first tooling), [ADR 0005](docs/decisions/0005-command-protocol.md) (the command protocol), [ADR 0006](docs/decisions/0006-published-json-schema.md) (the published schema), [ADR 0007](docs/decisions/0007-yjs-live-sessions.md) (the live session and file-write merge), [ADR 0008](docs/decisions/0008-editor-stack-dom-renderer.md) (the editor stack and DOM renderer), [ADR 0009](docs/decisions/0009-local-bridge-live-preview.md) (the local live bridge), [ADR 0010](docs/decisions/0010-editor-interaction.md) (the editor interaction model), [ADR 0011](docs/decisions/0011-bridge-security-boundary.md) (the bridge security boundary), and [ADR 0012](docs/decisions/0012-declared-dev-servers.md) (declared project dev servers), and [ADR 0013](docs/decisions/0013-snapshot-extraction.md) (snapshot extraction).
 
 ## Documentation
 
@@ -107,6 +112,7 @@ The layout is the intended shape; packages are added as decisions land. Founding
 - [Local bridge](packages/bridge/README.md) — `weft dev`, the HTTP/WebSocket protocol, and live reload semantics.
 - [Local workspace](docs/local-workspace.md) — how a local Weft instance can work across registered project roots and running apps.
 - [Declared dev servers](docs/dev-server.md) — project config, start/attach, readiness, logs, process lifecycle and the security boundary.
+- [Snapshot extraction](docs/extraction.md) — capture allowlists, browser setup, sanitization, asset inlining, snapshot files and prompt-injection limits.
 - [Workspace registry](packages/workspace/README.md) — the explicit project allowlist and design discovery API.
 - [Security model](docs/security.md) — threat model, current controls, gaps, and hardening branches.
 - [Security policy](SECURITY.md) and [contributing](CONTRIBUTING.md) — reporting and the protected-branch workflow.

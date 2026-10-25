@@ -79,6 +79,34 @@ describe("project config", () => {
     expect(config?.devServer?.readyTimeoutMs).toBe(30_000);
   });
 
+  it("normalizes extract origins and rejects paths or remote hosts", () => {
+    const config = validateProjectConfig(
+      {
+        version: 1,
+        extract: {
+          origins: ["http://127.0.0.1:3000/", "http://localhost:3000"],
+        },
+      },
+      root,
+    );
+    expect(config.extract?.origins).toEqual([
+      "http://127.0.0.1:3000",
+      "http://localhost:3000",
+    ]);
+    expect(() =>
+      validateProjectConfig(
+        { version: 1, extract: { origins: ["http://127.0.0.1:3000/app"] } },
+        root,
+      ),
+    ).toThrow(/without a path/);
+    expect(() =>
+      validateProjectConfig(
+        { version: 1, extract: { origins: ["http://example.com"] } },
+        root,
+      ),
+    ).toThrow(/loopback/);
+  });
+
   it("rejects non-loopback URLs and credential-bearing URLs", () => {
     expect(() =>
       validateProjectConfig(

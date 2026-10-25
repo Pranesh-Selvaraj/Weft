@@ -71,6 +71,34 @@ describe("renderer styles", () => {
     expect(paddingToCss([1, 2, 3, 4])).toBe("1px 2px 3px 4px");
   });
 
+  it("renders snapshots in a CSP sandbox", () => {
+    const base = createDesign({ name: "Snapshot" });
+    const node = createNode({
+      type: "snapshot",
+      source: {
+        url: "http://127.0.0.1:3000/",
+        viewport: { width: 320, height: 200 },
+        capturedAt: "2026-10-25T00:00:00.000Z",
+      },
+      files: { html: "snapshots/nd.html", css: "snapshots/nd.css" },
+    });
+    const page = insertNode(base.pages[0], node);
+    const markup = renderToStaticMarkup(
+      <PageView
+        page={page}
+        manifest={base.manifest}
+        snapshotPayloads={{
+          [node.id]: { html: '<div data-weft-k="0">captured</div>', css: "[data-weft-k=\"0\"]{color:#111}" },
+        }}
+      />,
+    );
+    expect(markup).toContain('sandbox=""');
+    expect(markup).toContain("Content-Security-Policy");
+    expect(markup).toContain("default-src &#x27;none&#x27;");
+    expect(markup).toContain("captured");
+    expect(markup).not.toContain("iframe srcdoc");
+  });
+
   it("computes page bounds", () => {
     const base = createDesign({ name: "Bounds" });
     const node = createNode({ type: "rect", x: 100, y: 50, width: 200, height: 100 });

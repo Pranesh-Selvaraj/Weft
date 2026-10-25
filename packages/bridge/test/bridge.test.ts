@@ -8,10 +8,12 @@ import {
   createDesign,
   createNode,
   insertNode,
+  newId,
   type DesignFile,
+  type SnapshotNode,
   type TextNode,
 } from "@weft/core";
-import { readDesign, writeDesign } from "@weft/design-io";
+import { readDesign, writeDesign, writeSnapshotFiles } from "@weft/design-io";
 import { PageSession } from "@weft/session";
 import { writeWorkspace } from "@weft/workspace";
 import {
@@ -420,6 +422,44 @@ describe("local bridge", () => {
       await bridge.close();
     }
   }, 15000);
+
+  it("serves snapshot payloads with the design", async () => {
+    const nodeId = newId("nd");
+    const files = await writeSnapshotFiles(designDir, nodeId, {
+      html: '<div data-weft-k="0">captured fixture</div>',
+      css: '[data-weft-k="0"]{color:#111}',
+    });
+    const snapshot = createNode({
+      type: "snapshot",
+      id: nodeId,
+      source: {
+        url: "http://127.0.0.1:3000/",
+        viewport: { width: 640, height: 480 },
+        capturedAt: "2026-10-25T00:00:00.000Z",
+      },
+      files: files.files,
+    }) as SnapshotNode;
+    const page = insertNode(design.pages[0], snapshot);
+    await writeDesign(designDir, { ...design, pages: [page] });
+
+    const bridge = await startBridge({
+      designDir,
+      host: "127.0.0.1",
+      port: 0,
+      webDist: null,
+    });
+    try {
+      const payload = (await fetch(`${bridge.url}/api/design`, {
+        headers: { cookie: sessionCookie(bridge) },
+      }).then((response) => response.json())) as DesignPayload;
+      expect(payload.snapshots[nodeId]).toEqual({
+        html: '<div data-weft-k="0">captured fixture</div>',
+        css: '[data-weft-k="0"]{color:#111}',
+      });
+    } finally {
+      await bridge.close();
+    }
+  });
 
   it("refuses to start when the built web app is missing", async () => {
     const missing = join(root, "missing-web");

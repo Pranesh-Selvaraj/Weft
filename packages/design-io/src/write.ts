@@ -3,6 +3,7 @@ import { mkdir, readFile, readdir, rename, stat, unlink, writeFile } from "node:
 import { dirname, resolve } from "node:path";
 import {
   createDesign,
+  isId,
   serialize,
   validateDesign,
   validatePage,
@@ -10,6 +11,7 @@ import {
   type Asset,
   type DesignFile,
   type PageDocument,
+  type SnapshotFiles,
   type TokenTree,
 } from "@weft/core";
 import { WeftIoError } from "./errors.js";
@@ -48,6 +50,18 @@ export interface WritePageOptions {
   tokens?: TokenTree;
   assets?: Asset[];
 }
+
+export interface SnapshotPayloadInput {
+  html: string;
+  css?: string;
+}
+
+export interface WriteSnapshotResult {
+  files: SnapshotFiles;
+  written: string[];
+}
+
+const MAX_SNAPSHOT_FILE_BYTES = 4 * 1024 * 1024;
 
 async function writeFileAtomic(target: string, content: string): Promise<void> {
   await mkdir(dirname(target), { recursive: true });
@@ -126,6 +140,60 @@ export async function writePageFile(
   const target = resolveDesignPath(root, file);
   await writeFileAtomic(target, serialize(page));
   return { directory: root, file };
+}
+
+/**
+ * Write a captured HTML/CSS payload under snapshots/. The caller inserts the
+ * matching snapshot node into a page. Paths are derived from the node id, so a
+ * payload cannot escape the design directory.
+ */
+export async function writeSnapshotFiles(
+  directory: string,
+  nodeId: string,
+  payload: SnapshotPayloadInput,
+): Promise<WriteSnapshotResult> {
+  if (!isId(nodeId, "nd")) {
+    throw new WeftIoError("snapshot.id", nodeId, "Snapshot payloads require an nd_ node id.");
+  }
+  if (Buffer.byteLength(payload.html, "utf8") > MAX_SNAPSHOT_FILE_BYTES) {
+    throw new WeftIoError(
+      "snapshot.too-large",
+      nodeId,
+      `Snapshot HTML is larger than ${MAX_SNAPSHOT_FILE_BYTES} bytes.`,
+    );
+  }
+  if (payload.css !== undefined && Buffer.byteLength(payload.css, "utf8") > MAX_SNAPSHOT_FILE_BYTES) {
+    throw new WeftIoError(
+      "snapshot.too-large",
+      nodeId,
+      `Snapshot CSS is larger than ${MAX_SNAPSHOT_FILE_BYTES} bytes.`,
+    );
+  }
+
+  const root = resolve(directory);
+  const htmlFile = `snapshots/${nodeId}.html`;
+  const cssFile = payload.css === undefined ? undefined : `snapshots/${nodeId}.css`;
+  const written: string[] = [];
+  try {
+    await writeFileAtomic(resolveDesignPath(root, htmlFile), payload.html);
+    written.push(htmlFile);
+    if (cssFile !== undefined && payload.css !== undefined) {
+      await writeFileAtomic(resolveDesignPath(root, cssFile), payload.css);
+      written.push(cssFile);
+    }
+  } catch (error) {
+    for (const file of written) {
+      await unlink(resolveDesignPath(root, file)).catch(() => undefined);
+    }
+    throw error;
+  }
+  return {
+    files: {
+      html: htmlFile,
+      ...(cssFile !== undefined ? { css: cssFile } : {}),
+    },
+    written: [htmlFile, ...(cssFile !== undefined ? [cssFile] : [])],
+  };
 }
 
 /**

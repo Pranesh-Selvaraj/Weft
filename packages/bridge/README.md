@@ -38,7 +38,7 @@ The built web app must exist at `apps/web/dist`; `pnpm build` produces it. Set `
 
 ### HTTP
 
-- `GET /api/design` → `{ revision, manifest, pages: [{ pageId, update }] }`
+- `GET /api/design` → `{ revision, manifest, pages: [{ pageId, update }], snapshots }`
   - Requires the session cookie. `update` is a base64-encoded Yjs state update for that page.
 - `GET /api/health` → `{ ok, revision, pages }`
 - `POST /api/open` → `{ designPath }` opens another registered design. Requires the session cookie; paths outside the workspace are rejected. All connected clients receive a fresh `init` with the newly active design.
@@ -59,7 +59,7 @@ On connect the server sends:
 }
 ```
 
-In workspace mode `init` also carries `workspace.file`, `workspace.activeDesignPath`, the registered projects/designs, and `workspace.servers` snapshots. Then the bridge may send:
+`snapshots` maps snapshot node ids to sanitized `{ html, css? }` payloads loaded from the design directory. In workspace mode `init` also carries `workspace.file`, `workspace.activeDesignPath`, the registered projects/designs, and `workspace.servers` snapshots. Then the bridge may send:
 
 ```json
 { "type": "update", "revision": 2, "pageId": "pg_…", "update": "base64…" }
@@ -90,6 +90,7 @@ A command produces a `commandResult` for the initiating client containing `ok`, 
 - File changes are debounced and wait for write stability.
 - Page content changes are ingested into the page session; Yjs updates are broadcast.
 - Manifest changes (name, pages, tokens, assets) rebuild every session and broadcast a fresh `init`.
+- Snapshot payload changes rebuild sessions and broadcast a fresh `init`, so a newly extracted node and its HTML/CSS arrive together.
 - Invalid writes broadcast an `error` and keep the last good state.
 - A browser command writes only the changed page file, atomically. A write failure applies the command inverse to the live session and returns an error. The manifest is never rewritten by the bridge.
 
@@ -102,14 +103,15 @@ The web app fetches `/api/design`; if the response is JSON, it:
 3. applies `update` messages and re-materializes pages;
 4. shows the project/design picker when the bridge has a workspace;
 5. shows a Project server panel that can start, attach to and stop declared dev servers;
-6. shows `live`, `connecting` or `offline` in the top bar.
+6. passes snapshot payloads to the renderer's sandboxed iframes;
+7. shows `live`, `connecting` or `offline` in the top bar.
 
 Without a bridge, it falls back to the embedded Vite design and shows `read only`.
 
 ## Not here yet
 
 - Page-level commands (page name, background, tokens).
-- Extraction and capture allowlists.
+- Capture from the bridge panel (the CLI is the current entry point).
 - Presence/cursors, team authentication, remote bind.
 - Asset and snapshot payload serving.
 - Persisted Yjs state or a durable operation log.
@@ -122,4 +124,4 @@ Without a bridge, it falls back to the embedded Vite design and shows `read only
 pnpm --filter @weft/bridge test
 ```
 
-The suite covers HTTP design/health, session-cookie authorization, cross-origin rejection, loopback-only hosts, workspace listing and switching, rejecting unregistered paths, starting and stopping a declared project server, WebSocket init, live Yjs updates from file writes, browser commands and undo writes, invalid-write recovery, and the missing-web-build error.
+The suite covers HTTP design/health, session-cookie authorization, cross-origin rejection, loopback-only hosts, workspace listing and switching, rejecting unregistered paths, starting and stopping a declared project server, serving snapshot payloads, WebSocket init, live Yjs updates from file writes, browser commands and undo writes, invalid-write recovery, and the missing-web-build error.

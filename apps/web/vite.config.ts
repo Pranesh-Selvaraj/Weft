@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
-import { readDesign } from "@weft/design-io";
+import { readDesign, readSnapshotPayloads } from "@weft/design-io";
 import { defineConfig, type Plugin } from "vite";
 
 const VIRTUAL_ID = "virtual:weft-design";
@@ -24,9 +24,11 @@ function weftDesign(): Plugin {
     async load(id) {
       if (id !== RESOLVED_ID) return null;
       const design = await readDesign(designDirectory);
+      const snapshots = await readSnapshotPayloads(designDirectory, design.pages);
       return `export default ${JSON.stringify({
         manifest: design.manifest,
         pages: design.pages,
+        snapshots,
       })};`;
     },
     configureServer(server) {

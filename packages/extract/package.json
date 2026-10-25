@@ -1,0 +1,32 @@
+{
+  "name": "@weft/extract",
+  "version": "0.0.0",
+  "description": "Allowlisted browser capture of running pages into sanitized snapshot frames",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@weft/core": "workspace:*",
+    "@weft/design-io": "workspace:*",
+    "@weft/dev-server": "workspace:*",
+    "playwright-core": "^1.64.1"
+  }
+}

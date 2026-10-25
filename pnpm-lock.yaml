@@ -252,6 +252,9 @@ importers:
       '@weft/design-io':
         specifier: workspace:*
         version: link:../design-io
+      '@weft/extract':
+        specifier: workspace:*
+        version: link:../extract
       '@weft/workspace':
         specifier: workspace:*
         version: link:../workspace
@@ -277,6 +280,21 @@ importers:
         version: link:../core
 
   packages/dev-server: {}
+
+  packages/extract:
+    dependencies:
+      '@weft/core':
+        specifier: workspace:*
+        version: link:../core
+      '@weft/design-io':
+        specifier: workspace:*
+        version: link:../design-io
+      '@weft/dev-server':
+        specifier: workspace:*
+        version: link:../dev-server
+      playwright-core:
+        specifier: ^1.64.1
+        version: 1.64.1
 
   packages/render:
     dependencies:
@@ -807,6 +825,11 @@ packages:
     resolution: {integrity: sha512-qcJu88Q2IWqJsDD529JKMdwGm/dvInW4HvQnRwiH9JtihJvzGOscDtHE3x1pBKeUOTysQ8kVmLnJ2kJu7yhcGA==}
     engines: {node: '>=12'}
 
+  playwright-core@1.64.1:
+    resolution: {integrity: sha512-BC4s8y6SEVA6Q1rSxZTto8hI1KUI3xXlHGZgvGqP4IqPdI/a6FX9H29IDNz7vKo9l21b6LfYosScPL6M3xxyDQ==}
+    engines: {node: '>=20'}
+    hasBin: true
+
   postcss@8.5.31:
     resolution: {integrity: sha512-YUbWYCgErwnMAVkjUnYa+KlMBzGpHwiIt/DE7f0G33AuX2LH9UcTk6KgWxd3zRU+pN3u/C+Xl3EnMLM4Hea7Sg==}
     engines: {node: ^10 || ^12 || >=14}
@@ -1289,6 +1312,8 @@ snapshots:
   picocolors@1.1.1: {}
 
   picomatch@4.0.7: {}
+
+  playwright-core@1.64.1: {}
 
   postcss@8.5.31:
     dependencies:

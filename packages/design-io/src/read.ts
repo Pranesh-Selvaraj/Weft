@@ -1,4 +1,4 @@
-import { readFile, stat } from "node:fs/promises";
+import { lstat, readFile, stat } from "node:fs/promises";
 import { resolve } from "node:path";
 import {
   isSafeRelativePath,
@@ -11,6 +11,7 @@ import {
   type DesignFile,
   type DesignManifest,
   type PageDocument,
+  type SnapshotNode,
   type TokenTree,
   type ValidationIssue,
 } from "@weft/core";
@@ -18,6 +19,86 @@ import { WeftIoError } from "./errors.js";
 import { resolveDesignPath } from "./paths.js";
 
 export const MANIFEST_FILE = "weft.json";
+const MAX_SNAPSHOT_FILE_BYTES = 4 * 1024 * 1024;
+
+/** Captured HTML/CSS keyed by snapshot node id, ready for the sandboxed renderer. */
+export interface SnapshotPayload {
+  html: string;
+  css?: string;
+}
+
+async function readSnapshotFile(
+  root: string,
+  relativePath: string,
+  nodeId: string,
+): Promise<string | null> {
+  const target = resolveDesignPath(root, relativePath);
+  try {
+    const info = await lstat(target);
+    if (info.isSymbolicLink()) {
+      throw new WeftIoError(
+        "snapshot.symlink",
+        relativePath,
+        `Snapshot payload for ${nodeId} must not be a symbolic link.`,
+      );
+    }
+    if (!info.isFile()) {
+      throw new WeftIoError(
+        "snapshot.file",
+        relativePath,
+        `Snapshot payload for ${nodeId} is not a regular file.`,
+      );
+    }
+    if (info.size > MAX_SNAPSHOT_FILE_BYTES) {
+      throw new WeftIoError(
+        "snapshot.too-large",
+        relativePath,
+        `Snapshot payload for ${nodeId} is larger than ${MAX_SNAPSHOT_FILE_BYTES} bytes.`,
+      );
+    }
+    const content = await readFile(target, "utf8");
+    if (Buffer.byteLength(content, "utf8") > MAX_SNAPSHOT_FILE_BYTES) {
+      throw new WeftIoError(
+        "snapshot.too-large",
+        relativePath,
+        `Snapshot payload for ${nodeId} is larger than ${MAX_SNAPSHOT_FILE_BYTES} bytes.`,
+      );
+    }
+    return content;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+/**
+ * Load the HTML/CSS payloads referenced by snapshot nodes. Missing payloads are
+ * skipped so the renderer can keep a readable placeholder; unsafe paths and
+ * oversized files are errors.
+ */
+export async function readSnapshotPayloads(
+  directory: string,
+  pages: readonly PageDocument[],
+): Promise<Record<string, SnapshotPayload>> {
+  const root = resolve(directory);
+  const payloads: Record<string, SnapshotPayload> = {};
+  for (const page of pages) {
+    for (const node of walkAllNodes(page)) {
+      if (node.type !== "snapshot") continue;
+      const snapshot = node as SnapshotNode;
+      const html = await readSnapshotFile(root, snapshot.files.html, snapshot.id);
+      if (html === null) continue;
+      const css = snapshot.files.css
+        ? await readSnapshotFile(root, snapshot.files.css, snapshot.id)
+        : null;
+      payloads[snapshot.id] = {
+        html,
+        ...(css !== null ? { css } : {}),
+      };
+    }
+  }
+  return payloads;
+}
 
 export interface InspectDesignOptions {
   /** Check that assets and snapshot payloads exist on disk. Default: true. */

@@ -176,13 +176,14 @@ export function PageView({
           overflow: "hidden",
           backgroundColor: "#FBFAF6",
         };
+        const safeCss = (payload?.css ?? "").replace(/<\/style/gi, "<\\/style");
         return (
           <div key={id} {...data} style={style}>
             {payload ? (
               <iframe
                 title={`Snapshot ${id}`}
                 sandbox=""
-                srcDoc={`<style>${payload.css ?? ""}</style>${payload.html}`}
+                srcDoc={`<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; font-src data:; connect-src 'none'; frame-src 'none'; form-action 'none'; base-uri 'none'"><style>${safeCss}</style></head><body>${payload.html}</body></html>`}
                 style={{
                   display: "block",
                   width: "100%",
