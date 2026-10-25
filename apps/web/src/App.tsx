@@ -352,7 +352,11 @@ export function App() {
                   }}
                   onClick={handleStageClick}
                 >
-                  <PageView page={page} manifest={source.manifest} />
+                  <PageView
+                    page={page}
+                    manifest={source.manifest}
+                    snapshotPayloads={source.snapshots}
+                  />
                   {selectedNode && (
                     <SelectionOverlay
                       page={page}

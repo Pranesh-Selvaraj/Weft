@@ -21,5 +21,6 @@ export {
   type DevServerProject,
   type DevServerSnapshot,
   type DevServerStatus,
+  type ExtractConfig,
   type ProjectConfig,
 } from "./types.js";

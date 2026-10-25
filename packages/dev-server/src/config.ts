@@ -7,6 +7,7 @@ import {
   PROJECT_CONFIG_FILE,
   PROJECT_CONFIG_VERSION,
   type DevServerConfig,
+  type ExtractConfig,
   type ProjectConfig,
 } from "./types.js";
 
@@ -30,29 +31,29 @@ function isInside(root: string, target: string): boolean {
   return rel === "" || (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
 }
 
-function parseLoopbackUrl(value: unknown): string {
+function parseLoopbackUrl(value: unknown, field: string): string {
   if (typeof value !== "string" || value.length === 0) {
-    throw configError("devServer.url must be a non-empty string.");
+    throw configError(`${field} must be a non-empty string.`);
   }
   let url: URL;
   try {
     url = new URL(value);
   } catch {
-    throw configError("devServer.url must be an absolute URL.");
+    throw configError(`${field} must be an absolute URL.`);
   }
   if (url.protocol !== "http:" && url.protocol !== "https:") {
-    throw configError("devServer.url must use http or https.");
+    throw configError(`${field} must use http or https.`);
   }
   if (!LOOPBACK_HOSTS.has(url.hostname.toLowerCase())) {
     throw configError(
-      `devServer.url must use a loopback host (127.0.0.1, localhost or ::1), got ${JSON.stringify(url.hostname)}.`,
+      `${field} must use a loopback host (127.0.0.1, localhost or ::1), got ${JSON.stringify(url.hostname)}.`,
     );
   }
   if (url.username || url.password) {
-    throw configError("devServer.url must not contain credentials.");
+    throw configError(`${field} must not contain credentials.`);
   }
   if (url.hash) {
-    throw configError("devServer.url must not contain a fragment.");
+    throw configError(`${field} must not contain a fragment.`);
   }
   return url.toString();
 }
@@ -129,7 +130,7 @@ function parseDevServer(value: unknown, root: string): DevServerConfig {
   if (!isRecord(value)) {
     throw configError("devServer must be an object.");
   }
-  const url = parseLoopbackUrl(value.url);
+  const url = parseLoopbackUrl(value.url, "devServer.url");
   const command = value.command === undefined ? undefined : parseCommand(value.command);
   const env = parseEnv(value.env);
   const rawCwd = value.cwd === undefined ? "." : value.cwd;
@@ -162,6 +163,29 @@ function parseDevServer(value: unknown, root: string): DevServerConfig {
   };
 }
 
+function parseExtract(value: unknown): ExtractConfig {
+  if (!isRecord(value)) {
+    throw configError("extract must be an object.");
+  }
+  if (!Array.isArray(value.origins) || value.origins.length === 0) {
+    throw configError("extract.origins must be a non-empty array of loopback origins.");
+  }
+  if (value.origins.length > 16) {
+    throw configError("extract.origins may contain at most 16 origins.");
+  }
+  const origins: string[] = [];
+  value.origins.forEach((entry, index) => {
+    const field = `extract.origins[${index}]`;
+    const normalized = parseLoopbackUrl(entry, field);
+    const url = new URL(normalized);
+    if (url.pathname !== "/" || url.search) {
+      throw configError(`${field} must be an origin, without a path or query.`);
+    }
+    if (!origins.includes(url.origin)) origins.push(url.origin);
+  });
+  return { origins };
+}
+
 /** Validate an already-parsed project config object. */
 export function validateProjectConfig(value: unknown, projectRoot: string): ProjectConfig {
   const root = resolve(projectRoot);
@@ -175,11 +199,13 @@ export function validateProjectConfig(value: unknown, projectRoot: string): Proj
   }
   const devServer =
     value.devServer === undefined ? null : parseDevServer(value.devServer, root);
+  const extract = value.extract === undefined ? null : parseExtract(value.extract);
   return {
     root,
     path: resolve(root, PROJECT_CONFIG_FILE),
     version: PROJECT_CONFIG_VERSION,
     devServer,
+    extract,
   };
 }
 

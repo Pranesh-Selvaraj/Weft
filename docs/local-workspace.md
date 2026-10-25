@@ -6,7 +6,7 @@ The short answer: it does not discover them by scanning the machine. A local wor
 
 ## What already works
 
-The `@weft/workspace` registry, `weft workspace init/add/list/remove` and `weft workspace dev` now provide the explicit project allowlist, design discovery and browser design picker described below. `@weft/dev-server` adds declared project servers, attach mode, readiness, logs and process-group stop.
+The `@weft/workspace` registry, `weft workspace init/add/list/remove` and `weft workspace dev` now provide the explicit project allowlist, design discovery and browser design picker described below. `@weft/dev-server` adds declared project servers, attach mode, readiness, logs and process-group stop. `@weft/extract` adds an allowlisted capture path from a running loopback page into sanitized snapshot files.
 
 `weft dev <design.weft>` can point at a design directory anywhere on disk, including inside another repository:
 
@@ -20,8 +20,8 @@ The bridge watches that directory and writes pages there. The design can live in
 
 What does not exist yet:
 
-- capture/extraction and an origin allowlist;
-- serving project assets;
+- a bridge/UI Extract button (the CLI is the current entry point);
+- serving project assets and thumbnails;
 - per-project permissions and an audit trail.
 
 ## The model: a local workspace hub
@@ -86,6 +86,9 @@ Each project can check in a small `weft.project.json`:
     "env": { "PORT": "3000" },
     "readyTimeoutMs": 30000,
     "stopTimeoutMs": 5000
+  },
+  "extract": {
+    "origins": ["http://127.0.0.1:3000"]
   }
 }
 ```
@@ -94,8 +97,9 @@ Each project can check in a small `weft.project.json`:
 - `devServer.cwd` must stay inside the project root, including after `realpath`.
 - `devServer.url` must be loopback (`localhost`, `127.0.0.1`, `[::1]`), HTTP(S), with no credentials.
 - `devServer.env` is merged over the bridge environment; there is no implicit `.env` loading.
-- A project can omit `command` if the user already runs the server elsewhere; Weft attaches by URL and can still extract later.
-- `designs`, `sourceRoots` and `extract.origins` are proposed fields for later slices; unknown fields are ignored for now, so they can land without a config version bump.
+- A project can omit `command` if the user already runs the server elsewhere; Weft attaches by URL and can still run an allowlisted CLI capture against it.
+- `extract.origins` is the exact loopback origin allowlist for capture; it is required before `weft extract` will launch a browser.
+- `designs` and `sourceRoots` remain proposed fields for later slices; unknown fields are ignored for now, so they can land without a config version bump.
 
 ### Running another project's app
 
@@ -117,7 +121,7 @@ See [Declared dev servers](dev-server.md) for the exact rules and limits.
 
 ### Extraction across projects
 
-Once extraction exists, a design file in project A can capture a page from project B only if both the project root and the capture origin are allowlisted. The flow:
+A design file in project A can capture a page from project B only if the capture origin is allowlisted in the project config used for the command. The flow:
 
 ```text
 allowlisted project root
@@ -128,10 +132,10 @@ Playwright/CDP capture (scripts stripped, assets rewritten, CSS scoped)
         ▼
 snapshot files beside the target design page
         ▼
-source metadata (URL, selector, viewport, project, commit)
+source metadata (URL, selector, viewport, timestamp)
 ```
 
-The extractor refuses production origins by default, blocks non-allowlisted hosts, never runs captured scripts inside the editor, and treats captured text as untrusted data for agents.
+The extractor refuses non-allowlisted or non-loopback origins, blocks external HTTP/WebSocket traffic during capture, never runs captured scripts inside the editor, and treats captured text as untrusted data for agents. See [Snapshot extraction](extraction.md).
 
 ### Agents across projects
 
@@ -194,7 +198,7 @@ Bridge APIs and browser UI that consume the registry: list projects/designs, ope
 
 Exit criteria: the browser lists only registered projects/designs; opening a path outside the registry is rejected; switching designs resets sessions cleanly; one local hub can serve multiple registered designs.
 
-`weft workspace dev` now starts that hub, and the browser has a design selector. Declared dev servers are implemented in the next slice.
+`weft workspace dev` now starts that hub, and the browser has a design selector. Declared dev servers and snapshot extraction are implemented in the following slices.
 
 ### 5. `feat/dev-server-control` (implemented)
 
@@ -204,15 +208,17 @@ Exit criteria: Weft can start and stop one declared dev server for a registered 
 
 The manager and browser Project server panel now implement this. See [Declared dev servers](dev-server.md) and ADR 0012.
 
-### 6. `feat/extract-snapshots`
+### 6. `feat/extract-snapshots` (implemented)
 
 Capture allowlist, Playwright/CDP capture, sanitized snapshot files, source metadata, asset rewriting and prompt-injection defenses.
 
 Exit criteria: a registered page from an allowlisted loopback origin becomes a snapshot frame that renders without scripts; non-allowlisted origins are refused; captured content is readable by an agent without executing it.
 
+The `weft extract` command, `@weft/extract` and the sandboxed renderer payload path now implement this. See [Snapshot extraction](extraction.md) and ADR 0013. A bridge/UI Extract action remains a follow-up.
+
 ### 7. `feat/assets-and-thumbnails`
 
-Asset serving, image rendering, snapshot payload loading, content-addressed assets and thumbnail generation.
+Asset serving, image rendering, content-addressed assets and thumbnail generation. Snapshot payload loading for extracted frames is implemented; image-node assets are still placeholders.
 
 Exit criteria: images and captured pages render in the browser without escaping the design directory; missing assets fail validation; no arbitrary local file can be requested through the asset route.
 

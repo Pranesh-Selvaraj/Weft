@@ -18,6 +18,11 @@ export interface DevServerConfig {
   stopTimeoutMs: number;
 }
 
+export interface ExtractConfig {
+  /** Loopback origins the capture pipeline may navigate to. */
+  origins: string[];
+}
+
 export interface ProjectConfig {
   /** Absolute project root. */
   root: string;
@@ -25,6 +30,7 @@ export interface ProjectConfig {
   path: string;
   version: typeof PROJECT_CONFIG_VERSION;
   devServer: DevServerConfig | null;
+  extract: ExtractConfig | null;
 }
 
 export interface DevServerProject {

@@ -2,7 +2,7 @@
 
 The CLI is the first executable client of the Weft document contract. It reads and writes a `.weft` directory on disk, validates it, canonicalizes it, reads pages and nodes, and applies serializable commands with an inverse for undo.
 
-It is intentionally small: no database and no cloud service. `weft dev` starts a local live server; the other commands are one-shot. The file format remains the primary interface; the CLI is a safety net and an agent surface over it.
+It is intentionally small: no database and no cloud service. `weft dev` starts a local live server, `weft extract` runs a one-shot capture, and the other commands are one-shot file operations. The file format remains the primary interface; the CLI is a safety net and an agent surface over it.
 
 ## Build and run
 
@@ -29,6 +29,7 @@ packages/cli/dist/main.js --version
 | `weft get <dir>` | Print a page or node as JSON: `--page <id\|name>` or `--node <id>`. |
 | `weft apply <dir>` | Apply one JSON command. Options: `--command <path>`, `--dry-run`. |
 | `weft id` | Generate Weft ids. Options: `--prefix`, `--count`, `--json`. |
+| `weft extract <design> <url>` | Capture an allowlisted loopback page into a sanitized snapshot. Options: `--project`, `--page`, `--selector`, `--viewport`, `--name`, `--x`, `--y`, `--browser`, `--timeout`, `--max-asset-bytes`, `--json`. |
 | `weft dev <dir>` | Serve the built app, stream file changes, and accept browser edits. Options: `--port`, loopback `--host`. |
 | `weft workspace <cmd>` | `init`, `add`, `list`, `remove`, and `dev` for local project roots and a live workspace picker. |
 | `weft help [command]` | Show help. |
@@ -39,7 +40,7 @@ Exit codes are stable:
 - `1` — validation, command or I/O failure;
 - `2` — usage error.
 
-`validate`, `fmt`, `inspect`, `init` and `id` support `--json`. `get` and `apply` always print JSON because their output is meant to be consumed by another process. `weft dev` is a long-running server; it prints a human-readable URL and watches the design directory until interrupted.
+`validate`, `fmt`, `inspect`, `init`, `id` and `extract` support `--json`. `get` and `apply` always print JSON because their output is meant to be consumed by another process. `weft dev` is a long-running server; it prints a human-readable URL and watches the design directory until interrupted.
 
 `weft dev` requires the built web app (`pnpm build` once). It serves `apps/web/dist`, keeps a Yjs page session in memory, streams file changes, and accepts browser commands. A browser edit is applied to the session, written atomically to the changed page file, and broadcast to every client.
 
@@ -58,6 +59,15 @@ pnpm weft workspace list --json
 ```
 
 The registry lives at `$WEFT_WORKSPACE` or `~/.weft/workspace.json`; use `--file` to point at another file. `add` canonicalizes the path with `realpath` and assigns a unique display name. `list` finds design directories containing `weft.json`, skipping `node_modules`, `.git`, build outputs and symlinked directories.
+
+Capture a running page (requires a Chromium/Chrome install; see [Snapshot extraction](extraction.md)):
+
+```bash
+weft extract designs/app.weft http://127.0.0.1:3000/landing \
+  --project . --selector main --name "Landing"
+```
+
+The project's `weft.project.json` must allowlist the origin. The command writes sanitized HTML/CSS under `snapshots/`, inserts a snapshot node, and reports warnings for skipped assets. `--json` returns the node id and file paths.
 
 Start one live instance over the whole workspace:
 
@@ -320,7 +330,7 @@ The published JSON Schema lives in [`@weft/contract`](../packages/contract/schem
 - There is no optimistic concurrency or multi-writer serialization. `weft apply` is a read-modify-write; `weft dev` accepts browser commands and writes page files, so concurrent writers rely on the Yjs session for the live state and the last page write for disk.
 - Browser undo history is per tab and in memory. It clears on reconnect and does not include external CLI or agent file edits. The bridge does not persist a command log yet.
 - `weft dev` is loopback-only and single-user. It has no team authentication, presence, per-project permissions or remote bind.
-- The project picker and declared dev-server control are implemented; capture allowlists and per-project permissions are later branches.
+- The project picker, declared dev-server control and allowlisted snapshot extraction are implemented; per-project permissions, bridge-triggered extraction and agent tools remain.
 - `apply` accepts commands for one page at a time.
 
 ## Safety properties

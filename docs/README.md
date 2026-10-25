@@ -14,6 +14,7 @@ Start here, then follow the decision records for the reasoning.
 | [Local bridge](../packages/bridge/README.md) | `weft dev`, the HTTP/WebSocket protocol, and live reload semantics. |
 | [Local workspace](local-workspace.md) | How a local instance discovers and interacts with other registered projects and running apps. |
 | [Declared dev servers](dev-server.md) | Project config, managed/attach mode, readiness, logs, process lifecycle and the security boundary. |
+| [Snapshot extraction](extraction.md) | Capture allowlists, browser setup, sanitization, asset inlining, snapshot files and prompt-injection limits. |
 | [Security model](security.md) | Threat model, current controls, known gaps, and the security branch order. |
 | [Decision records](decisions/README.md) | What we chose, why, what we rejected, and what it costs. |
 | [Project history](HISTORY.md) | The timeline linking eras, stack changes, and decisions. |
@@ -34,10 +35,12 @@ Start here, then follow the decision records for the reasoning.
 11. [ADR 0010](decisions/0010-editor-interaction.md) for selection, the inspector and undo.
 12. [ADR 0011](decisions/0011-bridge-security-boundary.md) for the bridge loopback/cookie/Origin boundary.
 13. [ADR 0012](decisions/0012-declared-dev-servers.md) for declared project dev servers.
-14. [Architecture](architecture.md) for the draft implementation shape.
-15. [Security model](security.md) for the trust boundaries and hardening.
-16. [Local workspace](local-workspace.md) for the project registry, picker and dev-server model.
-17. [Declared dev servers](dev-server.md) to declare and run a project server.
-18. [CLI](cli.md) to run, inspect and edit a design.
-19. [Browser editor](../apps/web/README.md) to open and edit the starter design.
-20. [ADR index](decisions/README.md) to see which decisions are settled and which are still open.
+14. [ADR 0013](decisions/0013-snapshot-extraction.md) for snapshot extraction and its sanitization boundary.
+15. [Architecture](architecture.md) for the implementation shape.
+16. [Security model](security.md) for the trust boundaries and hardening.
+17. [Local workspace](local-workspace.md) for the project registry, picker and dev-server model.
+18. [Declared dev servers](dev-server.md) to declare and run a project server.
+19. [Snapshot extraction](extraction.md) to capture a running page.
+20. [CLI](cli.md) to run, inspect, edit and extract designs.
+21. [Browser editor](../apps/web/README.md) to open and edit the starter design.
+22. [ADR index](decisions/README.md) to see which decisions are settled and which are still open.

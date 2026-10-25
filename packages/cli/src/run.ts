@@ -31,6 +31,7 @@ import {
   type DesignSummary,
 } from "@weft/design-io";
 import { startBridge, WeftBridgeError, type WeftBridge } from "@weft/bridge";
+import { extractSnapshot, ExtractError } from "@weft/extract";
 import {
   addProject,
   listProjects,
@@ -77,6 +78,7 @@ Commands:
   apply     Apply a JSON command to a page
   get       Print a page or node as JSON
   id        Generate Weft ids for new entities or commands
+  extract   Capture an allowlisted running page into a snapshot frame
   dev       Serve the live preview and watch a design directory
   workspace Register local projects and discover their designs
   help      Show help
@@ -93,6 +95,7 @@ Examples:
   weft inspect designs/marketing --json
   weft get designs/marketing --page Landing
   weft apply designs/marketing --command change.json
+  weft extract designs/marketing http://127.0.0.1:3000/ --project ~/projects/marketing
   weft dev designs/marketing
   weft workspace add ~/projects/marketing
   weft workspace list`;
@@ -168,6 +171,25 @@ Options:
   --json         Machine-readable output
   --help         Show this help`;
 
+const EXTRACT_USAGE = `Usage: weft extract <design.weft> <url> --project <root> [options]
+
+Capture one allowlisted loopback page into a snapshot frame. The project's
+weft.project.json must list the URL origin in extract.origins. The captured
+markup is sanitized, scripts are removed, and images are inlined as data URLs.
+
+Options:
+  --project <root>     Registered project root containing weft.project.json
+  --page <id|name>     Target page (default: the first page)
+  --selector <css>     Element to capture (default: the page body)
+  --viewport <WxH>     Capture viewport (default: 1440x900)
+  --name <name>        Snapshot layer name
+  --x <n> --y <n>      Snapshot position (default: below the page)
+  --browser <path>     Chromium/Chrome executable (or WEFT_CHROMIUM)
+  --timeout <ms>       Navigation/capture timeout (default: 30000)
+  --max-asset-bytes <n> Per-image data URL cap (default: 2097152)
+  --json               Machine-readable output
+  --help               Show this help`;
+
 const DEV_USAGE = `Usage: weft dev <directory> [options]
 
 Serve the built web preview and watch the design directory. The bridge streams
@@ -210,6 +232,7 @@ const USAGE_BY_COMMAND: Record<string, string> = {
   apply: APPLY_USAGE,
   get: GET_USAGE,
   id: ID_USAGE,
+  extract: EXTRACT_USAGE,
   dev: DEV_USAGE,
   workspace: WORKSPACE_USAGE,
 };
@@ -242,6 +265,19 @@ const GET_OPTIONS: OptionConfig = {
 const ID_OPTIONS: OptionConfig = {
   prefix: { type: "string" },
   count: { type: "string" },
+  ...JSON_OPTION,
+};
+const EXTRACT_OPTIONS: OptionConfig = {
+  project: { type: "string" },
+  page: { type: "string" },
+  selector: { type: "string" },
+  viewport: { type: "string" },
+  name: { type: "string" },
+  x: { type: "string" },
+  y: { type: "string" },
+  browser: { type: "string" },
+  timeout: { type: "string" },
+  "max-asset-bytes": { type: "string" },
   ...JSON_OPTION,
 };
 const DEV_OPTIONS: OptionConfig = {
@@ -324,7 +360,8 @@ function handleError(
     error instanceof WeftCommandError ||
     error instanceof WeftOperationError ||
     error instanceof WeftBridgeError ||
-    error instanceof WorkspaceError
+    error instanceof WorkspaceError ||
+    error instanceof ExtractError
   ) {
     if (json) emitJson(out, { ok: false, error: { code: error.code, message: error.message } });
     else err(`${error.code}: ${error.message}`);
@@ -760,6 +797,134 @@ async function idCommand(
   return 0;
 }
 
+function parseViewport(value: string | undefined): { width: number; height: number } | null {
+  if (value === undefined) return { width: 1440, height: 900 };
+  const match = /^(\d+)x(\d+)$/i.exec(value);
+  if (!match) return null;
+  const width = Number(match[1]);
+  const height = Number(match[2]);
+  if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1) {
+    return null;
+  }
+  return { width, height };
+}
+
+function optionalNumber(
+  value: string | boolean | undefined,
+  label: string,
+  err: Writer,
+): number | undefined | null {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string" || value.trim().length === 0) {
+    err(`${label} requires a number.`);
+    return null;
+  }
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    err(`${label} must be a finite number.`);
+    return null;
+  }
+  return parsed;
+}
+
+async function extractCommand(
+  argv: string[],
+  cwd: string,
+  out: Writer,
+  err: Writer,
+): Promise<number> {
+  const parsed = parseCommand(argv, EXTRACT_OPTIONS, EXTRACT_USAGE, err);
+  if (!parsed) return 2;
+  if (parsed.values.help) {
+    out(EXTRACT_USAGE);
+    return 0;
+  }
+  if (parsed.positionals.length !== 2) {
+    err("Expected <design.weft> and <url>.");
+    out(EXTRACT_USAGE);
+    return 2;
+  }
+  const projectValue = parsed.values.project;
+  if (typeof projectValue !== "string" || projectValue.length === 0) {
+    err("--project <root> is required.");
+    out(EXTRACT_USAGE);
+    return 2;
+  }
+  const viewport = parseViewport(
+    typeof parsed.values.viewport === "string" ? parsed.values.viewport : undefined,
+  );
+  if (!viewport) {
+    err("--viewport must look like 1440x900.");
+    return 2;
+  }
+  const x = optionalNumber(parsed.values.x, "--x", err);
+  if (x === null) return 2;
+  const y = optionalNumber(parsed.values.y, "--y", err);
+  if (y === null) return 2;
+  let timeoutMs: number | undefined;
+  if (parsed.values.timeout !== undefined) {
+    const parsedTimeout = optionalNumber(parsed.values.timeout, "--timeout", err);
+    if (parsedTimeout === null) return 2;
+    if (parsedTimeout === undefined || !Number.isInteger(parsedTimeout) || parsedTimeout < 1000 || parsedTimeout > 120000) {
+      err("--timeout must be an integer between 1000 and 120000.");
+      return 2;
+    }
+    timeoutMs = parsedTimeout;
+  }
+  let maxAssetBytes: number | undefined;
+  if (parsed.values["max-asset-bytes"] !== undefined) {
+    const parsedMax = optionalNumber(
+      parsed.values["max-asset-bytes"],
+      "--max-asset-bytes",
+      err,
+    );
+    if (parsedMax === null) return 2;
+    if (parsedMax === undefined || !Number.isInteger(parsedMax) || parsedMax < 0 || parsedMax > 8 * 1024 * 1024) {
+      err("--max-asset-bytes must be an integer between 0 and 8388608.");
+      return 2;
+    }
+    maxAssetBytes = parsedMax;
+  }
+
+  try {
+    const result = await extractSnapshot({
+      projectRoot: resolve(cwd, projectValue),
+      designDir: resolve(cwd, parsed.positionals[0]),
+      url: parsed.positionals[1],
+      viewport,
+      ...(typeof parsed.values.page === "string" ? { page: parsed.values.page } : {}),
+      ...(typeof parsed.values.selector === "string"
+        ? { selector: parsed.values.selector }
+        : {}),
+      ...(typeof parsed.values.name === "string" ? { name: parsed.values.name } : {}),
+      ...(x !== undefined ? { x } : {}),
+      ...(y !== undefined ? { y } : {}),
+      ...(typeof parsed.values.browser === "string"
+        ? { browserPath: resolve(cwd, parsed.values.browser) }
+        : {}),
+      ...(timeoutMs !== undefined ? { timeoutMs } : {}),
+      ...(maxAssetBytes !== undefined ? { maxAssetBytes } : {}),
+    });
+    if (parsed.values.json) {
+      emitJson(out, { ok: true, ...result });
+    } else {
+      out(`Captured ${result.source.url}`);
+      out(
+        `Snapshot ${result.node.id} · ${Math.round(result.node.width)}×${Math.round(result.node.height)} · ${result.node.name}`,
+      );
+      out(`Page ${result.pageId} (${result.pageFile})`);
+      out(`Payload ${result.files.html}${result.files.css ? ` + ${result.files.css}` : ""}`);
+      if (result.warnings.length > 0) {
+        out(`Warnings: ${result.warnings.length}`);
+        for (const warning of result.warnings) out(`  ${warning}`);
+      }
+    }
+    return 0;
+  } catch (error) {
+    return handleError(error, parsed.values.json === true, out, err);
+  }
+}
+
 async function devCommand(
   argv: string[],
   cwd: string,
@@ -1067,6 +1232,8 @@ export async function runCli(argv: string[], io: CliIO = {}): Promise<number> {
         return await getCommand(rest, cwd, out, err);
       case "id":
         return await idCommand(rest, out, err);
+      case "extract":
+        return await extractCommand(rest, cwd, out, err);
       case "dev":
         return await devCommand(rest, cwd, out, err);
       case "workspace":

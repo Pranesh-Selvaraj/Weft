@@ -35,6 +35,9 @@ Captured HTML / assets                    Project directories
 - required session cookie on `/api/design`, `/api/open`, `/api/live` and `/api/dev`;
 - workspace `/api/open` accepts only design paths discovered inside registered project roots; `weft dev <dir>` remains the explicit single-design escape hatch;
 - project dev servers are declared as argv arrays in `weft.project.json`; the bridge never accepts a command from the browser;
+- extraction requires an exact loopback origin in `extract.origins`; the capture browser routes HTTP/WebSocket traffic to allowlisted origins only, blocks service workers/dialogs/popups and uses a fresh context;
+- captured markup and CSS pass a browser sanitizer and a second dependency-free Node sanitizer; scripts, forms, frames, event handlers and external URLs are removed, and images are inlined as data URLs;
+- snapshot payloads render in `sandbox=""` iframes with a CSP that allows only inline styles and `data:` images;
 - dev-server URLs are loopback HTTP(S) only, cwd is checked lexically and through `realpath`, the config file is a capped regular file that rejects symlinks, and managed children are stopped as a process group;
 - `/api/dev/start` and `/api/dev/stop` require the session cookie and Origin check;
 - Host and Origin checks against the loopback host and port;
@@ -57,8 +60,10 @@ These are deliberately tracked before Weft is used on real projects:
 - `weft dev <dir>` can still be pointed at any design directory the user can read by explicit command; only `weft workspace dev` enforces the registry;
 - no per-project read/write permissions or audit log;
 - no sandbox, resource limit, network policy or credential isolation for declared dev-server commands; they run as the user;
-- no capture/extraction pipeline or origin allowlist yet;
-- no asset server; images and snapshots are placeholders today;
+- extraction fidelity is partial: external fonts/assets are blocked, canvas/video/iframes are omitted, and captured text can still carry prompt-injection instructions (treated as untrusted data, not executable code);
+- capture requires a local Chromium/Chrome binary and executes the allowlisted app's own scripts during capture;
+- no bridge/UI Extract action or git-commit metadata yet;
+- no asset server for image nodes and thumbnails; snapshot payloads are served inline;
 - no per-agent permission boundary;
 - no published, signed release artifacts.
 
@@ -68,7 +73,7 @@ These are deliberately tracked before Weft is used on real projects:
 2. `feat/workspace-registry` — implemented: explicit workspace roots and design discovery; never scan the home directory.
 3. `feat/workspace-picker` — implemented: bridge/UI project switching, with `/api/open` accepting only designs discovered in the registry.
 4. `feat/dev-server-control` — implemented: project-declared argv commands, no shell interpolation, process groups, readiness probes, bounded logs, stop, and loopback-only targets.
-5. `feat/extract-snapshots` — allowlisted capture origins, Playwright/CDP, sanitization, scoped CSS, asset rewriting, prompt-injection defenses.
+5. `feat/extract-snapshots` — implemented: allowlisted capture origins, Playwright/Chromium capture, scoped computed CSS, data-URL assets, two sanitizer passes, CSP/sandbox rendering and prompt-injection guidance.
 6. `feat/agent-mcp` — agent tool contract and per-project permissions, context packets, audit log.
 7. `feat/export` — tokens and frames to implementation artifacts.
 

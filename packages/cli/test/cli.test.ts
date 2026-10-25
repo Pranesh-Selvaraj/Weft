@@ -394,6 +394,51 @@ describe("weft CLI", () => {
     expect(JSON.parse(await readFile(workspaceFile, "utf8")).projects).toEqual([]);
   });
 
+  it("documents extraction and validates its arguments", async () => {
+    expect(await run(["extract", "--help"])).toBe(0);
+    expect(out.join("\n")).toContain("weft extract");
+
+    expect(await run(["extract", "missing.weft", "http://127.0.0.1:3000/"])).toBe(2);
+    expect(err.join("\n")).toContain("--project");
+  });
+
+  it("rejects extraction outside the project allowlist before launching a browser", async () => {
+    await init();
+    await writeFile(
+      join(root, "weft.project.json"),
+      JSON.stringify({ version: 1, extract: { origins: ["http://127.0.0.1:3000"] } }),
+    );
+
+    const code = await run([
+      "extract",
+      "demo.weft",
+      "http://127.0.0.1:9999/",
+      "--project",
+      ".",
+      "--json",
+    ]);
+    expect(code).toBe(1);
+    const payload = jsonOut<{ ok: boolean; error: { code: string } }>();
+    expect(payload.ok).toBe(false);
+    expect(payload.error.code).toBe("extract.origin");
+  });
+
+  it("reports a missing extract allowlist without launching a browser", async () => {
+    await init();
+    await writeFile(join(root, "weft.project.json"), JSON.stringify({ version: 1 }));
+    const code = await run([
+      "extract",
+      "demo.weft",
+      "http://127.0.0.1:3000/",
+      "--project",
+      ".",
+      "--json",
+    ]);
+    expect(code).toBe(1);
+    const payload = jsonOut<{ ok: boolean; error: { code: string } }>();
+    expect(payload.error.code).toBe("extract.not-configured");
+  });
+
   it("reports workspace registry errors as JSON", async () => {
     const missing = await run([
       "workspace",

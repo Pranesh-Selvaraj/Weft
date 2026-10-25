@@ -1,4 +1,5 @@
 import type { CommandActor, DesignManifest, PageCommand } from "@weft/core";
+import type { SnapshotPayload } from "@weft/design-io";
 import type { DevServerSnapshot } from "@weft/dev-server";
 import type { MergeConflict } from "@weft/session";
 
@@ -34,6 +35,8 @@ export interface DesignPayload {
   revision: number;
   manifest: DesignManifest;
   pages: WirePage[];
+  /** Sanitized HTML/CSS for each snapshot node that has payload files. */
+  snapshots: Record<string, SnapshotPayload>;
   workspace?: WorkspacePayload;
 }
 

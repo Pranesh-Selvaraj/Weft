@@ -5,6 +5,7 @@ import type {
   PageCommand,
   PageDocument,
 } from "@weft/core";
+import type { SnapshotPayload } from "@weft/render";
 import { PageSession, type MergeConflict } from "@weft/session";
 import staticDesign from "virtual:weft-design";
 
@@ -72,6 +73,7 @@ interface DesignPayload {
   revision: number;
   manifest: DesignManifest;
   pages: WirePage[];
+  snapshots: Record<string, SnapshotPayload>;
   workspace?: WorkspacePayload;
 }
 
@@ -172,6 +174,7 @@ export interface DesignSource {
   canUndo: boolean;
   canRedo: boolean;
   lastActor: CommandActor | null;
+  snapshots: Record<string, SnapshotPayload>;
   workspace: WorkspacePayload | null;
   switching: boolean;
   devError: string | null;
@@ -225,6 +228,9 @@ function newRequestId(): string {
 export function useDesignSource(): DesignSource {
   const [manifest, setManifest] = useState<DesignManifest>(staticDesign.manifest);
   const [pages, setPages] = useState<PageDocument[]>(staticDesign.pages);
+  const [snapshots, setSnapshots] = useState<Record<string, SnapshotPayload>>(
+    staticDesign.snapshots ?? {},
+  );
   const [mode, setMode] = useState<DesignMode>("static");
   const [status, setStatus] = useState<DesignStatus>("static");
   const [revision, setRevision] = useState<number | null>(null);
@@ -423,6 +429,7 @@ export function useDesignSource(): DesignSource {
 
         setManifest(payload.manifest);
         setPages(ordered);
+        setSnapshots(payload.snapshots ?? {});
         setWorkspace(
           payload.workspace
             ? { ...payload.workspace, servers: payload.workspace.servers ?? [] }
@@ -627,6 +634,7 @@ export function useDesignSource(): DesignSource {
     canUndo: editable && pending === 0 && undoStack.length > 0,
     canRedo: editable && pending === 0 && redoStack.length > 0,
     lastActor,
+    snapshots,
     workspace,
     switching,
     devError,

@@ -30,6 +30,7 @@
     "@weft/bridge": "workspace:*",
     "@weft/core": "workspace:*",
     "@weft/design-io": "workspace:*",
+    "@weft/extract": "workspace:*",
     "@weft/workspace": "workspace:*"
   }
 }
