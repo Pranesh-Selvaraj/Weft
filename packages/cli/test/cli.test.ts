@@ -342,6 +342,73 @@ describe("weft CLI", () => {
     expect(nodeError.error.code).toBe("node.missing");
   });
 
+  it("registers local projects and discovers their designs", async () => {
+    const workspaceFile = join(root, ".weft", "workspace.json");
+    const projectDir = join(root, "product");
+    const designDir = join(projectDir, "designs", "app.weft");
+    await mkdir(designDir, { recursive: true });
+    await writeFile(
+      join(designDir, "weft.json"),
+      JSON.stringify({
+        format: "weft",
+        version: 1,
+        id: "ds_01M5T0A1B2C3D4E5F6G7H8J9KM",
+        name: "Product app",
+        pages: [],
+      }),
+      "utf8",
+    );
+
+    expect(await run(["workspace", "init", "--file", ".weft/workspace.json", "--json"])).toBe(0);
+    expect(JSON.parse(out.join("\n"))).toMatchObject({ ok: true, created: true });
+
+    expect(
+      await run([
+        "workspace",
+        "add",
+        "product",
+        "--file",
+        ".weft/workspace.json",
+        "--name",
+        "Product",
+        "--json",
+      ]),
+    ).toBe(0);
+    const added = jsonOut<{ ok: boolean; project: { name: string; path: string } }>();
+    expect(added.ok).toBe(true);
+    expect(added.project.name).toBe("Product");
+
+    expect(
+      await run(["workspace", "list", "--file", ".weft/workspace.json", "--json"]),
+    ).toBe(0);
+    const listed = jsonOut<{
+      projects: Array<{ name: string; designs: Array<{ name: string; path: string }> }>;
+    }>();
+    expect(listed.projects).toHaveLength(1);
+    expect(listed.projects[0].designs[0].name).toBe("Product app");
+    expect(listed.projects[0].designs[0].path).toBe(designDir);
+
+    expect(
+      await run(["workspace", "remove", "Product", "--file", ".weft/workspace.json", "--json"]),
+    ).toBe(0);
+    expect(JSON.parse(await readFile(workspaceFile, "utf8")).projects).toEqual([]);
+  });
+
+  it("reports workspace registry errors as JSON", async () => {
+    const missing = await run([
+      "workspace",
+      "add",
+      "missing",
+      "--file",
+      ".weft/workspace.json",
+      "--json",
+    ]);
+    expect(missing).toBe(1);
+    const payload = jsonOut<{ ok: boolean; error: { code: string } }>();
+    expect(payload.ok).toBe(false);
+    expect(payload.error.code).toBe("project.missing");
+  });
+
   it("writes canonical files on init", async () => {
     const dir = await init();
     const manifest = await readFile(join(dir, MANIFEST_FILE), "utf8");

@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import {
@@ -31,6 +31,16 @@ import {
   type DesignSummary,
 } from "@weft/design-io";
 import { startBridge, WeftBridgeError } from "@weft/bridge";
+import {
+  addProject,
+  listProjects,
+  readWorkspace,
+  removeProject,
+  workspaceFilePath,
+  writeWorkspace,
+  WorkspaceError,
+  type ProjectListing,
+} from "@weft/workspace";
 import { VERSION } from "./version.js";
 
 export interface CliIO {
@@ -68,6 +78,7 @@ Commands:
   get       Print a page or node as JSON
   id        Generate Weft ids for new entities or commands
   dev       Serve the live preview and watch a design directory
+  workspace Register local projects and discover their designs
   help      Show help
 
 Options:
@@ -82,7 +93,9 @@ Examples:
   weft inspect designs/marketing --json
   weft get designs/marketing --page Landing
   weft apply designs/marketing --command change.json
-  weft dev designs/marketing`;
+  weft dev designs/marketing
+  weft workspace add ~/projects/marketing
+  weft workspace list`;
 
 const INIT_USAGE = `Usage: weft init <directory> [options]
 
@@ -168,6 +181,23 @@ Options:
                (default: 127.0.0.1)
   --help       Show this help`;
 
+const WORKSPACE_USAGE = `Usage: weft workspace <command> [options]
+
+Register local project roots so a Weft workspace can discover their designs.
+The registry is an explicit allowlist; Weft does not scan your home directory.
+
+Commands:
+  init                    Create the workspace file if it does not exist
+  add <project>           Register a project root
+  list                    List registered projects and discovered designs
+  remove <project|name>   Unregister a project
+
+Options:
+  --file <path>   Workspace file (default: $WEFT_WORKSPACE or ~/.weft/workspace.json)
+  --name <name>   Display name for "add"
+  --json          Machine-readable output
+  --help          Show this help`;
+
 const USAGE_BY_COMMAND: Record<string, string> = {
   init: INIT_USAGE,
   validate: VALIDATE_USAGE,
@@ -177,6 +207,7 @@ const USAGE_BY_COMMAND: Record<string, string> = {
   get: GET_USAGE,
   id: ID_USAGE,
   dev: DEV_USAGE,
+  workspace: WORKSPACE_USAGE,
 };
 
 const JSON_OPTION = { json: { type: "boolean" as const }, help: { type: "boolean" as const } };
@@ -213,6 +244,11 @@ const DEV_OPTIONS: OptionConfig = {
   port: { type: "string" },
   host: { type: "string" },
   help: { type: "boolean" },
+};
+const WORKSPACE_OPTIONS: OptionConfig = {
+  file: { type: "string" },
+  name: { type: "string" },
+  ...JSON_OPTION,
 };
 const ID_PREFIXES: IdPrefix[] = ["ds", "pg", "nd", "as", "cm"];
 
@@ -276,7 +312,8 @@ function handleError(
     error instanceof WeftIoError ||
     error instanceof WeftCommandError ||
     error instanceof WeftOperationError ||
-    error instanceof WeftBridgeError
+    error instanceof WeftBridgeError ||
+    error instanceof WorkspaceError
   ) {
     if (json) emitJson(out, { ok: false, error: { code: error.code, message: error.message } });
     else err(`${error.code}: ${error.message}`);
@@ -758,6 +795,143 @@ async function devCommand(
   }
 }
 
+function workspaceFileFrom(
+  value: string | boolean | undefined,
+  cwd: string,
+): string {
+  return typeof value === "string"
+    ? resolve(cwd, value)
+    : workspaceFilePath();
+}
+
+function printProjects(write: Writer, projects: ProjectListing[]): void {
+  if (projects.length === 0) {
+    write("No projects registered.");
+    return;
+  }
+  for (const project of projects) {
+    write(`${project.name}  ${project.path}`);
+    if (!project.exists) {
+      write(`  ! ${project.error ?? "project is missing"}`);
+      continue;
+    }
+    for (const design of project.designs) {
+      write(`  ${design.name}  ${design.path}`);
+    }
+    if (project.designs.length === 0) write("  (no designs found)");
+  }
+}
+
+async function workspaceCommand(
+  argv: string[],
+  cwd: string,
+  out: Writer,
+  err: Writer,
+): Promise<number> {
+  const [subcommand, ...rest] = argv;
+  if (!subcommand || subcommand === "help" || subcommand === "--help" || subcommand === "-h") {
+    out(WORKSPACE_USAGE);
+    return 0;
+  }
+
+  const parsed = parseCommand(rest, WORKSPACE_OPTIONS, WORKSPACE_USAGE, err);
+  if (!parsed) return 2;
+  if (parsed.values.help) {
+    out(WORKSPACE_USAGE);
+    return 0;
+  }
+
+  const file = workspaceFileFrom(parsed.values.file, cwd);
+  const json = parsed.values.json === true;
+
+  try {
+    if (subcommand === "init") {
+      let exists = true;
+      try {
+        await stat(file);
+      } catch {
+        exists = false;
+      }
+      const config = await readWorkspace(file);
+      if (!exists) await writeWorkspace(config, file);
+      if (json) {
+        emitJson(out, { ok: true, file, projects: config.projects.length, created: !exists });
+      } else {
+        out(`${exists ? "Workspace already exists" : "Created workspace"} at ${file}.`);
+      }
+      return 0;
+    }
+
+    if (subcommand === "add") {
+      const projectPath = parsed.positionals[0];
+      if (!projectPath) {
+        err("Missing <project>.");
+        err(WORKSPACE_USAGE);
+        return 2;
+      }
+      const result = await addProject(projectPath, {
+        file,
+        cwd,
+        name: typeof parsed.values.name === "string" ? parsed.values.name : undefined,
+      });
+      if (json) {
+        emitJson(out, {
+          ok: true,
+          file: result.file,
+          project: result.project,
+          projects: result.config.projects.length,
+        });
+      } else {
+        out(`Registered ${result.project.name} at ${result.project.path}.`);
+      }
+      return 0;
+    }
+
+    if (subcommand === "list") {
+      if (parsed.positionals.length > 0) {
+        err("weft workspace list does not take a project argument.");
+        return 2;
+      }
+      const config = await readWorkspace(file);
+      const projects = await listProjects(config);
+      if (json) {
+        emitJson(out, { ok: true, file, projects });
+      } else {
+        out(`Workspace ${file}`);
+        printProjects(out, projects);
+      }
+      return 0;
+    }
+
+    if (subcommand === "remove") {
+      const selector = parsed.positionals[0];
+      if (!selector) {
+        err("Missing <project|name>.");
+        err(WORKSPACE_USAGE);
+        return 2;
+      }
+      const result = await removeProject(selector, { file, cwd });
+      if (json) {
+        emitJson(out, {
+          ok: true,
+          file: result.file,
+          project: result.project,
+          projects: result.config.projects.length,
+        });
+      } else {
+        out(`Removed ${result.project.name} (${result.project.path}).`);
+      }
+      return 0;
+    }
+
+    err(`Unknown workspace command: ${subcommand}`);
+    out(WORKSPACE_USAGE);
+    return 2;
+  } catch (error) {
+    return handleError(error, json, out, err);
+  }
+}
+
 export async function runCli(argv: string[], io: CliIO = {}): Promise<number> {
   const out = io.stdout ?? ((line: string) => process.stdout.write(`${line}\n`));
   const err = io.stderr ?? ((line: string) => process.stderr.write(`${line}\n`));
@@ -806,6 +980,8 @@ export async function runCli(argv: string[], io: CliIO = {}): Promise<number> {
         return await idCommand(rest, out, err);
       case "dev":
         return await devCommand(rest, cwd, out, err);
+      case "workspace":
+        return await workspaceCommand(rest, cwd, out, err);
       default:
         err(`Unknown command: ${command}`);
         out(MAIN_USAGE);

@@ -27,8 +27,9 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@weft/bridge": "workspace:*",
     "@weft/core": "workspace:*",
     "@weft/design-io": "workspace:*",
-    "@weft/bridge": "workspace:*"
+    "@weft/workspace": "workspace:*"
   }
 }

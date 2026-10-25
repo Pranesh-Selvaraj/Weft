@@ -6,6 +6,8 @@ The short answer: it does not discover them by scanning the machine. A local wor
 
 ## What already works
 
+The `@weft/workspace` registry and `weft workspace init/add/list/remove` now provide the explicit project allowlist and design discovery described below. It does not yet drive a project picker or the bridge.
+
 `weft dev <design.weft>` can point at a design directory anywhere on disk, including inside another repository:
 
 ```bash
@@ -18,8 +20,8 @@ The bridge watches that directory and writes pages there. The design can live in
 
 What does not exist yet:
 
-- discovering projects or switching between them in one UI;
-- starting/stopping their dev servers;
+- a bridge/UI project picker that consumes the registry;
+- starting/stopping project dev servers;
 - capturing pages from those servers;
 - serving project assets;
 - per-project permissions and an audit trail.
@@ -185,43 +187,49 @@ Loopback-only host validation, a random per-run session cookie, Origin/Host chec
 
 Exit criteria: no cross-site browser can read the API or open the WebSocket; a non-loopback bind is rejected unless a future explicit remote mode exists; oversized frames are rejected.
 
-### 3. `feat/workspace-registry`
+### 3. `feat/workspace-registry` (implemented)
 
-Workspace file, `weft workspace add/list/remove`, project/design discovery from the allowlist, and a project switcher in the UI.
+Workspace file, `weft workspace add/list/remove`, and project/design discovery from the allowlist.
 
-Exit criteria: the hub lists only registered projects; a path outside the allowlist is rejected; adding/removing a root updates sessions and watchers; multiple design directories can be open in one browser.
+Exit criteria: the registry reads/writes atomically; paths are canonicalized; duplicate and missing roots are reported; discovery finds `weft.json` design directories while ignoring heavy, hidden and symlinked directories; the CLI exposes human and JSON output.
 
-### 4. `feat/dev-server-control`
+### 4. `feat/workspace-picker`
+
+Bridge APIs and browser UI that consume the registry: list projects/designs, open a design, and switch without restarting the hub.
+
+Exit criteria: the browser lists only registered projects/designs; opening a path outside the registry is rejected; switching designs resets sessions cleanly; one local hub can serve multiple registered designs.
+
+### 5. `feat/dev-server-control`
 
 `weft.project.json`, attach mode, supervised dev commands, readiness checks, logs and process-group shutdown.
 
 Exit criteria: Weft can start and stop one declared dev server for a registered project; it never executes a command not declared in project config; it cannot start a server outside the root; stopping leaves no orphan process.
 
-### 5. `feat/extract-snapshots`
+### 6. `feat/extract-snapshots`
 
 Capture allowlist, Playwright/CDP capture, sanitized snapshot files, source metadata, asset rewriting and prompt-injection defenses.
 
 Exit criteria: a registered page from an allowlisted loopback origin becomes a snapshot frame that renders without scripts; non-allowlisted origins are refused; captured content is readable by an agent without executing it.
 
-### 6. `feat/assets-and-thumbnails`
+### 7. `feat/assets-and-thumbnails`
 
 Asset serving, image rendering, snapshot payload loading, content-addressed assets and thumbnail generation.
 
 Exit criteria: images and captured pages render in the browser without escaping the design directory; missing assets fail validation; no arbitrary local file can be requested through the asset route.
 
-### 7. `feat/editor-create-tools`
+### 8. `feat/editor-create-tools`
 
 Create frames, text and shapes from the UI, plus a basic layer tree and selection range.
 
 Exit criteria: a user can create a new page and frame from the browser, not only edit an existing starter; every creation is a normal command with undo.
 
-### 8. `feat/agent-mcp`
+### 9. `feat/agent-mcp`
 
 MCP server, tool contract, context packets, per-project permissions and audit log.
 
 Exit criteria: pi/opencode/Claude Code/Codex can list pages, read a node, apply a command and receive a screenshot/context packet through the documented contract; every tool call is attributed.
 
-### 9. `feat/export`
+### 10. `feat/export`
 
 Tokens to CSS variables, a frame to HTML/CSS, and a structured handoff packet for implementation.
 
