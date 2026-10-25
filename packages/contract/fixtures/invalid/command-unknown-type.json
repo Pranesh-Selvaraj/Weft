@@ -1,0 +1,12 @@
+{
+  "pageId": "pg_01M5T0A1B2C3D4E5F6G7H8J9KN",
+  "command": {
+    "type": "node.explode",
+    "nodeId": "nd_01M5T0A1B2C3D4E5F6G7H8J9KQ"
+  },
+  "actor": {
+    "id": "conformance",
+    "kind": "agent",
+    "name": "Conformance runner"
+  }
+}

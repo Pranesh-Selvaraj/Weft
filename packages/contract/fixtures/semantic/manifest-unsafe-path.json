@@ -1,0 +1,26 @@
+{
+  "format": "weft",
+  "version": 1,
+  "id": "ds_01M5T0A1B2C3D4E5F6G7H8J9KM",
+  "name": "Conformance design",
+  "pages": [
+    {
+      "id": "pg_01M5T0A1B2C3D4E5F6G7H8J9KN",
+      "name": "Landing",
+      "file": "../escape.json"
+    }
+  ],
+  "tokens": {
+    "color": {
+      "surface": "#ffffff",
+      "ink": "#111111"
+    },
+    "space": {
+      "md": 16
+    }
+  },
+  "assets": [],
+  "meta": {
+    "purpose": "conformance"
+  }
+}

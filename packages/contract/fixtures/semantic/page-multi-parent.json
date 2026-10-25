@@ -1,0 +1,97 @@
+{
+  "format": "weft.page",
+  "version": 1,
+  "id": "pg_01M5T0A1B2C3D4E5F6G7H8J9KN",
+  "name": "Landing",
+  "children": [
+    "nd_01M5T0A1B2C3D4E5F6G7H8J9KP",
+    "nd_01M5T0A1B2C3D4E5F6G7H8J9KW"
+  ],
+  "nodes": {
+    "nd_01M5T0A1B2C3D4E5F6G7H8J9KP": {
+      "id": "nd_01M5T0A1B2C3D4E5F6G7H8J9KP",
+      "type": "frame",
+      "name": "Hero",
+      "x": 0,
+      "y": 0,
+      "width": 800,
+      "height": 600,
+      "children": [
+        "nd_01M5T0A1B2C3D4E5F6G7H8J9KQ"
+      ],
+      "layout": {
+        "mode": "flex",
+        "direction": "column",
+        "gap": 16,
+        "padding": 24
+      },
+      "style": {
+        "fills": [
+          {
+            "type": "solid",
+            "color": "{color.surface}"
+          }
+        ],
+        "radius": 12
+      }
+    },
+    "nd_01M5T0A1B2C3D4E5F6G7H8J9KQ": {
+      "id": "nd_01M5T0A1B2C3D4E5F6G7H8J9KQ",
+      "type": "text",
+      "name": "Title",
+      "x": 0,
+      "y": 0,
+      "width": 480,
+      "height": 48,
+      "content": "Hello, Weft",
+      "style": {
+        "font": {
+          "family": "Inter",
+          "size": 32,
+          "weight": 600,
+          "lineHeight": 1.2
+        },
+        "fills": [
+          {
+            "type": "solid",
+            "color": "{color.ink}"
+          }
+        ]
+      }
+    },
+    "nd_01M5T0A1B2C3D4E5F6G7H8J9KW": {
+      "id": "nd_01M5T0A1B2C3D4E5F6G7H8J9KW",
+      "type": "frame",
+      "name": "Second frame",
+      "x": 900,
+      "y": 0,
+      "width": 800,
+      "height": 600,
+      "children": [
+        "nd_01M5T0A1B2C3D4E5F6G7H8J9KQ"
+      ],
+      "layout": {
+        "mode": "flex",
+        "direction": "column",
+        "gap": 16,
+        "padding": 24
+      },
+      "style": {
+        "fills": [
+          {
+            "type": "solid",
+            "color": "{color.surface}"
+          }
+        ],
+        "radius": 12
+      }
+    }
+  },
+  "background": {
+    "type": "solid",
+    "color": "{color.surface}"
+  },
+  "meta": {
+    "purpose": "conformance"
+  }
+}

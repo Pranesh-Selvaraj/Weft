@@ -1,0 +1,27 @@
+{
+  "name": "@weft/contract",
+  "version": "0.0.0",
+  "description": "Published JSON Schema and conformance fixtures for Weft",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./schema": "./schema/weft.schema.json",
+    "./fixtures/*": "./fixtures/*"
+  },
+  "files": [
+    "schema",
+    "fixtures",
+    "README.md"
+  ],
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@weft/core": "workspace:*",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1"
+  }
+}

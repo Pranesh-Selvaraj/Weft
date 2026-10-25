@@ -1,0 +1,15 @@
+{
+  "id": "cm_01M5T0A1B2C3D4E5F6G7H8J9KR",
+  "pageId": "pg_01M5T0A1B2C3D4E5F6G7H8J9KN",
+  "timestamp": "2026-10-25T12:00:00.000Z",
+  "actor": {
+    "id": "conformance",
+    "kind": "agent"
+  },
+  "command": {
+    "type": "node.move",
+    "nodeId": "nd_01M5T0A1B2C3D4E5F6G7H8J9KQ",
+    "parentId": null,
+    "index": 0
+  }
+}

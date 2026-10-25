@@ -259,6 +259,10 @@ design.weft/
 
 `weft init` creates `weft.json` and the first page. It never deletes unrelated files. `weft fmt` only rewrites the manifest and page JSON; snapshot HTML/CSS and binary assets are left untouched.
 
+## The structural schema
+
+The published JSON Schema lives in [`@weft/contract`](../packages/contract/schema/weft.schema.json). It validates shape — field names, types, enums, ranges and id prefixes — and is useful for agents and non-TypeScript tools. `weft validate` runs the semantic validator on top of that shape: node-map keys, parent/child links, cycles, token and asset resolution, path safety and file existence. A schema-valid design can still fail `weft validate`; see the [contract README](../packages/contract/README.md).
+
 ## Limitations
 
 - There are no page-level commands yet (page name, background, tokens). Those remain file edits.

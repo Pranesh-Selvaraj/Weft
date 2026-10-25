@@ -7,6 +7,7 @@ Start here, then follow the decision records for the reasoning.
 | [Product definition](product.md) | Who Weft is for, what it must do, what we deliberately do not do, and the exit criteria for the first version. |
 | [Architecture](architecture.md) | How the system is shaped: components, document model, real-time layer, agent surface, rendering, extraction, and risks. |
 | [CLI](cli.md) | Commands, JSON output, exit codes, and how agents should use the headless client. |
+| [Structural contract](../packages/contract/README.md) | The published JSON Schema, conformance fixtures, and the structural/semantic boundary. |
 | [Decision records](decisions/README.md) | What we chose, why, what we rejected, and what it costs. |
 | [Project history](HISTORY.md) | The timeline linking eras, stack changes, and decisions. |
 | [Changelog](../CHANGELOG.md) | What shipped, in user-facing prose. |
@@ -19,6 +20,7 @@ Start here, then follow the decision records for the reasoning.
 4. [ADR 0003](decisions/0003-document-schema-v1.md) for the concrete file, node and serialization model.
 5. [ADR 0004](decisions/0004-headless-cli-and-design-io.md) for the headless-first tooling boundary.
 6. [ADR 0005](decisions/0005-command-protocol.md) for the mutation API and inverse-based undo.
-7. [Architecture](architecture.md) for the draft implementation shape.
-8. [CLI](cli.md) to run, inspect and edit a design.
-9. [ADR index](decisions/README.md) to see which decisions are settled and which are still open.
+7. [ADR 0006](decisions/0006-published-json-schema.md) for the published structural contract.
+8. [Architecture](architecture.md) for the draft implementation shape.
+9. [CLI](cli.md) to run, inspect and edit a design.
+10. [ADR index](decisions/README.md) to see which decisions are settled and which are still open.

@@ -1,0 +1,84 @@
+{
+  "valid": [
+    {
+      "kind": "manifest",
+      "file": "valid/manifest.json"
+    },
+    {
+      "kind": "page",
+      "file": "valid/page.json"
+    },
+    {
+      "kind": "commandRequest",
+      "file": "valid/command-request.json"
+    },
+    {
+      "kind": "commandEnvelope",
+      "file": "valid/command-envelope.json"
+    }
+  ],
+  "schemaInvalid": [
+    {
+      "kind": "page",
+      "file": "invalid/page-negative-width.json",
+      "code": "number.range"
+    },
+    {
+      "kind": "page",
+      "file": "invalid/page-bad-paint.json",
+      "code": "enum.invalid"
+    },
+    {
+      "kind": "page",
+      "file": "invalid/page-text-content-number.json",
+      "code": "type.string"
+    },
+    {
+      "kind": "manifest",
+      "file": "invalid/manifest-empty-pages.json",
+      "code": "pages.empty"
+    },
+    {
+      "kind": "manifest",
+      "file": "invalid/manifest-bad-id.json",
+      "code": "id.invalid"
+    },
+    {
+      "kind": "commandRequest",
+      "file": "invalid/command-unknown-type.json",
+      "code": "command.type"
+    },
+    {
+      "kind": "commandRequest",
+      "file": "invalid/command-negative-index.json",
+      "code": "command.index"
+    }
+  ],
+  "semanticInvalid": [
+    {
+      "kind": "page",
+      "file": "semantic/page-dangling-child.json",
+      "code": "children.dangling"
+    },
+    {
+      "kind": "page",
+      "file": "semantic/page-unreachable-node.json",
+      "code": "node.unreachable"
+    },
+    {
+      "kind": "page",
+      "file": "semantic/page-multi-parent.json",
+      "code": "children.multi-parent"
+    },
+    {
+      "kind": "page",
+      "file": "semantic/page-unresolved-token.json",
+      "code": "token.unresolved"
+    },
+    {
+      "kind": "manifest",
+      "file": "semantic/manifest-unsafe-path.json",
+      "code": "path.unsafe"
+    }
+  ]
+}

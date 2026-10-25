@@ -22,6 +22,7 @@ This directory is the project's long-form memory: **what we chose, why, what we 
 | [0003](0003-document-schema-v1.md) | Document schema v1: flat nodes, deterministic JSON, captured pages beside the tree | Accepted | Document model |
 | [0004](0004-headless-cli-and-design-io.md) | Headless CLI and design I/O before the editor | Accepted | Tooling |
 | [0005](0005-command-protocol.md) | Serializable page commands with inverses for every mutation | Accepted | Contract |
+| [0006](0006-published-json-schema.md) | Published JSON Schema and a conformance fixture suite | Accepted | Contract |
 
 ## Decision map
 
@@ -31,10 +32,11 @@ graph TD
     B --> C["0003 · Document schema v1<br/>flat nodes · deterministic JSON"]
     C --> D["0004 · Headless CLI + design I/O<br/>init · validate · fmt · inspect"]
     C --> E["0005 · Command protocol<br/>apply · inverse · attributed edits"]
-    E --> F["0006 · Editor stack and renderer<br/>(next)"]
-    E --> G["0007 · Bridge and reconciliation<br/>(next)"]
-    E --> H["0008 · Agent tool contract<br/>(next)"]
-    E --> I["0009 · Snapshot extractor<br/>(next)"]
+    E --> F["0006 · JSON Schema + conformance<br/>structural contract"]
+    F --> G["0007 · Editor stack and renderer<br/>(next)"]
+    F --> H["0008 · Bridge and reconciliation<br/>(next)"]
+    F --> I["0009 · Agent tool contract<br/>(next)"]
+    F --> J["0010 · Snapshot extractor<br/>(next)"]
 ```
 
 ## Adding a record

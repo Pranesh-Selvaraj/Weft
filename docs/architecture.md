@@ -1,6 +1,6 @@
 # Architecture
 
-**Status:** Draft. The constraints, the plain-text decision (ADR 0002), the v1 document schema (ADR 0003), the headless CLI layer (ADR 0004) and the command protocol (ADR 0005) are agreed. The core and the CLI are implemented; choices marked *(proposed)* still need their own decision records, and nothing here overrides an accepted ADR.
+**Status:** Draft. The constraints, the plain-text decision (ADR 0002), the v1 document schema (ADR 0003), the headless CLI layer (ADR 0004), the command protocol (ADR 0005) and the published JSON Schema (ADR 0006) are agreed. The core, CLI and structural contract are implemented; choices marked *(proposed)* still need their own decision records, and nothing here overrides an accepted ADR.
 
 ## 1. Constraints
 
@@ -48,6 +48,7 @@ flowchart TB
 - **`apps/web`** — the editor: canvas, layers, inspector, presence, chat. React + TypeScript *(proposed)*. Renders frames as DOM; uses canvas only for selection chrome and the minimap.
 - **`packages/core`** — document schema, node operations, validation, migrations, deterministic serialization. No DOM, no network. Shared by the editor, bridge, CLI, MCP server, and exporter.
 - **`packages/design-io`** — Node filesystem access for design directories: safe paths, atomic writes, read/inspect/validate, canonical formatting, init, summary. Keeps Node out of the browser core.
+- **`packages/contract`** — the published JSON Schema and conformance fixtures for manifests, pages and commands. Structural validation only; the core remains authoritative for semantic checks.
 - **`packages/render`** — document-to-DOM renderer and exporter. One renderer so the canvas and the export cannot disagree.
 - **`packages/bridge`** — local daemon: serves the editor in development, persists Yjs state, materializes files, watches external writes, authenticates local clients, and proxies agent sessions.
 - **`packages/cli`** — the headless `weft` client. Today: `init`, `validate`, `fmt`, `inspect`, `get`, `apply`, `id`, with human and `--json` output. Later: `dev`, `extract`, `export`, `agent`, `mcp`.
@@ -114,6 +115,7 @@ Snapshot frames are not a dead end: designers annotate nodes inside them, and ag
 The canonical file is JSON; the live document is a Yjs CRDT. The bridge is the only writer of canonical files.
 
 - **Mutations are commands.** Every live edit from a person or an agent is a serializable `PageCommand` with an inverse (ADR 0005). The editor and CLI apply the same commands; the bridge will apply them to Yjs and materialize the same JSON.
+- **The structural contract is published.** `@weft/contract` carries a draft 2020-12 JSON Schema and conformance fixtures (ADR 0006). The schema checks shape; the core validator checks links, cycles, tokens, ids and files.
 - **Human edits** flow into Yjs, then debounce to disk (per page, through a materialization queue).
 - **External agent edits** are detected by the file watcher, diffed against the last materialized state, and applied to Yjs as document operations, preserving the agent as the change author.
 - **Conflicts** between an agent writing a whole page and a human editing it live are the hard case. The bridge treats a file write as a transaction: if the page has no unsaved human edits, replace; if it does, apply a three-way merge at node level and surface any field-level conflict as a reviewable operation instead of silently picking a winner.
@@ -165,6 +167,7 @@ weft/
 ├── packages/
 │   ├── core/              # schema, operations, migrations
 │   ├── design-io/         # design directory read/write/format/inspect
+│   ├── contract/          # published JSON Schema + conformance fixtures
 │   ├── render/            # DOM renderer + exporter
 │   ├── bridge/            # local daemon
 │   ├── cli/               # weft CLI
@@ -190,4 +193,4 @@ weft/
 
 ## 9. What gets specified next
 
-The document schema and operations are settled in ADR 0003, the headless CLI and design I/O layer in ADR 0004, and the command protocol in ADR 0005; all three are implemented. Each remaining area becomes an ADR before implementation: editor stack and renderer (0006), bridge protocol and file reconciliation (0007), agent tool contract and adapters (0008), snapshot extractor (0009). The ADR index is the source of truth for the current status of each.
+The document schema and operations are settled in ADR 0003, the headless CLI and design I/O layer in ADR 0004, the command protocol in ADR 0005, and the published JSON Schema in ADR 0006; all are implemented. Each remaining area becomes an ADR before implementation: editor stack and renderer (0007), bridge protocol and file reconciliation (0008), agent tool contract and adapters (0009), snapshot extractor (0010). The ADR index is the source of truth for the current status of each.
