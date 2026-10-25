@@ -222,11 +222,13 @@ Asset serving, image rendering, content-addressed assets and thumbnail generatio
 
 Exit criteria: images and captured pages render in the browser without escaping the design directory; missing assets fail validation; no arbitrary local file can be requested through the asset route.
 
-### 8. `feat/editor-create-tools`
+### 8. `feat/editor-create-tools` (partially implemented)
 
 Create frames, text and shapes from the UI, plus a basic layer tree and selection range.
 
 Exit criteria: a user can create a new page and frame from the browser, not only edit an existing starter; every creation is a normal command with undo.
+
+Node creation (frames, text, rectangles, ellipses), parent-aware insertion and the layer tree now use ordinary `node.insert` commands with undo. Browser page creation/deletion remains a follow-up because it needs a document-level command and inverse; see ADR 0014.
 
 ### 9. `feat/agent-mcp`
 

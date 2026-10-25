@@ -1,10 +1,151 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { MouseEvent as ReactMouseEvent } from "react";
+import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
 import { getPageBounds, PageView } from "@weft/render";
-import type { PageDocument } from "@weft/core";
+import {
+  createNode,
+  getParentId,
+  isContainerNode,
+  newId,
+  type Node,
+  type PageDocument,
+} from "@weft/core";
 import { Inspector } from "./Inspector";
+import { LayerTree } from "./LayerTree";
 import { ServerPanel } from "./ServerPanel";
-import { MoonIcon, ServerIcon, SunIcon } from "./icons";
+import {
+  CursorIcon,
+  EllipseIcon,
+  FrameIcon,
+  MoonIcon,
+  RectIcon,
+  ServerIcon,
+  SunIcon,
+  TextIcon,
+} from "./icons";
+
+type Tool = "select" | "frame" | "text" | "rect" | "ellipse";
+type CreateTool = Exclude<Tool, "select">;
+
+interface DragState {
+  start: { x: number; y: number };
+  current: { x: number; y: number };
+}
+
+const TOOL_ORDER: Tool[] = ["select", "frame", "text", "rect", "ellipse"];
+const TOOL_META: Record<Tool, { label: string; shortcut: string }> = {
+  select: { label: "Select", shortcut: "V" },
+  frame: { label: "Frame", shortcut: "F" },
+  text: { label: "Text", shortcut: "T" },
+  rect: { label: "Rectangle", shortcut: "R" },
+  ellipse: { label: "Ellipse", shortcut: "O" },
+};
+const CREATE_DEFAULT_SIZE: Record<CreateTool, { width: number; height: number }> = {
+  frame: { width: 800, height: 600 },
+  text: { width: 320, height: 44 },
+  rect: { width: 200, height: 120 },
+  ellipse: { width: 120, height: 120 },
+};
+
+function ToolGlyph({ tool }: { tool: Tool }) {
+  switch (tool) {
+    case "select":
+      return <CursorIcon />;
+    case "frame":
+      return <FrameIcon />;
+    case "text":
+      return <TextIcon />;
+    case "rect":
+      return <RectIcon />;
+    case "ellipse":
+      return <EllipseIcon />;
+  }
+}
+
+function absoluteOrigin(page: PageDocument, nodeId: string): { x: number; y: number } {
+  let x = 0;
+  let y = 0;
+  let current: string | null = nodeId;
+  const seen = new Set<string>();
+  while (current !== null && !seen.has(current)) {
+    seen.add(current);
+    const node = page.nodes[current];
+    if (!node) break;
+    x += node.x;
+    y += node.y;
+    current = getParentId(page, current);
+  }
+  return { x, y };
+}
+
+function makeEditorNode(
+  type: CreateTool,
+  id: string,
+  name: string,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): Node {
+  switch (type) {
+    case "frame":
+      return createNode({
+        type,
+        id,
+        name,
+        x,
+        y,
+        width,
+        height,
+        clip: true,
+        style: {
+          fills: [{ type: "solid", color: "#ffffff" }],
+          radius: 12,
+        },
+      });
+    case "text":
+      return createNode({
+        type,
+        id,
+        name,
+        x,
+        y,
+        width,
+        height,
+        content: "Text",
+        style: {
+          fills: [{ type: "solid", color: "#17150f" }],
+          font: { family: "Inter", size: 32, weight: 600, lineHeight: 1.2 },
+        },
+      });
+    case "rect":
+      return createNode({
+        type,
+        id,
+        name,
+        x,
+        y,
+        width,
+        height,
+        style: {
+          fills: [{ type: "solid", color: "#e6ebff" }],
+          radius: 8,
+        },
+      });
+    case "ellipse":
+      return createNode({
+        type,
+        id,
+        name,
+        x,
+        y,
+        width,
+        height,
+        style: {
+          fills: [{ type: "solid", color: "#f0dfc8" }],
+        },
+      });
+  }
+}
 import { useDesignSource } from "./live";
 import { useTheme } from "./theme";
 
@@ -98,6 +239,11 @@ export function App() {
   );
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [serverOpen, setServerOpen] = useState(false);
+  const [tool, setTool] = useState<Tool>("select");
+  const [drag, setDrag] = useState<DragState | null>(null);
+  const [pendingSelectId, setPendingSelectId] = useState<string | null>(null);
+  const stageScaleRef = useRef<HTMLDivElement>(null);
+  const suppressClickRef = useRef(false);
 
   useEffect(() => {
     if (activePageId && source.pages.some((page) => page.id === activePageId)) return;
@@ -117,6 +263,13 @@ export function App() {
   }, [page, selectedNodeId]);
 
   useEffect(() => {
+    if (pendingSelectId && page?.nodes[pendingSelectId]) {
+      setSelectedNodeId(pendingSelectId);
+      setPendingSelectId(null);
+    }
+  }, [page, pendingSelectId]);
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
       const target = event.target as HTMLElement | null;
       if (target?.closest("input, textarea, select, [contenteditable='true']")) return;
@@ -133,7 +286,30 @@ export function App() {
         source.redo();
         return;
       }
+      if (!mod && source.editable) {
+        const shortcut = event.key.toLowerCase();
+        const nextTool: Tool | undefined =
+          shortcut === "v"
+            ? "select"
+            : shortcut === "f"
+              ? "frame"
+              : shortcut === "t"
+                ? "text"
+                : shortcut === "r"
+                  ? "rect"
+                  : shortcut === "o"
+                    ? "ellipse"
+                    : undefined;
+        if (nextTool) {
+          setTool(nextTool);
+          return;
+        }
+      }
       if (event.key === "Escape") {
+        if (tool !== "select") {
+          setTool("select");
+          return;
+        }
         setSelectedNodeId(null);
         return;
       }
@@ -155,7 +331,7 @@ export function App() {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [page, selectedNode, source]);
+  }, [page, selectedNode, source, tool]);
 
   const bounds = page ? getPageBounds(page) : { width: 800, height: 600 };
   const { ref, scale } = useFitScale(bounds.width, bounds.height);
@@ -191,16 +367,120 @@ export function App() {
     source.mode === "static"
       ? "Static preview · run weft dev for live editing"
       : source.status === "live"
-        ? `Live · select a layer to inspect it · revision ${source.revision ?? "—"}`
+        ? `Live · select a layer, or press V/F/T/R/O to create · revision ${source.revision ?? "—"}`
         : source.status === "connecting"
           ? "Connecting to the local bridge…"
           : "Bridge offline · retrying…";
 
+  const toPagePoint = (clientX: number, clientY: number): { x: number; y: number } | null => {
+    const stage = stageScaleRef.current;
+    if (!stage) return null;
+    const rect = stage.getBoundingClientRect();
+    return {
+      x: Math.max(0, (clientX - rect.left) / scale),
+      y: Math.max(0, (clientY - rect.top) / scale),
+    };
+  };
+
+  const createAt = (
+    type: CreateTool,
+    start: { x: number; y: number },
+    end: { x: number; y: number },
+  ): void => {
+    if (!page || !source.editable) return;
+    const fallback = CREATE_DEFAULT_SIZE[type];
+    const rawWidth = Math.abs(end.x - start.x);
+    const rawHeight = Math.abs(end.y - start.y);
+    const isClick = rawWidth < 4 && rawHeight < 4;
+    const width = Math.max(1, Math.round(isClick ? fallback.width : rawWidth));
+    const height = Math.max(1, Math.round(isClick ? fallback.height : rawHeight));
+    const pageX = Math.max(0, isClick ? start.x : Math.min(start.x, end.x));
+    const pageY = Math.max(0, isClick ? start.y : Math.min(start.y, end.y));
+    const parent = selectedNode && isContainerNode(selectedNode) ? selectedNode : null;
+    const origin = parent ? absoluteOrigin(page, parent.id) : { x: 0, y: 0 };
+    const id = newId("nd");
+    const typeCount = Object.values(page.nodes).filter((node) => node.type === type).length;
+    const node = makeEditorNode(
+      type,
+      id,
+      `${TOOL_META[type].label} ${typeCount + 1}`,
+      Math.round(pageX - origin.x),
+      Math.round(pageY - origin.y),
+      width,
+      height,
+    );
+    source.sendCommand(
+      page.id,
+      { type: "node.insert", node, parentId: parent?.id ?? null },
+      `Create ${TOOL_META[type].label}`,
+    );
+    setPendingSelectId(id);
+  };
+
+  const handleStagePointerDown = (event: ReactPointerEvent<HTMLDivElement>): void => {
+    if (tool === "select" || !page || !source.editable) return;
+    const start = toPagePoint(event.clientX, event.clientY);
+    if (!start) return;
+    const activeTool = tool;
+    event.preventDefault();
+    event.stopPropagation();
+    suppressClickRef.current = true;
+    let current = start;
+    setDrag({ start, current: start });
+
+    const move = (nativeEvent: PointerEvent): void => {
+      const point = toPagePoint(nativeEvent.clientX, nativeEvent.clientY);
+      if (!point) return;
+      current = point;
+      setDrag({ start, current: point });
+    };
+    const cleanup = (): void => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", finish);
+      window.removeEventListener("pointercancel", cancel);
+      setDrag(null);
+    };
+    const finish = (nativeEvent: PointerEvent): void => {
+      const point = toPagePoint(nativeEvent.clientX, nativeEvent.clientY);
+      if (point) current = point;
+      cleanup();
+      createAt(activeTool, start, current);
+      setTool("select");
+      window.setTimeout(() => {
+        suppressClickRef.current = false;
+      }, 0);
+    };
+    const cancel = (): void => {
+      cleanup();
+      setTool("select");
+      window.setTimeout(() => {
+        suppressClickRef.current = false;
+      }, 0);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", finish);
+    window.addEventListener("pointercancel", cancel);
+  };
+
   const handleStageClick = (event: ReactMouseEvent<HTMLDivElement>): void => {
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      return;
+    }
+    if (tool !== "select") return;
     const target = event.target as HTMLElement;
     const nodeElement = target.closest<HTMLElement>("[data-node-id]");
     setSelectedNodeId(nodeElement?.dataset.nodeId ?? null);
   };
+
+  const dragBox = drag
+    ? {
+        left: Math.min(drag.start.x, drag.current.x),
+        top: Math.min(drag.start.y, drag.current.y),
+        width: Math.abs(drag.current.x - drag.start.x),
+        height: Math.abs(drag.current.y - drag.start.y),
+      }
+    : null;
 
   return (
     <div className="app">
@@ -254,6 +534,9 @@ export function App() {
               onClick={() => {
                 setActivePageId(ref.id);
                 setSelectedNodeId(null);
+                setPendingSelectId(null);
+                setDrag(null);
+                setTool("select");
               }}
             >
               {ref.name}
@@ -335,7 +618,43 @@ export function App() {
         />
       )}
 
-      <div className="workspace">
+      <div className="workspace" data-tool={tool}>
+        <aside className="left-panel">
+          <div className="tools-section">
+            <span className="panel-eyebrow">Tools</span>
+            <div className="tool-grid" role="toolbar" aria-label="Creation tools">
+              {TOOL_ORDER.map((toolId) => (
+                <button
+                  key={toolId}
+                  type="button"
+                  className={`tool-button${tool === toolId ? " is-active" : ""}`}
+                  disabled={!source.editable && toolId !== "select"}
+                  aria-pressed={tool === toolId}
+                  aria-label={`${TOOL_META[toolId].label} (${TOOL_META[toolId].shortcut})`}
+                  title={`${TOOL_META[toolId].label} (${TOOL_META[toolId].shortcut})`}
+                  onClick={() => setTool(toolId)}
+                >
+                  <ToolGlyph tool={toolId} />
+                </button>
+              ))}
+            </div>
+            <span className="tool-caption">
+              {source.editable
+                ? `${TOOL_META[tool].label} tool · ${TOOL_META[tool].shortcut}`
+                : "Read-only preview"}
+            </span>
+          </div>
+          {page && (
+            <LayerTree
+              page={page}
+              selectedId={selectedNode?.id ?? null}
+              onSelect={(id) => {
+                setSelectedNodeId(id);
+                setTool("select");
+              }}
+            />
+          )}
+        </aside>
         <main className="canvas" ref={ref}>
           {page ? (
             <div className="stage-holder">
@@ -345,11 +664,13 @@ export function App() {
               >
                 <div
                   className="stage-scale"
+                  ref={stageScaleRef}
                   style={{
                     width: bounds.width,
                     height: bounds.height,
                     transform: `scale(${scale})`,
                   }}
+                  onPointerDown={handleStagePointerDown}
                   onClick={handleStageClick}
                 >
                   <PageView
@@ -364,6 +685,19 @@ export function App() {
                       selectedName={selectedNode.name}
                       scale={scale}
                     />
+                  )}
+                  {dragBox && tool !== "select" && (dragBox.width > 0 || dragBox.height > 0) && (
+                    <div
+                      className="creation-preview"
+                      style={{
+                        left: dragBox.left,
+                        top: dragBox.top,
+                        width: Math.max(1, dragBox.width),
+                        height: Math.max(1, dragBox.height),
+                      }}
+                    >
+                      <span>{TOOL_META[tool].label}</span>
+                    </div>
                   )}
                 </div>
               </div>

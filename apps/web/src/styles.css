@@ -651,6 +651,225 @@ body,
   min-height: 0;
 }
 
+.left-panel {
+  display: flex;
+  flex: 0 0 250px;
+  flex-direction: column;
+  width: 250px;
+  min-height: 0;
+  border-right: 1px solid var(--line);
+  background: var(--chrome);
+}
+
+.tools-section {
+  flex: 0 0 auto;
+  padding: 13px 12px 11px;
+  border-bottom: 1px solid var(--line);
+}
+
+.panel-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.tool-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.tool-button {
+  display: grid;
+  place-items: center;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--input);
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
+}
+
+.tool-button:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.tool-button.is-active {
+  border-color: var(--tab-active);
+  background: var(--tab-active);
+  color: var(--tab-active-ink);
+}
+
+.tool-button:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
+.tool-caption {
+  display: block;
+  margin-top: 8px;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--muted-2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tool-button:focus-visible,
+.layer-row:focus-visible,
+.layer-chevron:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.layers {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.layers-head {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 12px 7px;
+}
+
+.layers-count {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--muted-2);
+}
+
+.layer-tree {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 6px 12px;
+}
+
+.layer-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding-right: 8px;
+  border-radius: 5px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+.layer-row:hover {
+  background: var(--hover);
+}
+
+.layer-row.is-selected {
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+  box-shadow: inset 2px 0 var(--accent);
+  color: var(--ink);
+}
+
+.layer-chevron,
+.layer-chevron-spacer {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 16px;
+  height: 18px;
+}
+
+.layer-chevron {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted-2);
+  cursor: pointer;
+}
+
+.layer-chevron:hover {
+  color: var(--ink);
+}
+
+.layer-icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  color: var(--muted);
+}
+
+.layer-icon.is-frame,
+.layer-icon.is-group {
+  color: var(--accent);
+}
+
+.layer-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.layer-hidden {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  text-transform: uppercase;
+  color: var(--muted-2);
+}
+
+.layer-empty {
+  margin: 10px 8px;
+  color: var(--muted-2);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.workspace[data-tool="frame"] .stage-scale,
+.workspace[data-tool="text"] .stage-scale,
+.workspace[data-tool="rect"] .stage-scale,
+.workspace[data-tool="ellipse"] .stage-scale {
+  cursor: crosshair;
+}
+
+.creation-preview {
+  position: absolute;
+  z-index: 4;
+  border: 1px solid var(--selection);
+  background: var(--selection-halo);
+  pointer-events: none;
+}
+
+.creation-preview span {
+  position: absolute;
+  top: -19px;
+  left: -1px;
+  padding: 2px 5px;
+  border-radius: 3px;
+  background: var(--selection);
+  color: var(--selection-ink);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  white-space: nowrap;
+}
+
 .canvas {
   position: relative;
   flex: 1 1 auto;
@@ -1013,6 +1232,11 @@ body,
     flex-basis: 280px;
   }
 
+  .left-panel {
+    width: 220px;
+    flex-basis: 220px;
+  }
+
   .history-buttons {
     display: none;
   }
@@ -1032,6 +1256,15 @@ body,
     max-width: 190px;
   }
 
+  .left-panel {
+    width: 196px;
+    flex-basis: 196px;
+  }
+
+  .tool-grid {
+    gap: 3px;
+  }
+
   .topbar {
     gap: 12px;
   }
@@ -1045,6 +1278,12 @@ body,
   }
 
   .inspector {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .left-panel {
     display: none;
   }
 }

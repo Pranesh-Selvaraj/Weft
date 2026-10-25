@@ -5,6 +5,7 @@
 - **Deciders:** Pranesh Selvaraj
 - **Supersedes:** —
 - **Superseded by:** —
+- **Extended by:** [0014](0014-editor-create-tools.md) (creation tools and layer tree)
 
 ## Context
 
