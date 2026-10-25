@@ -14,7 +14,9 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -25,6 +27,7 @@
     "@weft/core": "workspace:*",
     "@weft/design-io": "workspace:*",
     "@weft/session": "workspace:*",
+    "@weft/workspace": "workspace:*",
     "chokidar": "^6.0.0",
     "ws": "^8.22.0"
   },

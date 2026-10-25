@@ -47,7 +47,7 @@ Weft is a local-first tool, not a hosted service.
 
 The next security work is documented in [`docs/security.md`](docs/security.md) and will land in separate branches:
 
-1. A workspace allowlist so the bridge can only see explicitly added project roots.
+1. Per-project read/write permissions on top of the workspace allowlist.
 2. A process supervisor that runs only project-declared dev commands with explicit approval.
 3. Capture allowlists and a stricter snapshot policy.
 4. Workspace audit logging and permission boundaries for agents.

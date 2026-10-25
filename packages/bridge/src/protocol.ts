@@ -7,10 +7,36 @@ export interface WirePage {
   update: string;
 }
 
+export interface WorkspaceDesignInfo {
+  path: string;
+  name: string;
+  projectPath: string;
+  projectName: string;
+}
+
+export interface WorkspaceProjectInfo {
+  path: string;
+  name: string;
+  exists: boolean;
+  designs: WorkspaceDesignInfo[];
+  error?: string;
+}
+
+export interface WorkspacePayload {
+  file: string;
+  activeDesignPath: string;
+  projects: WorkspaceProjectInfo[];
+}
+
 export interface DesignPayload {
   revision: number;
   manifest: DesignManifest;
   pages: WirePage[];
+  workspace?: WorkspacePayload;
+}
+
+export interface OpenDesignRequest {
+  designPath: string;
 }
 
 export interface InitMessage extends DesignPayload {

@@ -32,7 +32,8 @@ Captured HTML / assets                    Project directories
 
 - loopback-only bind hosts; non-loopback hosts are rejected;
 - per-run 256-bit session token in an `HttpOnly`, `SameSite=Strict` cookie;
-- required session cookie on `/api/design` and `/api/live`;
+- required session cookie on `/api/design`, `/api/open` and `/api/live`;
+- workspace `/api/open` accepts only design paths discovered inside registered project roots; `weft dev <dir>` remains the explicit single-design escape hatch;
 - Host and Origin checks against the loopback host and port;
 - constant-time token comparison and a 1 MiB WebSocket payload limit;
 - security headers (`nosniff`, no-referrer, frame-ancestors, object/base restrictions);
@@ -50,7 +51,8 @@ These are deliberately tracked before Weft is used on real projects:
 
 - the token is single-user local hardening, not team authentication; a same-user process or browser tab with the cookie remains inside the trust boundary;
 - restarting the bridge rotates the token and requires open tabs to reload;
-- no workspace allowlist; the bridge can be pointed at any design directory the user can read;
+- `weft dev <dir>` can still be pointed at any design directory the user can read by explicit command; only `weft workspace dev` enforces the registry;
+- no per-project read/write permissions, audit log or dev-server supervisor;
 - no process supervisor for project dev servers;
 - no capture/extraction pipeline or origin allowlist yet;
 - no asset server; images and snapshots are placeholders today;
@@ -61,7 +63,7 @@ These are deliberately tracked before Weft is used on real projects:
 
 1. `security/bridge-auth` — implemented: loopback-only host validation, random per-run session cookie, Origin/Host checks, WebSocket payload limits, timing-safe comparisons.
 2. `feat/workspace-registry` — implemented: explicit workspace roots and design discovery; never scan the home directory.
-3. `feat/workspace-picker` — bridge/UI project switching and per-project read/write permissions through the registry.
+3. `feat/workspace-picker` — implemented: bridge/UI project switching, with `/api/open` accepting only designs discovered in the registry.
 4. `feat/dev-server-control` — project-declared dev commands, no shell interpolation, process groups, health checks, logs, stop/restart, localhost-only targets.
 5. `feat/extract-snapshots` — allowlisted capture origins, Playwright/CDP, sanitization, scoped CSS, asset rewriting, prompt-injection defenses.
 6. `feat/agent-mcp` — agent tool contract and per-project permissions, context packets, audit log.

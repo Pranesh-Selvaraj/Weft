@@ -6,7 +6,7 @@ The short answer: it does not discover them by scanning the machine. A local wor
 
 ## What already works
 
-The `@weft/workspace` registry and `weft workspace init/add/list/remove` now provide the explicit project allowlist and design discovery described below. It does not yet drive a project picker or the bridge.
+The `@weft/workspace` registry, `weft workspace init/add/list/remove` and `weft workspace dev` now provide the explicit project allowlist, design discovery and browser design picker described below.
 
 `weft dev <design.weft>` can point at a design directory anywhere on disk, including inside another repository:
 
@@ -20,7 +20,6 @@ The bridge watches that directory and writes pages there. The design can live in
 
 What does not exist yet:
 
-- a bridge/UI project picker that consumes the registry;
 - starting/stopping project dev servers;
 - capturing pages from those servers;
 - serving project assets;
@@ -193,11 +192,13 @@ Workspace file, `weft workspace add/list/remove`, and project/design discovery f
 
 Exit criteria: the registry reads/writes atomically; paths are canonicalized; duplicate and missing roots are reported; discovery finds `weft.json` design directories while ignoring heavy, hidden and symlinked directories; the CLI exposes human and JSON output.
 
-### 4. `feat/workspace-picker`
+### 4. `feat/workspace-picker` (implemented)
 
 Bridge APIs and browser UI that consume the registry: list projects/designs, open a design, and switch without restarting the hub.
 
 Exit criteria: the browser lists only registered projects/designs; opening a path outside the registry is rejected; switching designs resets sessions cleanly; one local hub can serve multiple registered designs.
+
+`weft workspace dev` now starts that hub, and the browser has a design selector. Dev-server control is next.
 
 ### 5. `feat/dev-server-control`
 

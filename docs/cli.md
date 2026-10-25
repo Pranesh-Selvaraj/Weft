@@ -30,7 +30,7 @@ packages/cli/dist/main.js --version
 | `weft apply <dir>` | Apply one JSON command. Options: `--command <path>`, `--dry-run`. |
 | `weft id` | Generate Weft ids. Options: `--prefix`, `--count`, `--json`. |
 | `weft dev <dir>` | Serve the built app, stream file changes, and accept browser edits. Options: `--port`, loopback `--host`. |
-| `weft workspace <cmd>` | `init`, `add`, `list`, `remove` local project roots and discover their designs. |
+| `weft workspace <cmd>` | `init`, `add`, `list`, `remove`, and `dev` for local project roots and a live workspace picker. |
 | `weft help [command]` | Show help. |
 
 Exit codes are stable:
@@ -59,7 +59,14 @@ pnpm weft workspace list --json
 
 The registry lives at `$WEFT_WORKSPACE` or `~/.weft/workspace.json`; use `--file` to point at another file. `add` canonicalizes the path with `realpath` and assigns a unique display name. `list` finds design directories containing `weft.json`, skipping `node_modules`, `.git`, build outputs and symlinked directories.
 
-At this slice the registry is discovery only: `weft dev` still takes one design directory. The next workspace branch adds the bridge/API project picker so one running Weft instance can switch between registered designs.
+Start one live instance over the whole workspace:
+
+```bash
+pnpm weft workspace dev --file ~/.weft/workspace.json
+# optional initial design: --design <path|unique-name>
+```
+
+The bridge loads the registry, validates the chosen design against it, and exposes a project/design picker in the browser. A design path outside the registered roots is rejected by `/api/open`. `weft dev <dir>` still opens a single design directly.
 
 ```json
 {
@@ -313,7 +320,7 @@ The published JSON Schema lives in [`@weft/contract`](../packages/contract/schem
 - There is no optimistic concurrency or multi-writer serialization. `weft apply` is a read-modify-write; `weft dev` accepts browser commands and writes page files, so concurrent writers rely on the Yjs session for the live state and the last page write for disk.
 - Browser undo history is per tab and in memory. It clears on reconnect and does not include external CLI or agent file edits. The bridge does not persist a command log yet.
 - `weft dev` is loopback-only and single-user. It has no team authentication, presence, per-project permissions or remote bind.
-- The workspace registry is discovery only so far. The browser project picker, dev-server control and capture allowlists are later branches.
+- The project picker is implemented; dev-server control, capture allowlists and per-project permissions are later branches.
 - `apply` accepts commands for one page at a time.
 
 ## Safety properties

@@ -224,6 +224,9 @@ importers:
       '@weft/session':
         specifier: workspace:*
         version: link:../session
+      '@weft/workspace':
+        specifier: workspace:*
+        version: link:../workspace
       chokidar:
         specifier: ^6.0.0
         version: 6.0.0

@@ -198,6 +198,35 @@ body,
   text-overflow: ellipsis;
 }
 
+.design-select {
+  max-width: 280px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--input);
+  color: var(--ink);
+  padding: 5px 8px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.design-select:hover:not(:disabled) {
+  border-color: var(--focus);
+}
+
+.design-select:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.design-select:disabled {
+  cursor: default;
+  color: var(--muted);
+  background: var(--input-disabled);
+}
+
 .design-meta {
   font-family: var(--font-mono);
   font-size: 9px;
@@ -753,6 +782,10 @@ body,
   .design-meta,
   .meta {
     display: none;
+  }
+
+  .design-select {
+    max-width: 190px;
   }
 
   .topbar {

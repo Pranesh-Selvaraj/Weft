@@ -39,12 +39,14 @@ The static path remains the zero-process preview and the fallback.
 - See live file changes from the CLI or an agent, and the last editor's attribution.
 - Switch pages; the inspector stays in sync with the active page.
 - Toggle the UI between light and dark from the toolbar. The choice follows the system preference by default and persists locally; design content keeps its own colors.
+- When served by `weft workspace dev`, use the design selector in the top bar to switch between projects and designs registered in the workspace.
 
 The static preview is read-only and has no bridge, inspector edits or history.
 
 ## Not here yet
 
 - Layer tree, drag/resize, multi-select, components.
+- Starting/stopping project dev servers and extracting running pages.
 - Presence/cursors, chat, page-level commands.
 - Asset serving, snapshot payload loading, zoom controls.
 - Shadow-DOM isolation, large-document culling, mobile editing layout.
