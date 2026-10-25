@@ -1,0 +1,13 @@
+node_modules/
+dist/
+build/
+.turbo/
+coverage/
+*.tsbuildinfo
+*.log
+.env
+.env.local
+.DS_Store
+
+# Local bridge state and caches. Design files themselves are always committed.
+.weft-cache/
