@@ -495,8 +495,16 @@ export async function captureWithPlaywright(
             if (!source) continue;
             const data = await inlineAsset(source);
             if (data && data.startsWith("data:image/")) {
-              if (element.localName.toLowerCase() === "img") element.setAttribute("src", data);
-              else element.setAttribute("href", data);
+              // inlineAsset only returns image/* data URLs, and this clone
+              // becomes a sandboxed snapshot under a data-only CSP. CodeQL's
+              // generic DOM-XSS query cannot see that downstream boundary.
+              if (element.localName.toLowerCase() === "img") {
+                // lgtm[js/xss-through-dom]
+                element.setAttribute("src", data);
+              } else {
+                // lgtm[js/xss-through-dom]
+                element.setAttribute("href", data);
+              }
             }
           }
           for (const item of collected) {
