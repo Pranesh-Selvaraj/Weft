@@ -30,21 +30,26 @@ Captured HTML / assets                    Project directories
 
 ## Current controls
 
-- loopback bind by default (`127.0.0.1`);
+- loopback-only bind hosts; non-loopback hosts are rejected;
+- per-run 256-bit session token in an `HttpOnly`, `SameSite=Strict` cookie;
+- required session cookie on `/api/design` and `/api/live`;
+- Host and Origin checks against the loopback host and port;
+- constant-time token comparison and a 1 MiB WebSocket payload limit;
+- security headers (`nosniff`, no-referrer, frame-ancestors, object/base restrictions);
 - deterministic schema and semantic validation before writes;
 - path traversal and absolute-path checks for design files;
 - atomic page writes;
 - command parsing, stable error codes, and inverse-based rollback on write failure;
 - sandboxed snapshot iframes in the renderer;
-- no database, no cloud dependency, no remote bind by default;
+- no database, no cloud dependency, no remote bind;
 - GitHub CI, CodeQL, Dependabot, dependency review and branch protection for the repository.
 
 ## Known gaps
 
 These are deliberately tracked before Weft is used on real projects:
 
-- no authentication token or Origin enforcement on the bridge API/WebSocket;
-- `--host` can be set to a non-loopback address;
+- the token is single-user local hardening, not team authentication; a same-user process or browser tab with the cookie remains inside the trust boundary;
+- restarting the bridge rotates the token and requires open tabs to reload;
 - no workspace allowlist; the bridge can be pointed at any design directory the user can read;
 - no process supervisor for project dev servers;
 - no capture/extraction pipeline or origin allowlist yet;
@@ -54,7 +59,7 @@ These are deliberately tracked before Weft is used on real projects:
 
 ## Planned controls and branch order
 
-1. `security/bridge-auth` — loopback-only host validation, random per-run session cookie, Origin/Host checks, WebSocket payload limits, timing-safe comparisons.
+1. `security/bridge-auth` — implemented: loopback-only host validation, random per-run session cookie, Origin/Host checks, WebSocket payload limits, timing-safe comparisons.
 2. `feat/workspace-registry` — explicit workspace roots, project/design discovery, per-project read/write permissions; never scan the home directory.
 3. `feat/dev-server-control` — project-declared dev commands, no shell interpolation, process groups, health checks, logs, stop/restart, localhost-only targets.
 4. `feat/extract-snapshots` — allowlisted capture origins, Playwright/CDP, sanitization, scoped CSS, asset rewriting, prompt-injection defenses.

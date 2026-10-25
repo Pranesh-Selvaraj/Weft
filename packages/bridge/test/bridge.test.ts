@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import WebSocket from "ws";
@@ -55,6 +55,16 @@ function decode(value: string): Uint8Array {
   return new Uint8Array(Buffer.from(value, "base64"));
 }
 
+function sessionCookie(bridge: WeftBridge): string {
+  return `weft_session=${bridge.sessionToken}`;
+}
+
+function connectLive(bridge: WeftBridge): WebSocket {
+  return new WebSocket(`${bridge.url.replace(/^http/, "ws")}/api/live`, {
+    headers: { Cookie: sessionCookie(bridge) },
+  });
+}
+
 function waitForMessage(
   socket: WebSocket,
   predicate: (message: BridgeMessage) => boolean,
@@ -98,7 +108,7 @@ describe("local bridge", () => {
       port: 0,
       webDist: null,
     });
-    const socket = new WebSocket(`${bridge.url.replace(/^http/, "ws")}/api/live`);
+    const socket = connectLive(bridge);
     const initPromise = waitForMessage(
       socket,
       (message) => message.type === "init",
@@ -111,9 +121,9 @@ describe("local bridge", () => {
       expect(health.ok).toBe(true);
       expect(health.pages).toBe(1);
 
-      const api = (await fetch(`${bridge.url}/api/design`).then((response) =>
-        response.json(),
-      )) as DesignPayload;
+      const api = (await fetch(`${bridge.url}/api/design`, {
+        headers: { cookie: sessionCookie(bridge) },
+      }).then((response) => response.json())) as DesignPayload;
       expect(api.manifest.name).toBe("Live");
       expect(api.pages).toHaveLength(1);
 
@@ -152,6 +162,76 @@ describe("local bridge", () => {
     }
   }, 15000);
 
+  it("requires a session cookie and rejects cross-origin API requests", async () => {
+    const bridge = await startBridge({
+      designDir,
+      host: "127.0.0.1",
+      port: 0,
+      webDist: null,
+    });
+
+    try {
+      const unauthorized = await fetch(`${bridge.url}/api/design`);
+      expect(unauthorized.status).toBe(401);
+      expect(unauthorized.headers.get("x-content-type-options")).toBe("nosniff");
+
+      const crossOrigin = await fetch(`${bridge.url}/api/design`, {
+        headers: {
+          cookie: sessionCookie(bridge),
+          origin: "http://evil.example",
+        },
+      });
+      expect(crossOrigin.status).toBe(403);
+
+      const authorized = await fetch(`${bridge.url}/api/design`, {
+        headers: { cookie: sessionCookie(bridge) },
+      });
+      expect(authorized.status).toBe(200);
+    } finally {
+      await bridge.close();
+    }
+  });
+
+  it("sets the session cookie from the app and accepts it on the API", async () => {
+    const webDir = join(root, "web");
+    await mkdir(webDir, { recursive: true });
+    await writeFile(join(webDir, "index.html"), "<!doctype html><title>Weft</title>", "utf8");
+
+    const bridge = await startBridge({
+      designDir,
+      host: "127.0.0.1",
+      port: 0,
+      webDist: webDir,
+    });
+
+    try {
+      const page = await fetch(`${bridge.url}/`);
+      expect(page.status).toBe(200);
+      const setCookie = page.headers.get("set-cookie") ?? "";
+      expect(setCookie).toContain("weft_session=");
+      expect(setCookie).toContain("HttpOnly");
+      const cookie = setCookie.split(";")[0];
+
+      const api = await fetch(`${bridge.url}/api/design`, {
+        headers: { cookie },
+      });
+      expect(api.status).toBe(200);
+    } finally {
+      await bridge.close();
+    }
+  });
+
+  it("refuses a non-loopback host", async () => {
+    await expect(
+      startBridge({
+        designDir,
+        host: "0.0.0.0",
+        port: 0,
+        webDist: null,
+      }),
+    ).rejects.toMatchObject({ code: "host.unsafe" });
+  });
+
   it("refuses to start when the built web app is missing", async () => {
     const missing = join(root, "missing-web");
     await expect(
@@ -171,7 +251,7 @@ describe("local bridge", () => {
       port: 0,
       webDist: null,
     });
-    const socket = new WebSocket(`${bridge.url.replace(/^http/, "ws")}/api/live`);
+    const socket = connectLive(bridge);
     const initPromise = waitForMessage(
       socket,
       (message) => message.type === "init",
@@ -242,7 +322,7 @@ describe("local bridge", () => {
       port: 0,
       webDist: null,
     });
-    const socket = new WebSocket(`${bridge.url.replace(/^http/, "ws")}/api/live`);
+    const socket = connectLive(bridge);
 
     try {
       const init = (await waitForMessage(
@@ -257,9 +337,9 @@ describe("local bridge", () => {
       const error = await errorPromise;
       expect(error.type).toBe("error");
 
-      const api = (await fetch(`${bridge.url}/api/design`).then((response) =>
-        response.json(),
-      )) as DesignPayload;
+      const api = (await fetch(`${bridge.url}/api/design`, {
+        headers: { cookie: sessionCookie(bridge) },
+      }).then((response) => response.json())) as DesignPayload;
       expect(api.pages).toHaveLength(init.pages.length);
       expect(api.revision).toBe(init.revision);
     } finally {

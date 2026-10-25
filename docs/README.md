@@ -31,9 +31,10 @@ Start here, then follow the decision records for the reasoning.
 9. [ADR 0008](decisions/0008-editor-stack-dom-renderer.md) for the stack and DOM renderer.
 10. [ADR 0009](decisions/0009-local-bridge-live-preview.md) for the local live bridge.
 11. [ADR 0010](decisions/0010-editor-interaction.md) for selection, the inspector and undo.
-12. [Architecture](architecture.md) for the draft implementation shape.
-13. [Security model](security.md) for the trust boundaries and planned hardening.
-14. [Local workspace](local-workspace.md) for the project registry and dev-server model.
-15. [CLI](cli.md) to run, inspect and edit a design.
-16. [Browser editor](../apps/web/README.md) to open and edit the starter design.
-17. [ADR index](decisions/README.md) to see which decisions are settled and which are still open.
+12. [ADR 0011](decisions/0011-bridge-security-boundary.md) for the bridge loopback/cookie/Origin boundary.
+13. [Architecture](architecture.md) for the draft implementation shape.
+14. [Security model](security.md) for the trust boundaries and planned hardening.
+15. [Local workspace](local-workspace.md) for the project registry and dev-server model.
+16. [CLI](cli.md) to run, inspect and edit a design.
+17. [Browser editor](../apps/web/README.md) to open and edit the starter design.
+18. [ADR index](decisions/README.md) to see which decisions are settled and which are still open.

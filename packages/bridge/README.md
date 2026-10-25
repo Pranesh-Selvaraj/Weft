@@ -2,7 +2,7 @@
 
 The local live bridge for Weft. It serves the built browser app, watches a design directory, keeps one Yjs `PageSession` per page, streams file changes to connected browsers, and accepts browser commands. A valid command is applied to the session, written atomically to the changed page file, and broadcast to every client.
 
-It is a **local editor bridge**: commands write page files, but manifest/token edits, auth, presence and the agent contract are still ahead.
+It is a **local editor bridge**: commands write page files. It is loopback-only, uses a per-run session cookie, and rejects cross-origin browser requests. Manifest edits, a workspace allowlist, presence and the agent contract are still ahead.
 
 ## Run
 
@@ -17,18 +17,29 @@ pnpm weft dev examples/starter.weft
 Options:
 
 ```text
---host  Bind host (default 127.0.0.1)
+--host  Loopback bind host: 127.0.0.1, localhost or ::1 (default 127.0.0.1)
 --port  Port (default 5250)
 ```
 
+Non-loopback hosts are rejected with `host.unsafe`.
+
 The built web app must exist at `apps/web/dist`; `pnpm build` produces it. Set `webDist` in `startBridge` for a different location, or `null` for API/WebSocket-only use.
+
+## Security
+
+- The app page sets a random per-run `weft_session` cookie: `HttpOnly; SameSite=Strict; Path=/`.
+- `/api/design` and `/api/live` require the cookie. `/api/health` is public but Host-checked.
+- The `Host` header must be a loopback host and port; a present `Origin` must match the loopback origin. This blocks DNS rebinding and cross-site browser access.
+- WebSocket payloads are capped at 1 MiB.
+- Responses carry `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`, a restrictive `Content-Security-Policy` and `Permissions-Policy`.
+- Restarting the bridge rotates the token; reload open tabs. Non-browser clients must send the cookie.
 
 ## Protocol
 
 ### HTTP
 
 - `GET /api/design` → `{ revision, manifest, pages: [{ pageId, update }] }`
-  - `update` is a base64-encoded Yjs state update for that page.
+  - Requires the session cookie. `update` is a base64-encoded Yjs state update for that page.
 - `GET /api/health` → `{ ok, revision, pages }`
 
 ### WebSocket: `/api/live`
@@ -91,7 +102,7 @@ Without a bridge, it falls back to the embedded Vite design and shows `read only
 ## Not here yet
 
 - Page-level commands (page name, background, tokens).
-- Presence/cursors, auth, remote bind.
+- Presence/cursors, team authentication, remote bind.
 - Asset and snapshot payload serving.
 - Persisted Yjs state or a durable operation log.
 - Optimistic concurrency or serialization of simultaneous writers.
@@ -103,4 +114,4 @@ Without a bridge, it falls back to the embedded Vite design and shows `read only
 pnpm --filter @weft/bridge test
 ```
 
-The suite covers HTTP design/health, WebSocket init, live Yjs updates from file writes, browser commands and undo writes, invalid-write recovery, and the missing-web-build error.
+The suite covers HTTP design/health, session-cookie authorization, cross-origin rejection, loopback-only hosts, WebSocket init, live Yjs updates from file writes, browser commands and undo writes, invalid-write recovery, and the missing-web-build error.

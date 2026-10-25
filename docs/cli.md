@@ -29,7 +29,7 @@ packages/cli/dist/main.js --version
 | `weft get <dir>` | Print a page or node as JSON: `--page <id\|name>` or `--node <id>`. |
 | `weft apply <dir>` | Apply one JSON command. Options: `--command <path>`, `--dry-run`. |
 | `weft id` | Generate Weft ids. Options: `--prefix`, `--count`, `--json`. |
-| `weft dev <dir>` | Serve the built app, stream file changes, and accept browser edits. Options: `--port`, `--host`. |
+| `weft dev <dir>` | Serve the built app, stream file changes, and accept browser edits. Options: `--port`, loopback `--host`. |
 | `weft help [command]` | Show help. |
 
 Exit codes are stable:
@@ -40,7 +40,9 @@ Exit codes are stable:
 
 `validate`, `fmt`, `inspect`, `init` and `id` support `--json`. `get` and `apply` always print JSON because their output is meant to be consumed by another process. `weft dev` is a long-running server; it prints a human-readable URL and watches the design directory until interrupted.
 
-`weft dev` requires the built web app (`pnpm build` once). It serves `apps/web/dist`, keeps a Yjs page session in memory, streams file changes, and accepts browser commands. A browser edit is applied to the session, written atomically to the changed page file, and broadcast to every client. `pnpm dev` is the separate static Vite preview without the bridge.
+`weft dev` requires the built web app (`pnpm build` once). It serves `apps/web/dist`, keeps a Yjs page session in memory, streams file changes, and accepts browser commands. A browser edit is applied to the session, written atomically to the changed page file, and broadcast to every client.
+
+The bridge is loopback-only. The app receives a random `HttpOnly` session cookie; the API and WebSocket reject requests without it and reject cross-origin browser requests. Restarting the bridge rotates the cookie, so reload open tabs. `pnpm dev` is the separate static Vite preview without the bridge.
 
 ## Create, validate, format, inspect
 
@@ -276,7 +278,7 @@ The published JSON Schema lives in [`@weft/contract`](../packages/contract/schem
 - There are no page-level commands yet (page name, background, tokens). Those remain file edits.
 - There is no optimistic concurrency or multi-writer serialization. `weft apply` is a read-modify-write; `weft dev` accepts browser commands and writes page files, so concurrent writers rely on the Yjs session for the live state and the last page write for disk.
 - Browser undo history is per tab and in memory. It clears on reconnect and does not include external CLI or agent file edits. The bridge does not persist a command log yet.
-- `weft dev` is localhost-only and has no authentication, presence or remote bind.
+- `weft dev` is loopback-only and single-user. It has no team authentication, presence, per-project permissions or remote bind.
 - `apply` accepts commands for one page at a time.
 
 ## Safety properties

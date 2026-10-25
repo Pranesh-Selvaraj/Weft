@@ -1,3 +1,4 @@
+import { randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { join, resolve } from "node:path";
@@ -30,6 +31,9 @@ const DEFAULT_WEB_DIST = fileURLToPath(
   new URL("../../../apps/web/dist", import.meta.url),
 );
 const DEFAULT_PORT = 5250;
+const SESSION_COOKIE = "weft_session";
+const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "::1"]);
+const MAX_WS_PAYLOAD = 1024 * 1024;
 
 export interface BridgeOptions {
   designDir: string;
@@ -64,6 +68,23 @@ function errorMessage(error: unknown): string {
 
 function sameManifest(left: DesignManifest, right: DesignManifest): boolean {
   return serialize(left) === serialize(right);
+}
+
+function parseCookies(header: string | undefined): Map<string, string> {
+  const cookies = new Map<string, string>();
+  if (!header) return cookies;
+  for (const part of header.split(";")) {
+    const index = part.indexOf("=");
+    if (index === -1) continue;
+    const name = part.slice(0, index).trim();
+    if (!name) continue;
+    cookies.set(name, part.slice(index + 1).trim());
+  }
+  return cookies;
+}
+
+function displayHost(host: string): string {
+  return host === "::1" ? "[::1]" : host;
 }
 
 function errorCode(error: unknown): string {
@@ -112,6 +133,8 @@ function readActor(value: unknown): CommandActor | undefined {
 export class WeftBridge {
   readonly designDir: string;
 
+  readonly sessionToken: string;
+
   private readonly host: string;
   private readonly requestedPort: number;
   private readonly webDist: string | null;
@@ -133,7 +156,15 @@ export class WeftBridge {
 
   constructor(options: BridgeOptions) {
     this.designDir = resolve(options.designDir);
-    this.host = options.host ?? "127.0.0.1";
+    const requestedHost = options.host ?? "127.0.0.1";
+    this.host = requestedHost === "[::1]" ? "::1" : requestedHost;
+    if (!LOOPBACK_HOSTS.has(this.host)) {
+      throw new WeftBridgeError(
+        "host.unsafe",
+        `Host ${JSON.stringify(requestedHost)} is not loopback. The bridge is local-only.`,
+      );
+    }
+    this.sessionToken = randomBytes(32).toString("base64url");
     this.requestedPort = options.port ?? DEFAULT_PORT;
     this.watchEnabled = options.watch !== false;
     const webDist = options.webDist === undefined ? DEFAULT_WEB_DIST : options.webDist;
@@ -142,12 +173,27 @@ export class WeftBridge {
     this.server = createServer((request, response) => {
       void this.handleRequest(request, response);
     });
-    this.wss = new WebSocketServer({ noServer: true });
+    this.wss = new WebSocketServer({
+      noServer: true,
+      maxPayload: MAX_WS_PAYLOAD,
+    });
 
     this.server.on("upgrade", (request, socket, head) => {
       const url = this.requestUrl(request);
       if (url.pathname !== "/api/live") {
         socket.destroy();
+        return;
+      }
+      if (!this.isAllowedHost(request)) {
+        this.rejectUpgrade(socket, 403, "Forbidden");
+        return;
+      }
+      if (!this.isAuthorized(request)) {
+        this.rejectUpgrade(socket, 401, "Unauthorized");
+        return;
+      }
+      if (!this.isAllowedOrigin(request)) {
+        this.rejectUpgrade(socket, 403, "Forbidden");
         return;
       }
       this.wss.handleUpgrade(request, socket, head, (ws) => {
@@ -158,8 +204,7 @@ export class WeftBridge {
   }
 
   get url(): string {
-    const host = this.host === "0.0.0.0" ? "127.0.0.1" : this.host;
-    return `http://${host}:${this.port}`;
+    return `http://${displayHost(this.host)}:${this.port}`;
   }
 
   async start(): Promise<this> {
@@ -386,16 +431,100 @@ export class WeftBridge {
     return new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`);
   }
 
+  private allowedHosts(): Set<string> {
+    return new Set(
+      [...LOOPBACK_HOSTS].map((host) => `${displayHost(host)}:${this.port}`),
+    );
+  }
+
+  private allowedOrigins(): Set<string> {
+    return new Set(
+      [...LOOPBACK_HOSTS].map((host) => `http://${displayHost(host)}:${this.port}`),
+    );
+  }
+
+  private isAllowedHost(request: IncomingMessage): boolean {
+    const host = request.headers.host;
+    return typeof host === "string" && this.allowedHosts().has(host);
+  }
+
+  private isAllowedOrigin(request: IncomingMessage): boolean {
+    const origin = request.headers.origin;
+    if (origin === undefined) return true;
+    return this.allowedOrigins().has(origin);
+  }
+
+  private isAuthorized(request: IncomingMessage): boolean {
+    const provided = parseCookies(request.headers.cookie).get(SESSION_COOKIE);
+    if (!provided) return false;
+    const expectedBuffer = Buffer.from(this.sessionToken);
+    const providedBuffer = Buffer.from(provided);
+    return (
+      expectedBuffer.length === providedBuffer.length &&
+      timingSafeEqual(expectedBuffer, providedBuffer)
+    );
+  }
+
+  private ensureSessionCookie(
+    request: IncomingMessage,
+    response: ServerResponse,
+  ): void {
+    if (this.isAuthorized(request)) return;
+    response.setHeader(
+      "Set-Cookie",
+      `${SESSION_COOKIE}=${this.sessionToken}; HttpOnly; SameSite=Strict; Path=/`,
+    );
+  }
+
+  private applySecurityHeaders(response: ServerResponse): void {
+    response.setHeader("X-Content-Type-Options", "nosniff");
+    response.setHeader("Referrer-Policy", "no-referrer");
+    response.setHeader("X-Frame-Options", "DENY");
+    response.setHeader(
+      "Content-Security-Policy",
+      "frame-ancestors 'none'; object-src 'none'; base-uri 'none'",
+    );
+    response.setHeader(
+      "Permissions-Policy",
+      "camera=(), microphone=(), geolocation=()",
+    );
+  }
+
+  private rejectUpgrade(
+    socket: import("node:stream").Duplex,
+    status: number,
+    reason: string,
+  ): void {
+    socket.write(
+      `HTTP/1.1 ${status} ${reason}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`,
+    );
+    socket.destroy();
+  }
+
   private async handleRequest(
     request: IncomingMessage,
     response: ServerResponse,
   ): Promise<void> {
+    this.applySecurityHeaders(response);
+
     try {
       const url = this.requestUrl(request);
+      if (!this.isAllowedHost(request)) {
+        this.sendJson(response, 403, { ok: false, error: { code: "host.forbidden" } });
+        return;
+      }
 
       if (url.pathname === "/api/design") {
         if (request.method !== "GET") {
           this.sendJson(response, 405, { ok: false, error: { code: "method.not-allowed" } });
+          return;
+        }
+        if (!this.isAuthorized(request)) {
+          this.sendJson(response, 401, { ok: false, error: { code: "session.unauthorized" } });
+          return;
+        }
+        if (!this.isAllowedOrigin(request)) {
+          this.sendJson(response, 403, { ok: false, error: { code: "origin.forbidden" } });
           return;
         }
         this.sendJson(response, 200, this.designPayload());
@@ -416,6 +545,7 @@ export class WeftBridge {
         return;
       }
 
+      this.ensureSessionCookie(request, response);
       const served = await serveStatic(this.webDist, url.pathname, response);
       if (!served) {
         this.sendJson(response, 404, { ok: false, error: { code: "not-found" } });
