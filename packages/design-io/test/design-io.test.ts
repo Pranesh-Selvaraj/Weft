@@ -3,10 +3,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+  applyDocumentCommand,
   createDesign,
   createNode,
+  createPage,
   insertNode,
   newId,
+  nextPageFile,
   serialize,
   WeftValidationError,
   type DesignFile,
@@ -24,6 +27,7 @@ import {
   resolveDesignPath,
   summarizeDesign,
   writeDesign,
+  writeDocumentCommand,
   writeManifest,
   writePageFile,
   writeSnapshotFiles,
@@ -390,5 +394,34 @@ describe("document file writes", () => {
     expect(removed.removed).toBe(true);
     expect(await removeDesignFile(designDir, design.manifest.pages[0].file)).toMatchObject({ removed: false });
     await expect(removeDesignFile(designDir, "../outside.json")).rejects.toBeInstanceOf(WeftIoError);
+  });
+});
+
+describe("writeDocumentCommand", () => {
+  it("commits page creation and removal with inverse-safe files", async () => {
+    const design = buildDesign();
+    await writeDesign(designDir, design);
+    const page = createPage({ name: "Second" });
+    const create = {
+      type: "page.create" as const,
+      page,
+      file: nextPageFile(design.manifest, page.name),
+    };
+    const appliedCreate = applyDocumentCommand(design, create);
+    const created = await writeDocumentCommand(designDir, create, appliedCreate);
+    expect(created.written).toEqual([create.file, MANIFEST_FILE]);
+    expect(created.removed).toEqual([]);
+    const afterCreate = await readDesign(designDir);
+    expect(afterCreate.manifest.pages).toHaveLength(2);
+    expect(afterCreate.pages[1].id).toBe(page.id);
+
+    const remove = appliedCreate.inverse;
+    if (remove.type !== "page.remove") throw new Error("expected page.remove");
+    const appliedRemove = applyDocumentCommand(afterCreate, remove);
+    const removed = await writeDocumentCommand(designDir, remove, appliedRemove);
+    expect(removed.removed).toEqual([create.file]);
+    const afterRemove = await readDesign(designDir, { requireFiles: false });
+    expect(afterRemove.manifest.pages).toHaveLength(1);
+    await expect(readFile(join(designDir, create.file))).rejects.toThrow();
   });
 });

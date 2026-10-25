@@ -394,6 +394,37 @@ describe("weft CLI", () => {
     expect(JSON.parse(await readFile(workspaceFile, "utf8")).projects).toEqual([]);
   });
 
+  it("creates, removes and applies page document commands", async () => {
+    const dir = await init();
+    expect(
+      await run(["page", "create", "demo.weft", "--name", "About", "--json"]),
+    ).toBe(0);
+    const created = jsonOut<{
+      ok: boolean;
+      inverse: { type: string; pageId: string };
+      files: { written: string[] };
+    }>();
+    expect(created.ok).toBe(true);
+    expect(created.inverse.type).toBe("page.remove");
+    let design = await readDesign(dir);
+    expect(design.manifest.pages.map((page) => page.name)).toEqual(["Page 1", "About"]);
+    const aboutFile = design.manifest.pages[1].file;
+
+    const inversePath = join(root, "inverse.json");
+    await writeFile(inversePath, JSON.stringify(created.inverse));
+    expect(
+      await run(["page", "apply", "demo.weft", "--command", inversePath, "--json"]),
+    ).toBe(0);
+    design = await readDesign(dir);
+    expect(design.manifest.pages).toHaveLength(1);
+    await expect(readFile(join(dir, aboutFile))).rejects.toThrow();
+
+    expect(await run(["page", "create", "demo.weft", "--name", "Pricing", "--json"])).toBe(0);
+    expect(await run(["page", "remove", "demo.weft", "--page", "Pricing", "--json"])).toBe(0);
+    design = await readDesign(dir);
+    expect(design.manifest.pages).toHaveLength(1);
+  });
+
   it("documents extraction and validates its arguments", async () => {
     expect(await run(["extract", "--help"])).toBe(0);
     expect(out.join("\n")).toContain("weft extract");

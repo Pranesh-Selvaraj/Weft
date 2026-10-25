@@ -13,7 +13,6 @@ import {
   readDocumentCommand,
   readPageCommand,
   serialize,
-  validateDesign,
   WeftCommandError,
   WeftOperationError,
   WeftValidationError,
@@ -25,8 +24,7 @@ import { DevServerError, DevServerManager, type DevServerSnapshot } from "@weft/
 import {
   readDesign,
   readSnapshotPayloads,
-  removeDesignFile,
-  writeManifest,
+  writeDocumentCommand,
   writePageFile,
   WeftIoError,
   type SnapshotPayload,
@@ -998,28 +996,11 @@ export class WeftBridge {
       }
       const command = message.command;
       const applied = applyDocumentCommand(design, command);
-      const issues = validateDesign(applied.design.manifest, applied.design.pages);
-      if (issues.length > 0) throw new WeftValidationError(issues);
-
-      if (command.type === "page.create") {
-        await writePageFile(this.designDir, command.file, command.page, {
-          tokens: applied.design.manifest.tokens,
-          assets: applied.design.manifest.assets,
-        });
-        try {
-          await writeManifest(this.designDir, applied.design.manifest);
-        } catch (error) {
-          await removeDesignFile(this.designDir, command.file).catch(() => undefined);
-          throw error;
-        }
-      } else {
-        const ref = design.manifest.pages.find((entry) => entry.id === command.pageId);
-        await writeManifest(this.designDir, applied.design.manifest);
-        if (ref) {
-          await removeDesignFile(this.designDir, ref.file).catch((error: unknown) => {
-            console.error("[weft bridge] removed page file could not be deleted:", error);
-          });
-        }
+      const written = await writeDocumentCommand(this.designDir, command, applied);
+      if (written.orphaned.length > 0) {
+        console.error(
+          `[weft bridge] removed page file could not be deleted: ${written.orphaned.join(", ")}`,
+        );
       }
 
       this.manifest = applied.design.manifest;
