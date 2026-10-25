@@ -48,6 +48,7 @@ flowchart TB
 - **`apps/web`** — the browser editor. The read-only preview now has selection, an inspector, keyboard undo/redo and live commands over the bridge. React + Vite + TypeScript (ADR 0008, ADR 0010). Layers, multi-select, drag/resize, presence and chat are next.
 - **`packages/core`** — document schema, node operations, validation, migrations, deterministic serialization. No DOM, no network. Shared by the editor, bridge, CLI, MCP server, and exporter.
 - **`packages/design-io`** — Node filesystem access for design directories: safe paths, atomic writes, read/inspect/validate, canonical formatting, init, summary. Keeps Node out of the browser core.
+- **`packages/workspace`** — explicit local project registry and design discovery: canonical project roots, unique names, atomic owner-only storage, ignored build/hidden directories, missing-root reporting. It is the allowlist the project picker and dev-server supervisor will consume.
 - **`packages/contract`** — the published JSON Schema and conformance fixtures for manifests, pages and commands. Structural validation only; the core remains authoritative for semantic checks.
 - **`packages/session`** — Yjs-backed `PageSession`: live node/placement maps, fractional order keys, command application, materialization, sync updates, and conservative three-way ingestion of whole-page file writes.
 - **`packages/render`** — read-only document-to-DOM renderer: absolute geometry, CSS flex, real text, tokens, paints, sandboxed snapshot iframes and page bounds. Shared by the preview, and later by the editor and export.
@@ -170,6 +171,7 @@ weft/
 ├── packages/
 │   ├── core/              # schema, operations, migrations
 │   ├── design-io/         # design directory read/write/format/inspect
+│   ├── workspace/         # local project registry + design discovery
 │   ├── contract/          # published JSON Schema + conformance fixtures
 │   ├── session/           # Yjs live page + file-write reconciliation
 │   ├── render/            # DOM renderer + exporter

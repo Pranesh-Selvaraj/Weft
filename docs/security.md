@@ -60,11 +60,12 @@ These are deliberately tracked before Weft is used on real projects:
 ## Planned controls and branch order
 
 1. `security/bridge-auth` — implemented: loopback-only host validation, random per-run session cookie, Origin/Host checks, WebSocket payload limits, timing-safe comparisons.
-2. `feat/workspace-registry` — explicit workspace roots, project/design discovery, per-project read/write permissions; never scan the home directory.
-3. `feat/dev-server-control` — project-declared dev commands, no shell interpolation, process groups, health checks, logs, stop/restart, localhost-only targets.
-4. `feat/extract-snapshots` — allowlisted capture origins, Playwright/CDP, sanitization, scoped CSS, asset rewriting, prompt-injection defenses.
-5. `feat/agent-mcp` — agent tool contract and per-project permissions, context packets, audit log.
-6. `feat/export` — tokens and frames to implementation artifacts.
+2. `feat/workspace-registry` — implemented: explicit workspace roots and design discovery; never scan the home directory.
+3. `feat/workspace-picker` — bridge/UI project switching and per-project read/write permissions through the registry.
+4. `feat/dev-server-control` — project-declared dev commands, no shell interpolation, process groups, health checks, logs, stop/restart, localhost-only targets.
+5. `feat/extract-snapshots` — allowlisted capture origins, Playwright/CDP, sanitization, scoped CSS, asset rewriting, prompt-injection defenses.
+6. `feat/agent-mcp` — agent tool contract and per-project permissions, context packets, audit log.
+7. `feat/export` — tokens and frames to implementation artifacts.
 
 ## Security review checklist for changes
 

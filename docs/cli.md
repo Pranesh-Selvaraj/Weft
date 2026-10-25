@@ -30,6 +30,7 @@ packages/cli/dist/main.js --version
 | `weft apply <dir>` | Apply one JSON command. Options: `--command <path>`, `--dry-run`. |
 | `weft id` | Generate Weft ids. Options: `--prefix`, `--count`, `--json`. |
 | `weft dev <dir>` | Serve the built app, stream file changes, and accept browser edits. Options: `--port`, loopback `--host`. |
+| `weft workspace <cmd>` | `init`, `add`, `list`, `remove` local project roots and discover their designs. |
 | `weft help [command]` | Show help. |
 
 Exit codes are stable:
@@ -43,6 +44,39 @@ Exit codes are stable:
 `weft dev` requires the built web app (`pnpm build` once). It serves `apps/web/dist`, keeps a Yjs page session in memory, streams file changes, and accepts browser commands. A browser edit is applied to the session, written atomically to the changed page file, and broadcast to every client.
 
 The bridge is loopback-only. The app receives a random `HttpOnly` session cookie; the API and WebSocket reject requests without it and reject cross-origin browser requests. Restarting the bridge rotates the cookie, so reload open tabs. `pnpm dev` is the separate static Vite preview without the bridge.
+
+## Register local projects
+
+Weft does not scan your home directory. Register the roots you want it to see:
+
+```bash
+pnpm weft workspace init
+pnpm weft workspace add ~/projects/Nexus --name Nexus
+pnpm weft workspace add ~/projects/Tempo
+pnpm weft workspace list
+pnpm weft workspace list --json
+```
+
+The registry lives at `$WEFT_WORKSPACE` or `~/.weft/workspace.json`; use `--file` to point at another file. `add` canonicalizes the path with `realpath` and assigns a unique display name. `list` finds design directories containing `weft.json`, skipping `node_modules`, `.git`, build outputs and symlinked directories.
+
+At this slice the registry is discovery only: `weft dev` still takes one design directory. The next workspace branch adds the bridge/API project picker so one running Weft instance can switch between registered designs.
+
+```json
+{
+  "ok": true,
+  "file": "/home/me/.weft/workspace.json",
+  "projects": [
+    {
+      "name": "Nexus",
+      "path": "/home/me/projects/Nexus",
+      "exists": true,
+      "designs": [
+        { "name": "App", "path": "/home/me/projects/Nexus/designs/app.weft" }
+      ]
+    }
+  ]
+}
+```
 
 ## Create, validate, format, inspect
 
@@ -279,6 +313,7 @@ The published JSON Schema lives in [`@weft/contract`](../packages/contract/schem
 - There is no optimistic concurrency or multi-writer serialization. `weft apply` is a read-modify-write; `weft dev` accepts browser commands and writes page files, so concurrent writers rely on the Yjs session for the live state and the last page write for disk.
 - Browser undo history is per tab and in memory. It clears on reconnect and does not include external CLI or agent file edits. The bridge does not persist a command log yet.
 - `weft dev` is loopback-only and single-user. It has no team authentication, presence, per-project permissions or remote bind.
+- The workspace registry is discovery only so far. The browser project picker, dev-server control and capture allowlists are later branches.
 - `apply` accepts commands for one page at a time.
 
 ## Safety properties
