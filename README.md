@@ -45,9 +45,9 @@ The **bridge** is a small local process. It serves the editor, owns file materia
 
 ## Status
 
-Pre-alpha, headless-tooling phase. The founding decisions are recorded in [`docs/decisions/`](docs/decisions/); the working system design is in [`docs/architecture.md`](docs/architecture.md).
+Pre-alpha, foundation-and-preview phase. The founding decisions are recorded in [`docs/decisions/`](docs/decisions/); the working system design is in [`docs/architecture.md`](docs/architecture.md).
 
-The core document model is implemented in [`@weft/core`](packages/core): the schema, pure node operations, a deterministic JSON writer, and a dependency-free validator. The filesystem layer and the `weft` CLI are implemented in [`@weft/design-io`](packages/design-io) and [`@weft/cli`](packages/cli). Together they are covered by 164 tests and a readable [starter design](examples/starter.weft/). The CLI can validate, format, inspect, read pages and nodes, and apply attributed commands with an inverse for undo. A published JSON Schema and conformance fixtures make the structural contract available to non-TypeScript clients. A Yjs-backed session applies the same commands live and merges whole-page file writes without silently dropping live edits. No editor is shipped yet.
+The core document model is implemented in [`@weft/core`](packages/core): the schema, pure node operations, a deterministic JSON writer, and a dependency-free validator. The filesystem layer and the `weft` CLI are implemented in [`@weft/design-io`](packages/design-io) and [`@weft/cli`](packages/cli). Together they are covered by 170 tests and a readable [starter design](examples/starter.weft/). The CLI can validate, format, inspect, read pages and nodes, and apply attributed commands with an inverse for undo. A published JSON Schema and conformance fixtures make the structural contract available to non-TypeScript clients. A Yjs-backed session applies the same commands live and merges whole-page file writes without silently dropping live edits. A read-only browser preview renders the starter design as real DOM; editing and the local bridge are next.
 
 The first milestone is deliberately small: open a file in the browser, edit it, have an external agent change it live, and extract one real page into it. See the [MVP exit criteria](docs/product.md#mvp-exit-criteria).
 
@@ -56,6 +56,10 @@ The first milestone is deliberately small: open a file in the browser, edit it, 
 ```bash
 pnpm install
 pnpm build
+
+# Browser preview (read-only).
+pnpm dev
+# http://127.0.0.1:5240
 
 # Inspect the read-only starter design.
 pnpm weft validate examples/starter.weft
@@ -68,7 +72,7 @@ pnpm weft validate /tmp/weft-demo
 pnpm weft id --prefix nd
 ```
 
-`weft fmt` rewrites the manifest and pages into canonical JSON; `--check` reports without writing. `weft apply` applies a JSON command and returns its inverse. See the [CLI guide](docs/cli.md).
+`weft fmt` rewrites the manifest and pages into canonical JSON; `--check` reports without writing. `weft apply` applies a JSON command and returns its inverse. See the [CLI guide](docs/cli.md). Load another design in the preview with `WEFT_DESIGN=/path/to/design.weft pnpm dev`.
 
 ## Repository layout
 
@@ -80,7 +84,7 @@ weft/
 └── examples/      # sample design files and host integrations
 ```
 
-The layout is the intended shape; packages are added as decisions land. Founding records: [ADR 0001](docs/decisions/0001-project-name.md) (the name), [ADR 0002](docs/decisions/0002-design-files-as-plain-text.md) (design files as plain text), [ADR 0003](docs/decisions/0003-document-schema-v1.md) (the schema), [ADR 0004](docs/decisions/0004-headless-cli-and-design-io.md) (headless-first tooling), [ADR 0005](docs/decisions/0005-command-protocol.md) (the command protocol), [ADR 0006](docs/decisions/0006-published-json-schema.md) (the published schema), and [ADR 0007](docs/decisions/0007-yjs-live-sessions.md) (the live session and file-write merge).
+The layout is the intended shape; packages are added as decisions land. Founding records: [ADR 0001](docs/decisions/0001-project-name.md) (the name), [ADR 0002](docs/decisions/0002-design-files-as-plain-text.md) (design files as plain text), [ADR 0003](docs/decisions/0003-document-schema-v1.md) (the schema), [ADR 0004](docs/decisions/0004-headless-cli-and-design-io.md) (headless-first tooling), [ADR 0005](docs/decisions/0005-command-protocol.md) (the command protocol), [ADR 0006](docs/decisions/0006-published-json-schema.md) (the published schema), [ADR 0007](docs/decisions/0007-yjs-live-sessions.md) (the live session and file-write merge), and [ADR 0008](docs/decisions/0008-editor-stack-dom-renderer.md) (the editor stack and DOM renderer).
 
 ## Documentation
 
@@ -89,6 +93,8 @@ The layout is the intended shape; packages are added as decisions land. Founding
 - [CLI](docs/cli.md) — commands, JSON output, exit codes, and agent recipes.
 - [Structural contract](packages/contract/README.md) — the JSON Schema, conformance fixtures, and the structural/semantic boundary.
 - [Live session](packages/session/README.md) — the Yjs page model, command application, sync, and file-write merge policy.
+- [Browser preview](apps/web/README.md) — the read-only Vite/React app and `WEFT_DESIGN`.
+- [Renderer](packages/render/README.md) — the DOM renderer API, supported styles, and limits.
 - [Decision records](docs/decisions/README.md) — why the system is shaped this way.
 - [Project history](docs/HISTORY.md) — the timeline that ties releases, stack changes, and ADRs together.
 - [Changelog](CHANGELOG.md) — what shipped.

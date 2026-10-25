@@ -1,6 +1,6 @@
 # Architecture
 
-**Status:** Draft. The constraints, the plain-text decision (ADR 0002), the v1 document schema (ADR 0003), the headless CLI layer (ADR 0004), the command protocol (ADR 0005), the published JSON Schema (ADR 0006) and the Yjs live session (ADR 0007) are agreed. The core, CLI, structural contract and session engine are implemented; choices marked *(proposed)* still need their own decision records, and nothing here overrides an accepted ADR.
+**Status:** Draft under active construction. The constraints, the plain-text decision (ADR 0002), the v1 document schema (ADR 0003), the headless CLI layer (ADR 0004), the command protocol (ADR 0005), the published JSON Schema (ADR 0006), the Yjs live session (ADR 0007) and the editor stack (ADR 0008) are agreed. The core, CLI, structural contract, session engine, renderer and read-only web preview are implemented. The bridge, editing surface, agent contract and extractor still need their decision records and code.
 
 ## 1. Constraints
 
@@ -45,12 +45,12 @@ flowchart TB
 
 ### Components
 
-- **`apps/web`** — the editor: canvas, layers, inspector, presence, chat. React + TypeScript *(proposed)*. Renders frames as DOM; uses canvas only for selection chrome and the minimap.
+- **`apps/web`** — the browser app. Today: a read-only preview with page tabs and a fit-to-view stage. React + Vite + TypeScript (ADR 0008). The editor panels, selection, presence and chat are next.
 - **`packages/core`** — document schema, node operations, validation, migrations, deterministic serialization. No DOM, no network. Shared by the editor, bridge, CLI, MCP server, and exporter.
 - **`packages/design-io`** — Node filesystem access for design directories: safe paths, atomic writes, read/inspect/validate, canonical formatting, init, summary. Keeps Node out of the browser core.
 - **`packages/contract`** — the published JSON Schema and conformance fixtures for manifests, pages and commands. Structural validation only; the core remains authoritative for semantic checks.
 - **`packages/session`** — Yjs-backed `PageSession`: live node/placement maps, fractional order keys, command application, materialization, sync updates, and conservative three-way ingestion of whole-page file writes.
-- **`packages/render`** — document-to-DOM renderer and exporter. One renderer so the canvas and the export cannot disagree.
+- **`packages/render`** — read-only document-to-DOM renderer: absolute geometry, CSS flex, real text, tokens, paints, sandboxed snapshot iframes and page bounds. Shared by the preview, and later by the editor and export.
 - **`packages/bridge`** — local daemon: serves the editor in development, persists Yjs state, materializes files, watches external writes, authenticates local clients, and proxies agent sessions.
 - **`packages/cli`** — the headless `weft` client. Today: `init`, `validate`, `fmt`, `inspect`, `get`, `apply`, `id`, with human and `--json` output. Later: `dev`, `extract`, `export`, `agent`, `mcp`.
 - **`packages/mcp`** — MCP server exposing the document contract as tools.
@@ -139,6 +139,8 @@ Adapters are intentionally thin. A harness that can run a CLI, speak MCP, or rea
 
 ## 5. Rendering
 
+The renderer and read-only preview are implemented in `@weft/render` and `apps/web` (ADR 0008).
+
 - **DOM-first.** Frames render as absolutely positioned DOM with CSS. The browser already implements the layout engine we need; reimplementing it on canvas would fight the fidelity goal.
 - **Canvas chrome.** Selection, handles, guides, and cursors live in a single overlay layer, never inside frame DOM.
 - **Snapshots** render in `sandbox` iframes with scripts disabled, no same-origin access, and a strict CSP; captured styles are scoped to the frame.
@@ -195,4 +197,4 @@ weft/
 
 ## 9. What gets specified next
 
-The document schema and operations are settled in ADR 0003, the headless CLI and design I/O layer in ADR 0004, the command protocol in ADR 0005, the published JSON Schema in ADR 0006, and the Yjs live session with file-write reconciliation in ADR 0007; all are implemented. Each remaining area becomes an ADR before implementation: editor stack and renderer (0008), local bridge transport and persistence (0009), agent tool contract and adapters (0010), snapshot extractor (0011). The ADR index is the source of truth for the current status of each.
+The document schema and operations are settled in ADR 0003, the headless CLI and design I/O layer in ADR 0004, the command protocol in ADR 0005, the published JSON Schema in ADR 0006, the Yjs live session in ADR 0007, and the editor stack and DOM renderer in ADR 0008; all are implemented through the read-only preview. Each remaining area becomes an ADR before implementation: local bridge transport and persistence (0009), agent tool contract and adapters (0010), snapshot extractor (0011). The ADR index is the source of truth for the current status of each.

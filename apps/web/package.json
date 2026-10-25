@@ -1,0 +1,28 @@
+{
+  "name": "@weft/web",
+  "version": "0.0.0",
+  "description": "Weft browser editor and design viewer",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --filter @weft/core build && pnpm --filter @weft/design-io build && pnpm --filter @weft/render build && vite",
+    "build": "pnpm --filter @weft/core build && pnpm --filter @weft/design-io build && pnpm --filter @weft/render build && vite build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@weft/core": "workspace:*",
+    "@weft/render": "workspace:*",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "@weft/design-io": "workspace:*",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.5"
+  }
+}

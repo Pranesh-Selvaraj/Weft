@@ -4,7 +4,7 @@ User-facing surfaces. Each app is a client of the document contract in `packages
 
 | App | Purpose | Status |
 | --- | --- | --- |
-| `web/` | Browser editor: canvas, layers, inspector, presence, in-canvas chat. | Planned (see [architecture](../docs/architecture.md) and the [MVP exit criteria](../docs/product.md#mvp-exit-criteria)). |
+| `web/` | Browser app. Today: read-only preview with page tabs and a fit-to-view DOM stage. Next: selection, inspector, layers, presence, chat. | Read-only preview implemented (ADR 0008); editor planned. |
 | `relay/` | Optional collaboration server for teams that do not run the local bridge. | Later; the local-first path does not depend on it. |
 
-The editor stack is not decided yet; it will be recorded as an ADR before implementation starts.
+The app stack is Vite 8 + React 19 + TypeScript; the renderer is the shared DOM-first `@weft/render`. See [ADR 0008](../docs/decisions/0008-editor-stack-dom-renderer.md) and the [web README](web/README.md).

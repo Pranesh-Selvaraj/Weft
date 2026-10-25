@@ -24,6 +24,7 @@ This directory is the project's long-form memory: **what we chose, why, what we 
 | [0005](0005-command-protocol.md) | Serializable page commands with inverses for every mutation | Accepted | Contract |
 | [0006](0006-published-json-schema.md) | Published JSON Schema and a conformance fixture suite | Accepted | Contract |
 | [0007](0007-yjs-live-sessions.md) | Yjs live sessions with fractional order and conservative file-write merge | Accepted | Live document |
+| [0008](0008-editor-stack-dom-renderer.md) | Editor stack v1: Vite + React + a DOM-first renderer | Accepted | UI / rendering |
 
 ## Decision map
 
@@ -35,10 +36,10 @@ graph TD
     C --> E["0005 · Command protocol<br/>apply · inverse · attributed edits"]
     E --> F["0006 · JSON Schema + conformance<br/>structural contract"]
     F --> G["0007 · Yjs live session<br/>fractional order · file merge"]
-    G --> H["0008 · Editor stack and renderer<br/>(next)"]
-    G --> I["0009 · Local bridge<br/>(next)"]
-    G --> J["0010 · Agent tool contract<br/>(next)"]
-    G --> K["0011 · Snapshot extractor<br/>(next)"]
+    G --> H["0008 · Editor stack + DOM renderer<br/>Vite · React · read-only preview"]
+    H --> I["0009 · Local bridge<br/>watcher · websocket · persistence<br/>(next)"]
+    H --> J["0010 · Agent tool contract<br/>(next)"]
+    H --> K["0011 · Snapshot extractor<br/>(next)"]
 ```
 
 ## Adding a record
