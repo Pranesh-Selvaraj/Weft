@@ -5,7 +5,7 @@ Shared libraries. The document model is the spine: every other package is a clie
 | Package | Responsibility | Status |
 | --- | --- | --- |
 | `core/` | Schema, node operations, page/document commands and inverses, validation, deterministic serialization. No DOM, no network, no runtime dependencies. | Implemented; 113 tests. Migrations arrive with the first breaking schema change. |
-| `design-io/` | Design directory access: safe paths, atomic writes, single-page/manifest writes, file removal, snapshot payloads, inspect/validate, canonical formatting, init, summary. Node only. | Implemented; 22 tests. |
+| `design-io/` | Design directory access: safe paths, atomic writes, single-page/manifest writes, document-command file transactions, file removal, snapshot payloads, inspect/validate, canonical formatting, init, summary. Node only. | Implemented; 23 tests. |
 | `workspace/` | Explicit local project registry, canonical paths, design discovery and missing-root reporting. Node only. | Implemented; 9 tests. |
 | `dev-server/` | Declared project dev servers: config validation, attach mode, readiness, bounded logs and process-group stop. Node only. | Implemented; 12 tests. |
 | `contract/` | Published JSON Schema draft 2020-12 and conformance fixtures, including page document commands; structural validation only. | Implemented; 8 tests. |
@@ -13,7 +13,7 @@ Shared libraries. The document model is the spine: every other package is a clie
 | `render/` | Read-only DOM renderer: geometry, CSS flex, text, tokens, paints, page bounds, sandboxed snapshots. | Implemented; 7 tests. |
 | `bridge/` | Local live bridge: serves the built app, watches files, accepts browser commands, writes page files, streams Yjs updates over HTTP/WebSocket, enforces loopback/cookie/Origin boundaries, switches workspace designs, serves snapshot payloads, applies node/page commands, and starts/stops declared project servers. | Implemented; 11 tests. |
 | `extract/` | Allowlisted Chromium capture, asset inlining, browser sanitization, fail-closed verification and snapshot-node insertion. Node only. | Implemented; 7 tests. |
-| `cli/` | `weft` headless client: `init`, `validate`, `fmt`, `inspect`, `get`, `apply`, `id`, `extract`, `dev`, `workspace`. Later `export`, `agent`, `mcp`. | Implemented; 24 tests. |
+| `cli/` | `weft` headless client: `init`, `validate`, `fmt`, `inspect`, `get`, `apply`, `page`, `id`, `extract`, `dev`, `workspace`. Later `export`, `agent`, `mcp`. | Implemented; 25 tests. |
 | `mcp/` | MCP server exposing the document contract as tools. | Planned. |
 | `agent/` | Harness adapters and the chat session model. | Planned. |
 

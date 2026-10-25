@@ -28,6 +28,7 @@ packages/cli/dist/main.js --version
 | `weft inspect <dir>` | Print pages, node counts, node types, tokens, assets and status. Option: `--no-files`. |
 | `weft get <dir>` | Print a page or node as JSON: `--page <id\|name>` or `--node <id>`. |
 | `weft apply <dir>` | Apply one JSON command. Options: `--command <path>`, `--dry-run`. |
+| `weft page <create\|remove\|apply> <dir>` | Create/remove a page or apply a document command. Options: `--name`, `--page`, `--command`, `--json`. |
 | `weft id` | Generate Weft ids. Options: `--prefix`, `--count`, `--json`. |
 | `weft extract <design> <url>` | Capture an allowlisted loopback page into a sanitized snapshot. Options: `--project`, `--page`, `--selector`, `--viewport`, `--name`, `--x`, `--y`, `--browser`, `--timeout`, `--max-asset-bytes`, `--json`. |
 | `weft dev <dir>` | Serve the built app, stream file changes, and accept browser edits. Options: `--port`, loopback `--host`. |
@@ -40,7 +41,7 @@ Exit codes are stable:
 - `1` — validation, command or I/O failure;
 - `2` — usage error.
 
-`validate`, `fmt`, `inspect`, `init`, `id` and `extract` support `--json`. `get` and `apply` always print JSON because their output is meant to be consumed by another process. `weft dev` is a long-running server; it prints a human-readable URL and watches the design directory until interrupted.
+`validate`, `fmt`, `inspect`, `init`, `id`, `extract` and `page` support `--json`. `get` and `apply` always print JSON because their output is meant to be consumed by another process. `weft dev` is a long-running server; it prints a human-readable URL and watches the design directory until interrupted.
 
 `weft dev` requires the built web app (`pnpm build` once). It serves `apps/web/dist`, keeps a Yjs page session in memory, streams file changes, and accepts browser commands. A browser edit is applied to the session, written atomically to the changed page file, and broadcast to every client.
 
@@ -326,12 +327,12 @@ The published JSON Schema lives in [`@weft/contract`](../packages/contract/schem
 
 ## Limitations
 
-- Document commands for page create/remove exist in the core and live bridge and are available in the browser, but there is no `weft page` CLI command yet. Page rename, background and token edits remain file edits.
+- Page create/remove/apply are available through `weft page`, the browser and the bridge. Page rename, reorder, background and token edits remain file edits.
 - There is no optimistic concurrency or multi-writer serialization. `weft apply` is a read-modify-write; `weft dev` accepts browser commands and writes page files, so concurrent writers rely on the Yjs session for the live state and the last page write for disk.
 - Browser undo history is per tab and in memory. It includes node and page create/delete commands but clears on reconnect and does not include external CLI or agent file edits. The bridge does not persist a command log yet.
 - `weft dev` is loopback-only and single-user. It has no team authentication, presence, per-project permissions or remote bind.
 - The project picker, declared dev-server control and allowlisted snapshot extraction are implemented; per-project permissions, bridge-triggered extraction and agent tools remain.
-- `apply` accepts page commands for one page at a time; document commands are currently a bridge protocol, not a CLI input.
+- `apply` accepts page commands for one page at a time; page document commands use `weft page apply` (`page.create`/`page.remove`).
 
 ## Safety properties
 

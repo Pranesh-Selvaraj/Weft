@@ -3,12 +3,16 @@ import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import {
   applyDesignCommand,
+  applyDocumentCommand,
   createCommandEnvelope,
+  createPage,
   getPage,
   getPageRef,
   isId,
   newId,
+  nextPageFile,
   parseJson,
+  readDocumentCommand,
   readPageCommand,
   validateDesign,
   WeftCommandError,
@@ -16,6 +20,7 @@ import {
   WeftParseError,
   WeftValidationError,
   type CommandActor,
+  type DocumentCommand,
   type IdPrefix,
   type ValidationIssue,
 } from "@weft/core";
@@ -26,6 +31,7 @@ import {
   readDesign,
   summarizeDesign,
   writeDesign,
+  writeDocumentCommand,
   WeftIoError,
   type DesignInspection,
   type DesignSummary,
@@ -79,6 +85,7 @@ Commands:
   get       Print a page or node as JSON
   id        Generate Weft ids for new entities or commands
   extract   Capture an allowlisted running page into a snapshot frame
+  page      Create, remove or apply a page-level document command
   dev       Serve the live preview and watch a design directory
   workspace Register local projects and discover their designs
   help      Show help
@@ -96,6 +103,7 @@ Examples:
   weft get designs/marketing --page Landing
   weft apply designs/marketing --command change.json
   weft extract designs/marketing http://127.0.0.1:3000/ --project ~/projects/marketing
+  weft page create designs/marketing --name About
   weft dev designs/marketing
   weft workspace add ~/projects/marketing
   weft workspace list`;
@@ -190,6 +198,23 @@ Options:
   --json               Machine-readable output
   --help               Show this help`;
 
+const PAGE_USAGE = `Usage: weft page <create|remove|apply> <directory> [options]
+
+Create, remove or apply a page-level document command. Page commands update the
+manifest and page files and return an inverse, like node commands.
+
+Commands:
+  create    Create an empty page (--name)
+  remove    Remove a page (--page <id|name>)
+  apply     Apply a document command JSON file (--command; "-" or omitted reads stdin)
+
+Options:
+  --name <name>     Page name for "create"
+  --page <id|name>  Page selector for "remove"
+  --command <path>  Document command JSON for "apply"
+  --json            Machine-readable output
+  --help            Show this help`;
+
 const DEV_USAGE = `Usage: weft dev <directory> [options]
 
 Serve the built web preview and watch the design directory. The bridge streams
@@ -233,6 +258,7 @@ const USAGE_BY_COMMAND: Record<string, string> = {
   get: GET_USAGE,
   id: ID_USAGE,
   extract: EXTRACT_USAGE,
+  page: PAGE_USAGE,
   dev: DEV_USAGE,
   workspace: WORKSPACE_USAGE,
 };
@@ -278,6 +304,12 @@ const EXTRACT_OPTIONS: OptionConfig = {
   browser: { type: "string" },
   timeout: { type: "string" },
   "max-asset-bytes": { type: "string" },
+  ...JSON_OPTION,
+};
+const PAGE_OPTIONS: OptionConfig = {
+  name: { type: "string" },
+  page: { type: "string" },
+  command: { type: "string" },
   ...JSON_OPTION,
 };
 const DEV_OPTIONS: OptionConfig = {
@@ -925,6 +957,97 @@ async function extractCommand(
   }
 }
 
+async function pageCommand(
+  argv: string[],
+  cwd: string,
+  out: Writer,
+  err: Writer,
+  stdin: StdinReader,
+): Promise<number> {
+  const subcommand = argv[0];
+  if (!subcommand || subcommand === "help" || subcommand === "--help") {
+    out(PAGE_USAGE);
+    return subcommand ? 0 : 2;
+  }
+  const parsed = parseCommand(argv.slice(1), PAGE_OPTIONS, PAGE_USAGE, err);
+  if (!parsed) return 2;
+  if (parsed.values.help) {
+    out(PAGE_USAGE);
+    return 0;
+  }
+  const directory = directoryFrom(parsed.positionals, cwd, PAGE_USAGE, err);
+  if (!directory) return 2;
+  const json = parsed.values.json === true;
+
+  try {
+    const design = await readDesign(directory, { requireFiles: false });
+    let command: DocumentCommand;
+    let label: string;
+    if (subcommand === "create") {
+      const name =
+        typeof parsed.values.name === "string" && parsed.values.name.trim().length > 0
+          ? parsed.values.name.trim()
+          : `Page ${design.pages.length + 1}`;
+      const page = createPage({ name });
+      command = { type: "page.create", page, file: nextPageFile(design.manifest, name) };
+      label = `Created page ${JSON.stringify(name)}`;
+    } else if (subcommand === "remove") {
+      if (typeof parsed.values.page !== "string" || parsed.values.page.length === 0) {
+        err("--page <id|name> is required for page remove.");
+        return 2;
+      }
+      const page = getPage(design, parsed.values.page);
+      if (!page) {
+        err(`No page matches ${JSON.stringify(parsed.values.page)}.`);
+        return 1;
+      }
+      command = { type: "page.remove", pageId: page.id };
+      label = `Removed page ${JSON.stringify(page.name)}`;
+    } else if (subcommand === "apply") {
+      const text = await readCommandText(parsed.values.command, cwd, stdin);
+      command = readDocumentCommand(parseJson(text));
+      label = `Applied ${command.type}`;
+    } else {
+      err(`Unknown page command: ${subcommand}`);
+      out(PAGE_USAGE);
+      return 2;
+    }
+
+    const applied = applyDocumentCommand(design, command);
+    const written = await writeDocumentCommand(directory, command, applied);
+    const payload = {
+      ok: true,
+      command,
+      inverse: applied.inverse,
+      createdPageIds: applied.createdPageIds,
+      removedPageIds: applied.removedPageIds,
+      files: written,
+      summary: {
+        pages: applied.design.pages.length,
+        name: applied.design.manifest.name,
+      },
+    };
+    if (json) {
+      emitJson(out, payload);
+    } else if (command.type === "page.create") {
+      out(`${label} at ${command.file} (${command.page.id}).`);
+      out(`Inverse: page.remove ${command.page.id}`);
+    } else if (command.type === "page.remove") {
+      out(`${label}.`);
+      out("The inverse contains the removed page and can be applied with page apply.");
+    } else {
+      out(label);
+      out(`Pages: ${applied.design.pages.length}`);
+    }
+    for (const orphan of written.orphaned) {
+      err(`warning: page file left on disk: ${orphan}`);
+    }
+    return 0;
+  } catch (error) {
+    return handleError(error, json, out, err);
+  }
+}
+
 async function devCommand(
   argv: string[],
   cwd: string,
@@ -1234,6 +1357,8 @@ export async function runCli(argv: string[], io: CliIO = {}): Promise<number> {
         return await idCommand(rest, out, err);
       case "extract":
         return await extractCommand(rest, cwd, out, err);
+      case "page":
+        return await pageCommand(rest, cwd, out, err, io.stdin ?? readStdinDefault);
       case "dev":
         return await devCommand(rest, cwd, out, err);
       case "workspace":

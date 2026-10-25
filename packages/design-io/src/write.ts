@@ -9,9 +9,11 @@ import {
   validateManifest,
   validatePage,
   WeftValidationError,
+  type AppliedDocumentCommand,
   type Asset,
   type DesignFile,
   type DesignManifest,
+  type DocumentCommand,
   type PageDocument,
   type SnapshotFiles,
   type TokenTree,
@@ -175,6 +177,52 @@ export async function removeDesignFile(
     }
     throw error;
   }
+}
+
+/**
+ * Commit an already-applied document command to disk. Create writes the page
+ * first and removes it if the manifest write fails. Remove writes the manifest
+ * before unlinking the page file, so the manifest never points at missing
+ * content; a failed unlink is reported as an orphan.
+ */
+export async function writeDocumentCommand(
+  directory: string,
+  command: DocumentCommand,
+  applied: AppliedDocumentCommand,
+): Promise<{ written: string[]; removed: string[]; orphaned: string[] }> {
+  const issues = validateDesign(applied.design.manifest, applied.design.pages);
+  if (issues.length > 0) throw new WeftValidationError(issues);
+  const root = resolve(directory);
+
+  if (command.type === "page.create") {
+    await writePageFile(root, command.file, command.page, {
+      tokens: applied.design.manifest.tokens,
+      assets: applied.design.manifest.assets,
+    });
+    try {
+      await writeManifest(root, applied.design.manifest);
+    } catch (error) {
+      await removeDesignFile(root, command.file).catch(() => undefined);
+      throw error;
+    }
+    return { written: [command.file, MANIFEST_FILE], removed: [], orphaned: [] };
+  }
+
+  const file = applied.inverse.type === "page.create" ? applied.inverse.file : null;
+  await writeManifest(root, applied.design.manifest);
+  if (file) {
+    try {
+      const result = await removeDesignFile(root, file);
+      return {
+        written: [MANIFEST_FILE],
+        removed: result.removed ? [file] : [],
+        orphaned: [],
+      };
+    } catch {
+      return { written: [MANIFEST_FILE], removed: [], orphaned: [file] };
+    }
+  }
+  return { written: [MANIFEST_FILE], removed: [], orphaned: [] };
 }
 
 /**
