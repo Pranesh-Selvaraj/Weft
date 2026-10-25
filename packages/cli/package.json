@@ -28,6 +28,7 @@
   },
   "dependencies": {
     "@weft/core": "workspace:*",
-    "@weft/design-io": "workspace:*"
+    "@weft/design-io": "workspace:*",
+    "@weft/bridge": "workspace:*"
   }
 }

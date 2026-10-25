@@ -9,8 +9,8 @@ Shared libraries. The document model is the spine: every other package is a clie
 | `contract/` | Published JSON Schema draft 2020-12 and conformance fixtures; structural validation only. | Implemented; 7 tests. |
 | `session/` | Yjs-backed live page, command application, sync updates, and three-way file-write merge. Browser and Node. | Implemented; 12 tests. |
 | `render/` | Read-only DOM renderer: geometry, CSS flex, text, tokens, paints, page bounds, snapshots. | Implemented; 6 tests. |
-| `cli/` | `weft` headless client: `init`, `validate`, `fmt`, `inspect`, `get`, `apply`, `id`. Later `dev`, `extract`, `export`, `agent`, `mcp`. | Implemented; 19 tests. |
-| `bridge/` | Local daemon: file materialization, Yjs relay, external-write ingestion, agent sessions. | Planned. |
+| `bridge/` | Local live bridge: serves the built app, watches files, streams Yjs updates over HTTP/WebSocket. Read-only. | Implemented; 3 tests. |
+| `cli/` | `weft` headless client: `init`, `validate`, `fmt`, `inspect`, `get`, `apply`, `id`, `dev`. Later `extract`, `export`, `agent`, `mcp`. | Implemented; 19 tests. |
 | `mcp/` | MCP server exposing the document contract as tools. | Planned. |
 | `agent/` | Harness adapters and the chat session model. | Planned. |
 | `extract/` | Capture of a running page into a snapshot frame. | Planned. |

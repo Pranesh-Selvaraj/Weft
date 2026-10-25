@@ -29,6 +29,7 @@ packages/cli/dist/main.js --version
 | `weft get <dir>` | Print a page or node as JSON: `--page <id\|name>` or `--node <id>`. |
 | `weft apply <dir>` | Apply one JSON command. Options: `--command <path>`, `--dry-run`. |
 | `weft id` | Generate Weft ids. Options: `--prefix`, `--count`, `--json`. |
+| `weft dev <dir>` | Serve the built app and stream live file changes over WebSocket. Options: `--port`, `--host`. |
 | `weft help [command]` | Show help. |
 
 Exit codes are stable:
@@ -37,7 +38,9 @@ Exit codes are stable:
 - `1` — validation, command or I/O failure;
 - `2` — usage error.
 
-`validate`, `fmt`, `inspect`, `init` and `id` support `--json`. `get` and `apply` always print JSON because their output is meant to be consumed by another process.
+`validate`, `fmt`, `inspect`, `init` and `id` support `--json`. `get` and `apply` always print JSON because their output is meant to be consumed by another process. `weft dev` is a long-running server; it prints a human-readable URL and watches the design directory until interrupted.
+
+`weft dev` requires the built web app (`pnpm build` once). It serves `apps/web/dist`, keeps a Yjs page session in memory, and streams updates to the browser as files change. It is read-only: it does not accept browser edits or write canonical files yet. `pnpm dev` is the separate static Vite preview without the bridge.
 
 ## Create, validate, format, inspect
 
@@ -46,6 +49,11 @@ pnpm weft init designs/marketing --name "Marketing site" --page Landing
 pnpm weft validate designs/marketing
 pnpm weft fmt designs/marketing --check
 pnpm weft inspect designs/marketing --json
+
+# Live preview over the built web app.
+pnpm build
+pnpm weft dev designs/marketing
+# http://127.0.0.1:5250
 ```
 
 The starter design is a valid fixture:
@@ -266,7 +274,7 @@ The published JSON Schema lives in [`@weft/contract`](../packages/contract/schem
 ## Limitations
 
 - There are no page-level commands yet (page name, background, tokens). Those remain file edits.
-- There is no optimistic concurrency or revision check. `weft apply` is a read-modify-write; the bridge and CRDT reconciliation will address concurrent writers.
+- There is no optimistic concurrency or revision check. `weft apply` is a read-modify-write; `weft dev` ingests file changes but does not accept browser edits or write canonical files yet.
 - The command log and undo stack are not persisted in the design file. The CLI returns inverses; the editor and bridge will own their histories.
 - `apply` accepts commands for one page at a time.
 

@@ -30,6 +30,7 @@ import {
   type DesignInspection,
   type DesignSummary,
 } from "@weft/design-io";
+import { startBridge, WeftBridgeError } from "@weft/bridge";
 import { VERSION } from "./version.js";
 
 export interface CliIO {
@@ -66,6 +67,7 @@ Commands:
   apply     Apply a JSON command to a page
   get       Print a page or node as JSON
   id        Generate Weft ids for new entities or commands
+  dev       Serve the live preview and watch a design directory
   help      Show help
 
 Options:
@@ -79,7 +81,8 @@ Examples:
   weft fmt designs/marketing --check
   weft inspect designs/marketing --json
   weft get designs/marketing --page Landing
-  weft apply designs/marketing --command change.json`;
+  weft apply designs/marketing --command change.json
+  weft dev designs/marketing`;
 
 const INIT_USAGE = `Usage: weft init <directory> [options]
 
@@ -152,6 +155,18 @@ Options:
   --json         Machine-readable output
   --help         Show this help`;
 
+const DEV_USAGE = `Usage: weft dev <directory> [options]
+
+Serve the built web preview and watch the design directory. The bridge streams
+live page updates over WebSocket while a design file changes on disk.
+
+Requires the web app to be built once with \`pnpm build\`.
+
+Options:
+  --port <n>   Port to listen on (default: 5250)
+  --host <h>   Host to bind (default: 127.0.0.1)
+  --help       Show this help`;
+
 const USAGE_BY_COMMAND: Record<string, string> = {
   init: INIT_USAGE,
   validate: VALIDATE_USAGE,
@@ -160,6 +175,7 @@ const USAGE_BY_COMMAND: Record<string, string> = {
   apply: APPLY_USAGE,
   get: GET_USAGE,
   id: ID_USAGE,
+  dev: DEV_USAGE,
 };
 
 const JSON_OPTION = { json: { type: "boolean" as const }, help: { type: "boolean" as const } };
@@ -191,6 +207,11 @@ const ID_OPTIONS: OptionConfig = {
   prefix: { type: "string" },
   count: { type: "string" },
   ...JSON_OPTION,
+};
+const DEV_OPTIONS: OptionConfig = {
+  port: { type: "string" },
+  host: { type: "string" },
+  help: { type: "boolean" },
 };
 const ID_PREFIXES: IdPrefix[] = ["ds", "pg", "nd", "as", "cm"];
 
@@ -253,7 +274,8 @@ function handleError(
   if (
     error instanceof WeftIoError ||
     error instanceof WeftCommandError ||
-    error instanceof WeftOperationError
+    error instanceof WeftOperationError ||
+    error instanceof WeftBridgeError
   ) {
     if (json) emitJson(out, { ok: false, error: { code: error.code, message: error.message } });
     else err(`${error.code}: ${error.message}`);
@@ -689,6 +711,52 @@ async function idCommand(
   return 0;
 }
 
+async function devCommand(
+  argv: string[],
+  cwd: string,
+  out: Writer,
+  err: Writer,
+): Promise<number> {
+  const parsed = parseCommand(argv, DEV_OPTIONS, DEV_USAGE, err);
+  if (!parsed) return 2;
+  if (parsed.values.help) {
+    out(DEV_USAGE);
+    return 0;
+  }
+  const directory = directoryFrom(parsed.positionals, cwd, DEV_USAGE, err);
+  if (!directory) return 2;
+
+  const port = parsed.values.port === undefined ? 5250 : Number(parsed.values.port);
+  if (!Number.isInteger(port) || port < 0 || port > 65535) {
+    err("--port must be an integer between 0 and 65535.");
+    return 2;
+  }
+  const host =
+    typeof parsed.values.host === "string" && parsed.values.host.length > 0
+      ? parsed.values.host
+      : "127.0.0.1";
+
+  try {
+    const bridge = await startBridge({ designDir: directory, host, port });
+    out(`Weft dev · ${bridge.url}`);
+    out(`Watching ${bridge.designDir}`);
+    out("Press Ctrl+C to stop.");
+
+    await new Promise<void>((resolveStop) => {
+      const stop = (): void => {
+        process.off("SIGINT", stop);
+        process.off("SIGTERM", stop);
+        void bridge.close().finally(() => resolveStop());
+      };
+      process.on("SIGINT", stop);
+      process.on("SIGTERM", stop);
+    });
+    return 0;
+  } catch (error) {
+    return handleError(error, false, out, err);
+  }
+}
+
 export async function runCli(argv: string[], io: CliIO = {}): Promise<number> {
   const out = io.stdout ?? ((line: string) => process.stdout.write(`${line}\n`));
   const err = io.stderr ?? ((line: string) => process.stderr.write(`${line}\n`));
@@ -735,6 +803,8 @@ export async function runCli(argv: string[], io: CliIO = {}): Promise<number> {
         return await getCommand(rest, cwd, out, err);
       case "id":
         return await idCommand(rest, out, err);
+      case "dev":
+        return await devCommand(rest, cwd, out, err);
       default:
         err(`Unknown command: ${command}`);
         out(MAIN_USAGE);

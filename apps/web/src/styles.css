@@ -139,6 +139,9 @@ button {
 }
 
 .badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   border: 1px solid #d6cec0;
   border-radius: 999px;
   padding: 4px 8px;
@@ -147,6 +150,52 @@ button {
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: #6d6659;
+  white-space: nowrap;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #a49a89;
+  flex: 0 0 auto;
+}
+
+.badge.is-live {
+  border-color: #bfdac9;
+  background: #f4fbf6;
+  color: #1f6f43;
+}
+
+.badge.is-live .status-dot {
+  background: #2f9e5e;
+  box-shadow: 0 0 0 3px rgba(47, 158, 94, 0.12);
+}
+
+.badge.is-connecting {
+  border-color: #e5cfa5;
+  background: #fff9ec;
+  color: #8a5a12;
+}
+
+.badge.is-connecting .status-dot {
+  background: #c18a2a;
+}
+
+.badge.is-offline {
+  border-color: #e3b9b2;
+  background: #fff8f6;
+  color: #8b3125;
+}
+
+.badge.is-offline .status-dot {
+  background: #c94b4b;
+}
+
+.badge.is-conflicts {
+  border-color: #e5cfa5;
+  background: #fff9ec;
+  color: #8a5a12;
 }
 
 .meta {
@@ -197,6 +246,29 @@ button {
   transform-origin: top left;
 }
 
+.canvas-error {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: min(680px, calc(100% - 32px));
+  border: 1px solid #e3b9b2;
+  border-radius: 8px;
+  background: #fff8f6;
+  color: #8b3125;
+  padding: 8px 12px;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 10px;
+  line-height: 1.5;
+  z-index: 3;
+  box-shadow: 0 8px 24px rgba(80, 35, 25, 0.08);
+}
+
+.canvas-empty {
+  color: #6d6659;
+  font-size: 13px;
+}
+
 .canvas-hint {
   position: absolute;
   bottom: 14px;
@@ -217,8 +289,7 @@ button {
 
 @media (max-width: 900px) {
   .design-meta,
-  .meta,
-  .badge {
+  .meta {
     display: none;
   }
 
@@ -230,7 +301,30 @@ button {
     padding: 20px;
   }
 
-  .canvas-hint {
+  .canvas-error {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: min(680px, calc(100% - 32px));
+  border: 1px solid #e3b9b2;
+  border-radius: 8px;
+  background: #fff8f6;
+  color: #8b3125;
+  padding: 8px 12px;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 10px;
+  line-height: 1.5;
+  z-index: 3;
+  box-shadow: 0 8px 24px rgba(80, 35, 25, 0.08);
+}
+
+.canvas-empty {
+  color: #6d6659;
+  font-size: 13px;
+}
+
+.canvas-hint {
     display: none;
   }
 }

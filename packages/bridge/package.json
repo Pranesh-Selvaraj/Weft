@@ -1,0 +1,34 @@
+{
+  "name": "@weft/bridge",
+  "version": "0.0.0",
+  "description": "Local live bridge: serves the Weft app, watches a design directory, and streams Yjs updates",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@weft/core": "workspace:*",
+    "@weft/design-io": "workspace:*",
+    "@weft/session": "workspace:*",
+    "chokidar": "^6.0.0",
+    "ws": "^8.22.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.2"
+  }
+}

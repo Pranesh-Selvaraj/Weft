@@ -1,6 +1,6 @@
 # @weft/web
 
-The Weft browser app. This slice is a **read-only design preview**: it loads a `.weft` directory through a Vite virtual module and renders the page with `@weft/render`.
+The Weft browser app. This slice is a **read-only design preview**: it loads a `.weft` directory through a Vite virtual module and renders the page with `@weft/render`. When served by `weft dev`, it switches to a live view fed by the local bridge.
 
 ## Run
 
@@ -27,13 +27,12 @@ pnpm --filter @weft/web build
 
 ## How the design gets in
 
-`vite.config.ts` provides `virtual:weft-design`:
+There are two paths:
 
-- it calls `readDesign` from `@weft/design-io` at dev/build time;
-- it embeds `{ manifest, pages }` into the bundle;
-- it watches the design directory and triggers a full reload on change.
+- **Static preview.** `vite.config.ts` provides `virtual:weft-design`, which calls `readDesign` at dev/build time and embeds `{ manifest, pages }`.
+- **Live preview.** Served by `weft dev`, the app fetches `/api/design`, builds a `PageSession` from each page's Yjs update, connects to `/api/live`, and applies live updates. The top bar shows `live`, `connecting` or `offline` instead of `read only`.
 
-This is a development shortcut, not the production file path. The local bridge will serve a chosen directory and stream live session updates; the renderer stays the same.
+The static path remains the zero-process preview and the fallback.
 
 ## What you see
 

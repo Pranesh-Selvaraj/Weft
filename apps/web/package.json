@@ -6,8 +6,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "pnpm --filter @weft/core build && pnpm --filter @weft/design-io build && pnpm --filter @weft/render build && vite",
-    "build": "pnpm --filter @weft/core build && pnpm --filter @weft/design-io build && pnpm --filter @weft/render build && vite build",
+    "dev": "pnpm --filter @weft/core build && pnpm --filter @weft/session build && pnpm --filter @weft/design-io build && pnpm --filter @weft/render build && vite",
+    "build": "pnpm --filter @weft/core build && pnpm --filter @weft/session build && pnpm --filter @weft/design-io build && pnpm --filter @weft/render build && vite build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "preview": "vite preview"
   },
@@ -15,7 +15,8 @@
     "@weft/core": "workspace:*",
     "@weft/render": "workspace:*",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "@weft/session": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",
