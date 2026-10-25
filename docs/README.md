@@ -36,11 +36,12 @@ Start here, then follow the decision records for the reasoning.
 12. [ADR 0011](decisions/0011-bridge-security-boundary.md) for the bridge loopback/cookie/Origin boundary.
 13. [ADR 0012](decisions/0012-declared-dev-servers.md) for declared project dev servers.
 14. [ADR 0013](decisions/0013-snapshot-extraction.md) for snapshot extraction and its sanitization boundary.
-15. [Architecture](architecture.md) for the implementation shape.
-16. [Security model](security.md) for the trust boundaries and hardening.
-17. [Local workspace](local-workspace.md) for the project registry, picker and dev-server model.
-18. [Declared dev servers](dev-server.md) to declare and run a project server.
-19. [Snapshot extraction](extraction.md) to capture a running page.
-20. [CLI](cli.md) to run, inspect, edit and extract designs.
-21. [Browser editor](../apps/web/README.md) to open and edit the starter design.
-22. [ADR index](decisions/README.md) to see which decisions are settled and which are still open.
+15. [ADR 0014](decisions/0014-editor-create-tools.md) for creation tools and the layer tree.
+16. [Architecture](architecture.md) for the implementation shape.
+17. [Security model](security.md) for the trust boundaries and hardening.
+18. [Local workspace](local-workspace.md) for the project registry, picker and dev-server model.
+19. [Declared dev servers](dev-server.md) to declare and run a project server.
+20. [Snapshot extraction](extraction.md) to capture a running page.
+21. [CLI](cli.md) to run, inspect, edit and extract designs.
+22. [Browser editor](../apps/web/README.md) to open and edit the starter design.
+23. [ADR index](decisions/README.md) to see which decisions are settled and which are still open.

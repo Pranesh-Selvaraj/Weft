@@ -30,6 +30,7 @@ This directory is the project's long-form memory: **what we chose, why, what we 
 | [0011](0011-bridge-security-boundary.md) | Local bridge security boundary | Accepted | Security |
 | [0012](0012-declared-dev-servers.md) | Declared project dev servers | Accepted | Local workspace |
 | [0013](0013-snapshot-extraction.md) | Snapshot extraction | Accepted | Capture / security |
+| [0014](0014-editor-create-tools.md) | Editor creation tools and layer tree | Accepted | UI / editing |
 
 ## Decision map
 
@@ -47,8 +48,9 @@ graph TD
     J --> K["0011 · Bridge security boundary<br/>loopback · cookie · origin"]
     K --> L["0012 · Declared dev servers<br/>argv · readiness · process group"]
     L --> M["0013 · Snapshot extraction<br/>allowlist · sanitize · sandbox"]
-    M --> N["0014 · Agent tool contract<br/>(next)"]
-    M --> O["0015 · Export + handoff<br/>(next)"]
+    M --> N["0014 · Editor creation tools<br/>tools · layer tree · insert command"]
+    N --> O["0015 · Agent tool contract<br/>(next)"]
+    N --> P["0016 · Export + handoff<br/>(next)"]
 ```
 
 ## Adding a record

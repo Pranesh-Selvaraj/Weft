@@ -45,7 +45,7 @@ flowchart TB
 
 ### Components
 
-- **`apps/web`** — the browser editor. The read-only preview now has selection, an inspector, keyboard undo/redo and live commands over the bridge. React + Vite + TypeScript (ADR 0008, ADR 0010). Layers, multi-select, drag/resize, presence and chat are next.
+- **`apps/web`** — the browser editor. The read-only preview now has selection, an inspector, keyboard undo/redo, creation tools for frames/text/shapes, a read-only layer tree and live commands over the bridge. React + Vite + TypeScript (ADR 0008, ADR 0010, ADR 0014). Page creation, multi-select, drag/resize, presence and chat are next.
 - **`packages/core`** — document schema, node operations, validation, migrations, deterministic serialization. No DOM, no network. Shared by the editor, bridge, CLI, MCP server, and exporter.
 - **`packages/design-io`** — Node filesystem access for design directories: safe paths, atomic writes, read/inspect/validate, canonical formatting, init, summary. Keeps Node out of the browser core.
 - **`packages/workspace`** — explicit local project registry and design discovery: canonical project roots, unique names, atomic owner-only storage, ignored build/hidden directories, missing-root reporting. The bridge/browser picker and dev-server manager consume this allowlist.
@@ -201,4 +201,4 @@ weft/
 
 ## 9. What gets specified next
 
-The document schema and operations are settled in ADR 0003, the headless CLI and design I/O layer in ADR 0004, the command protocol in ADR 0005, the published JSON Schema in ADR 0006, the Yjs live session in ADR 0007, the editor stack and DOM renderer in ADR 0008, the local bridge in ADR 0009, the editor interaction model in ADR 0010, the bridge security boundary in ADR 0011, declared project dev servers in ADR 0012, and snapshot extraction in ADR 0013; all are implemented. Each remaining area becomes an ADR before implementation: agent tool contract and adapters (0014), export/handoff (0015). The ADR index is the source of truth for the current status of each.
+The document schema and operations are settled in ADR 0003, the headless CLI and design I/O layer in ADR 0004, the command protocol in ADR 0005, the published JSON Schema in ADR 0006, the Yjs live session in ADR 0007, the editor stack and DOM renderer in ADR 0008, the local bridge in ADR 0009, the editor interaction model in ADR 0010, the bridge security boundary in ADR 0011, declared project dev servers in ADR 0012, snapshot extraction in ADR 0013, and creation tools/layer tree in ADR 0014; all are implemented. Each remaining area becomes an ADR before implementation: page-level document commands, agent tool contract and adapters (0015), export/handoff (0016). The ADR index is the source of truth for the current status of each.
