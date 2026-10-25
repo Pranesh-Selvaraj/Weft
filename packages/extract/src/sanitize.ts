@@ -26,13 +26,18 @@ function unsafe(message: string): never {
  * partially cleaned string to write into a design.
  */
 export function sanitizeCapturedMarkup(html: string): string {
-  const lower = html.toLowerCase();
+  // The browser keeps inlined images in inert data attributes; promote them
+  // only after their data:image/ prefix has been checked below.
+  const withImages = html
+    .replaceAll(' data-weft-img="', ' src="')
+    .replaceAll(' data-weft-href="', ' href="');
+  const lower = withImages.toLowerCase();
   for (const tag of BLOCKED_ELEMENTS) {
     if (lower.includes(`<${tag}`)) {
       unsafe(`Captured markup still contains a <${tag}> element.`);
     }
   }
-  if (/\son[a-z0-9_-]+\s*=/i.test(html)) {
+  if (/\son[a-z0-9_-]+\s*=/i.test(withImages)) {
     unsafe("Captured markup still contains an event-handler attribute.");
   }
 
@@ -58,12 +63,12 @@ export function sanitizeCapturedMarkup(html: string): string {
         cursor += 1;
         const end = lowerForAttributes.indexOf(quote, cursor);
         if (end === -1) unsafe("Captured markup has an unterminated URL attribute.");
-        value = html.slice(cursor, end);
+        value = withImages.slice(cursor, end);
         index = end + 1;
       } else {
         let end = cursor;
         while (end < lowerForAttributes.length && !/\s|>/.test(lowerForAttributes[end])) end += 1;
-        value = html.slice(cursor, end);
+        value = withImages.slice(cursor, end);
         index = end;
       }
       const normalized = value.toLowerCase();
@@ -72,7 +77,7 @@ export function sanitizeCapturedMarkup(html: string): string {
       }
     }
   }
-  return html;
+  return withImages;
 }
 
 /** Remove stylesheet escapes and external network fetches from captured CSS. */

@@ -356,11 +356,11 @@ export async function captureWithPlaywright(
             if (tag === "img") {
               const image = original as HTMLImageElement;
               const src = image.currentSrc || image.src;
-              if (src) clone.setAttribute("data-weft-src", src);
+              if (src) clone.setAttribute("data-weft-img", src);
             }
             if (isSvg && tag === "image") {
               const href = original.getAttribute("href") ?? original.getAttribute("xlink:href");
-              if (href) clone.setAttribute("data-weft-src", new URL(href, document.baseURI).href);
+              if (href) clone.setAttribute("data-weft-href", new URL(href, document.baseURI).href);
             }
           };
 
@@ -486,25 +486,24 @@ export async function captureWithPlaywright(
           };
 
           const imageNodes = [
-            ...(root.hasAttribute("data-weft-src") ? [root] : []),
-            ...Array.from(root.querySelectorAll("[data-weft-src]")),
+            ...(root.hasAttribute("data-weft-img") || root.hasAttribute("data-weft-href")
+              ? [root]
+              : []),
+            ...Array.from(root.querySelectorAll("[data-weft-img], [data-weft-href]")),
           ];
           for (const element of imageNodes) {
-            const source = element.getAttribute("data-weft-src");
-            element.removeAttribute("data-weft-src");
+            const attribute = element.hasAttribute("data-weft-img")
+              ? "data-weft-img"
+              : "data-weft-href";
+            const source = element.getAttribute(attribute);
+            element.removeAttribute(attribute);
             if (!source) continue;
             const data = await inlineAsset(source);
+            // Keep image data in an inert custom attribute here. The Node
+            // verifier turns it into src/href only after checking the
+            // data:image/ prefix, so no browser DOM URL sink is involved.
             if (data && data.startsWith("data:image/")) {
-              // inlineAsset only returns image/* data URLs, and this clone
-              // becomes a sandboxed snapshot under a data-only CSP. CodeQL's
-              // generic DOM-XSS query cannot see that downstream boundary.
-              if (element.localName.toLowerCase() === "img") {
-                // lgtm[js/xss-through-dom]
-                element.setAttribute("src", data);
-              } else {
-                // lgtm[js/xss-through-dom]
-                element.setAttribute("href", data);
-              }
+              element.setAttribute(attribute, data);
             }
           }
           for (const item of collected) {

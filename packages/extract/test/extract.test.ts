@@ -65,6 +65,9 @@ describe("snapshot sanitization", () => {
     expect(
       sanitizeCapturedMarkup('<img src="data:image/png;base64,AA">'),
     ).toContain("data:image/png;base64,AA");
+    expect(
+      sanitizeCapturedMarkup('<img data-weft-img="data:image/png;base64,AA">'),
+    ).toContain('src="data:image/png;base64,AA"');
   });
 
   it("removes stylesheet imports and non-data URLs", () => {
