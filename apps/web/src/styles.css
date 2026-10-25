@@ -454,6 +454,7 @@ body,
   font-size: 11px;
   color: var(--accent);
   overflow-wrap: anywhere;
+  user-select: all;
 }
 
 .server-meta {

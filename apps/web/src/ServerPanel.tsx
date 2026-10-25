@@ -75,11 +75,7 @@ export function ServerPanel({
             <span className="server-mode">{server.mode === "attach" ? "attach" : "managed"}</span>
           </div>
 
-          {server.url && (
-            <a className="server-url" href={server.url} target="_blank" rel="noreferrer">
-              {server.url}
-            </a>
-          )}
+          {server.url && <code className="server-url">{server.url}</code>}
 
           {server.pid !== null && (
             <div className="server-meta">

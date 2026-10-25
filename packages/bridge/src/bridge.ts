@@ -12,6 +12,7 @@ import {
   serialize,
   WeftCommandError,
   WeftOperationError,
+  WeftValidationError,
   type CommandActor,
   type DesignFile,
   type DesignManifest,
@@ -71,8 +72,23 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/**
+ * Only expose messages from errors we construct or from the document layer.
+ * Unexpected exceptions may carry stack or filesystem context, so their text
+ * stays in the server log instead of crossing the bridge API.
+ */
 function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+  if (
+    error instanceof WeftBridgeError ||
+    error instanceof DevServerError ||
+    error instanceof WeftCommandError ||
+    error instanceof WeftOperationError ||
+    error instanceof WeftValidationError ||
+    error instanceof WeftIoError
+  ) {
+    return error.message;
+  }
+  return "Internal bridge error.";
 }
 
 function sameManifest(left: DesignManifest, right: DesignManifest): boolean {
