@@ -425,6 +425,13 @@ describe("weft CLI", () => {
     expect(design.manifest.pages).toHaveLength(1);
   });
 
+  it("exposes MCP help without starting the stdio server", async () => {
+    expect(await run(["mcp", "--help"])).toBe(0);
+    expect(out.join("\n")).toContain("weft mcp");
+    expect(await run(["mcp", "--design", ".", "--workspace", ".weft/workspace.json"])).toBe(2);
+    expect(err.join("\n")).toContain("either --workspace or --design");
+  });
+
   it("documents extraction and validates its arguments", async () => {
     expect(await run(["extract", "--help"])).toBe(0);
     expect(out.join("\n")).toContain("weft extract");

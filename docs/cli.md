@@ -29,6 +29,7 @@ packages/cli/dist/main.js --version
 | `weft get <dir>` | Print a page or node as JSON: `--page <id\|name>` or `--node <id>`. |
 | `weft apply <dir>` | Apply one JSON command. Options: `--command <path>`, `--dry-run`. |
 | `weft page <create\|remove\|apply> <dir>` | Create/remove a page or apply a document command. Options: `--name`, `--page`, `--command`, `--json`. |
+| `weft mcp` | Serve MCP tools over stdio. Options: `--workspace`, `--design`, `--read-only`. |
 | `weft id` | Generate Weft ids. Options: `--prefix`, `--count`, `--json`. |
 | `weft extract <design> <url>` | Capture an allowlisted loopback page into a sanitized snapshot. Options: `--project`, `--page`, `--selector`, `--viewport`, `--name`, `--x`, `--y`, `--browser`, `--timeout`, `--max-asset-bytes`, `--json`. |
 | `weft dev <dir>` | Serve the built app, stream file changes, and accept browser edits. Options: `--port`, loopback `--host`. |
@@ -42,6 +43,31 @@ Exit codes are stable:
 - `2` — usage error.
 
 `validate`, `fmt`, `inspect`, `init`, `id`, `extract` and `page` support `--json`. `get` and `apply` always print JSON because their output is meant to be consumed by another process. `weft dev` is a long-running server; it prints a human-readable URL and watches the design directory until interrupted.
+
+## MCP for coding agents
+
+Start a stdio MCP server over the workspace allowlist:
+
+```bash
+pnpm weft mcp --workspace ~/.weft/workspace.json
+# read-only:
+pnpm weft mcp --workspace ~/.weft/workspace.json --read-only
+```
+
+Point an MCP client at the built CLI:
+
+```json
+{
+  "mcpServers": {
+    "weft": {
+      "command": "node",
+      "args": ["/absolute/path/to/Weft/packages/cli/dist/main.js", "mcp", "--workspace", "/home/me/.weft/workspace.json"]
+    }
+  }
+}
+```
+
+Tools cover design listing/summary, page/node reads, validation, page/document commands and context packets. See [MCP](mcp.md).
 
 `weft dev` requires the built web app (`pnpm build` once). It serves `apps/web/dist`, keeps a Yjs page session in memory, streams file changes, and accepts browser commands. A browser edit is applied to the session, written atomically to the changed page file, and broadcast to every client.
 
@@ -331,7 +357,7 @@ The published JSON Schema lives in [`@weft/contract`](../packages/contract/schem
 - There is no optimistic concurrency or multi-writer serialization. `weft apply` is a read-modify-write; `weft dev` accepts browser commands and writes page files, so concurrent writers rely on the Yjs session for the live state and the last page write for disk.
 - Browser undo history is per tab and in memory. It includes node and page create/delete commands but clears on reconnect and does not include external CLI or agent file edits. The bridge does not persist a command log yet.
 - `weft dev` is loopback-only and single-user. It has no team authentication, presence, per-project permissions or remote bind.
-- The project picker, declared dev-server control and allowlisted snapshot extraction are implemented; per-project permissions, bridge-triggered extraction and agent tools remain.
+- The project picker, declared dev-server control, snapshot extraction, page/browser creation and the MCP agent surface are implemented; per-project/tool permissions, audit logs, screenshots and a published binary remain.
 - `apply` accepts page commands for one page at a time; page document commands use `weft page apply` (`page.create`/`page.remove`).
 
 ## Safety properties
