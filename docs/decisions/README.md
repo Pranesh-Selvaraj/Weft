@@ -34,6 +34,7 @@ This directory is the project's long-form memory: **what we chose, why, what we 
 | [0015](0015-page-document-commands.md) | Page-level document commands | Accepted | Contract / document model |
 | [0016](0016-agent-mcp.md) | Agent MCP contract | Accepted | Agent surface |
 | [0017](0017-direct-manipulation.md) | Direct layout manipulation | Accepted | UI / editing |
+| [0018](0018-page-organization.md) | Page organization | Accepted | Contract / UI |
 
 ## Decision map
 
@@ -55,7 +56,8 @@ graph TD
     N --> O["0015 · Page document commands<br/>create · remove · inverses"]
     O --> P["0016 · Agent MCP contract<br/>stdio · allowlist · tools"]
     P --> Q["0017 · Direct manipulation<br/>move · resize · one command"]
-    Q --> R["0018 · Export + handoff<br/>(next)"]
+    Q --> R["0018 · Page organization<br/>rename · reorder"]
+    R --> S["0019 · Export + handoff<br/>(next)"]
 ```
 
 ## Adding a record

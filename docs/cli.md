@@ -28,7 +28,7 @@ packages/cli/dist/main.js --version
 | `weft inspect <dir>` | Print pages, node counts, node types, tokens, assets and status. Option: `--no-files`. |
 | `weft get <dir>` | Print a page or node as JSON: `--page <id\|name>` or `--node <id>`. |
 | `weft apply <dir>` | Apply one JSON command. Options: `--command <path>`, `--dry-run`. |
-| `weft page <create\|remove\|apply> <dir>` | Create/remove a page or apply a document command. Options: `--name`, `--page`, `--command`, `--json`. |
+| `weft page <create\|remove\|rename\|move\|apply> <dir>` | Create/remove/rename/reorder a page or apply a document command. Options: `--name`, `--page`, `--index`, `--command`, `--json`. |
 | `weft mcp` | Serve MCP tools over stdio. Options: `--workspace`, `--design`, `--read-only`. |
 | `weft id` | Generate Weft ids. Options: `--prefix`, `--count`, `--json`. |
 | `weft extract <design> <url>` | Capture an allowlisted loopback page into a sanitized snapshot. Options: `--project`, `--page`, `--selector`, `--viewport`, `--name`, `--x`, `--y`, `--browser`, `--timeout`, `--max-asset-bytes`, `--json`. |
@@ -353,7 +353,7 @@ The published JSON Schema lives in [`@weft/contract`](../packages/contract/schem
 
 ## Limitations
 
-- Page create/remove/apply are available through `weft page`, the browser and the bridge. Page rename, reorder, background and token edits remain file edits.
+- Page create/remove/rename/move/apply are available through `weft page`, the browser and the bridge. Page background/token editing remains a file edit.
 - There is no optimistic concurrency or multi-writer serialization. `weft apply` is a read-modify-write; `weft dev` accepts browser commands and writes page files, so concurrent writers rely on the Yjs session for the live state and the last page write for disk.
 - Browser undo history is per tab and in memory. It includes node and page create/delete commands but clears on reconnect and does not include external CLI or agent file edits. The bridge does not persist a command log yet.
 - `weft dev` is loopback-only and single-user. It has no team authentication, presence, per-project permissions or remote bind.

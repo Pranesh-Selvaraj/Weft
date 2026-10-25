@@ -45,7 +45,7 @@ Example client configuration:
 | `weft_get_node` | read | One node with page context, ancestors and children. |
 | `weft_validate` | read | Validate a design and its files; return issues and summary. |
 | `weft_apply_command` | write | Apply one `PageCommand`, write the page atomically, return the inverse. `dryRun` validates without writing. |
-| `weft_page_command` | write | Apply `page.create`/`page.remove`, update manifest/files, return the inverse. `dryRun` validates without writing. |
+| `weft_page_command` | write | Apply `page.create`/`page.remove`/`page.rename`/`page.move`, update manifest/files, return the inverse. `dryRun` validates without writing. |
 | `weft_context` | read | Context packet: summary, page, optional node and structural context. |
 
 Every write result includes a `commandId`, `actor` and `inverse`. In `--read-only` mode write tools return `mcp.read-only`.

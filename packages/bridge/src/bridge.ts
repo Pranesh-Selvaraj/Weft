@@ -996,7 +996,7 @@ export class WeftBridge {
       }
       const command = message.command;
       const applied = applyDocumentCommand(design, command);
-      const written = await writeDocumentCommand(this.designDir, command, applied);
+      const written = await writeDocumentCommand(this.designDir, command, applied, design);
       if (written.orphaned.length > 0) {
         console.error(
           `[weft bridge] removed page file could not be deleted: ${written.orphaned.join(", ")}`,

@@ -274,7 +274,12 @@ export function App() {
   const [drag, setDrag] = useState<DragState | null>(null);
   const [pendingSelectId, setPendingSelectId] = useState<string | null>(null);
   const [pendingPageId, setPendingPageId] = useState<string | null>(null);
+  const [renamingPageId, setRenamingPageId] = useState<string | null>(null);
+  const [pageNameDraft, setPageNameDraft] = useState("");
+  const [draggingPageId, setDraggingPageId] = useState<string | null>(null);
+  const [dragOverPageId, setDragOverPageId] = useState<string | null>(null);
   const [transformPreview, setTransformPreview] = useState<TransformPreview | null>(null);
+  const renameDoneRef = useRef(false);
   const stageScaleRef = useRef<HTMLDivElement>(null);
   const suppressClickRef = useRef(false);
 
@@ -681,6 +686,39 @@ export function App() {
       }
     : null;
 
+  const beginPageRename = (target: { id: string; name: string }): void => {
+    if (!source.editable) return;
+    setActivePageId(target.id);
+    setRenamingPageId(target.id);
+    setPageNameDraft(target.name);
+    renameDoneRef.current = false;
+  };
+
+  const finishPageRename = (commit: boolean): void => {
+    if (renameDoneRef.current) return;
+    renameDoneRef.current = true;
+    const id = renamingPageId;
+    const name = pageNameDraft.trim();
+    const target = source.pages.find((candidate) => candidate.id === id);
+    setRenamingPageId(null);
+    if (commit && id && target && name && name !== target.name) {
+      source.renamePage(id, name);
+    }
+  };
+
+  const handlePageDrop = (targetId: string): void => {
+    if (!draggingPageId || draggingPageId === targetId || !source.editable) {
+      setDraggingPageId(null);
+      setDragOverPageId(null);
+      return;
+    }
+    const from = tabs.findIndex((ref) => ref.id === draggingPageId);
+    const to = tabs.findIndex((ref) => ref.id === targetId);
+    if (from !== -1 && to !== -1) source.movePage(draggingPageId, to);
+    setDraggingPageId(null);
+    setDragOverPageId(null);
+  };
+
   return (
     <div className="app">
       <header className="topbar">
@@ -725,22 +763,76 @@ export function App() {
         </div>
 
         <nav className="page-tabs" aria-label="Pages">
-          {tabs.map((ref) => (
-            <button
-              key={ref.id}
-              type="button"
-              className={`page-tab${ref.id === page?.id ? " is-active" : ""}`}
-              onClick={() => {
-                setActivePageId(ref.id);
-                setSelectedNodeId(null);
-                setPendingSelectId(null);
-                setDrag(null);
-                setTool("select");
-              }}
-            >
-              {ref.name}
-            </button>
-          ))}
+          {tabs.map((ref) =>
+            renamingPageId === ref.id ? (
+              <input
+                key={ref.id}
+                className="page-tab-input"
+                value={pageNameDraft}
+                autoFocus
+                aria-label="Page name"
+                onChange={(event) => setPageNameDraft(event.target.value)}
+                onFocus={(event) => event.currentTarget.select()}
+                onBlur={() => finishPageRename(true)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    event.currentTarget.blur();
+                  } else if (event.key === "Escape") {
+                    event.preventDefault();
+                    renameDoneRef.current = true;
+                    setRenamingPageId(null);
+                  }
+                }}
+              />
+            ) : (
+              <button
+                key={ref.id}
+                type="button"
+                draggable={source.editable && tabs.length > 1}
+                className={`page-tab${ref.id === page?.id ? " is-active" : ""}${
+                  draggingPageId === ref.id ? " is-dragging" : ""
+                }${dragOverPageId === ref.id ? " is-drop-target" : ""}`}
+                title="Double-click to rename; drag to reorder"
+                onClick={() => {
+                  setActivePageId(ref.id);
+                  setSelectedNodeId(null);
+                  setPendingSelectId(null);
+                  setDrag(null);
+                  setTool("select");
+                }}
+                onDoubleClick={() => beginPageRename(ref)}
+                onDragStart={(event) => {
+                  if (!source.editable || tabs.length <= 1) {
+                    event.preventDefault();
+                    return;
+                  }
+                  event.dataTransfer.effectAllowed = "move";
+                  event.dataTransfer.setData("text/plain", ref.id);
+                  setDraggingPageId(ref.id);
+                }}
+                onDragOver={(event) => {
+                  if (!draggingPageId || draggingPageId === ref.id || !source.editable) return;
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "move";
+                  setDragOverPageId(ref.id);
+                }}
+                onDragLeave={() => {
+                  if (dragOverPageId === ref.id) setDragOverPageId(null);
+                }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  handlePageDrop(ref.id);
+                }}
+                onDragEnd={() => {
+                  setDraggingPageId(null);
+                  setDragOverPageId(null);
+                }}
+              >
+                {ref.name}
+              </button>
+            ),
+          )}
         </nav>
 
         <div className="topbar-right">
@@ -863,7 +955,17 @@ export function App() {
                 if (id) setPendingPageId(id);
               }}
             >
-              + New page
+              + Page
+            </button>
+            <button
+              type="button"
+              className="button"
+              disabled={!source.editable || source.pending > 0 || !page}
+              onClick={() => {
+                if (page) beginPageRename(page);
+              }}
+            >
+              Rename
             </button>
             <button
               type="button"
@@ -876,7 +978,7 @@ export function App() {
                 }
               }}
             >
-              Delete page
+              Delete
             </button>
           </div>
         </aside>

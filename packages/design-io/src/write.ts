@@ -189,40 +189,79 @@ export async function writeDocumentCommand(
   directory: string,
   command: DocumentCommand,
   applied: AppliedDocumentCommand,
+  before: DesignFile,
 ): Promise<{ written: string[]; removed: string[]; orphaned: string[] }> {
   const issues = validateDesign(applied.design.manifest, applied.design.pages);
   if (issues.length > 0) throw new WeftValidationError(issues);
   const root = resolve(directory);
 
-  if (command.type === "page.create") {
-    await writePageFile(root, command.file, command.page, {
-      tokens: applied.design.manifest.tokens,
-      assets: applied.design.manifest.assets,
-    });
-    try {
-      await writeManifest(root, applied.design.manifest);
-    } catch (error) {
-      await removeDesignFile(root, command.file).catch(() => undefined);
-      throw error;
+  switch (command.type) {
+    case "page.create": {
+      await writePageFile(root, command.file, command.page, {
+        tokens: applied.design.manifest.tokens,
+        assets: applied.design.manifest.assets,
+      });
+      try {
+        await writeManifest(root, applied.design.manifest);
+      } catch (error) {
+        await removeDesignFile(root, command.file).catch(() => undefined);
+        throw error;
+      }
+      return { written: [command.file, MANIFEST_FILE], removed: [], orphaned: [] };
     }
-    return { written: [command.file, MANIFEST_FILE], removed: [], orphaned: [] };
-  }
 
-  const file = applied.inverse.type === "page.create" ? applied.inverse.file : null;
-  await writeManifest(root, applied.design.manifest);
-  if (file) {
-    try {
-      const result = await removeDesignFile(root, file);
-      return {
-        written: [MANIFEST_FILE],
-        removed: result.removed ? [file] : [],
-        orphaned: [],
-      };
-    } catch {
-      return { written: [MANIFEST_FILE], removed: [], orphaned: [file] };
+    case "page.rename": {
+      const ref = applied.design.manifest.pages.find((entry) => entry.id === command.pageId);
+      const page = applied.design.pages.find((entry) => entry.id === command.pageId);
+      const oldPage = before.pages.find((entry) => entry.id === command.pageId);
+      if (!ref || !page) {
+        throw new WeftIoError(
+          "page.missing",
+          command.pageId,
+          `Page ${command.pageId} does not exist.`,
+        );
+      }
+      await writePageFile(root, ref.file, page, {
+        tokens: applied.design.manifest.tokens,
+        assets: applied.design.manifest.assets,
+      });
+      try {
+        await writeManifest(root, applied.design.manifest);
+      } catch (error) {
+        if (oldPage) {
+          await writePageFile(root, ref.file, oldPage, {
+            tokens: before.manifest.tokens,
+            assets: before.manifest.assets,
+          }).catch(() => undefined);
+        }
+        throw error;
+      }
+      return { written: [ref.file, MANIFEST_FILE], removed: [], orphaned: [] };
+    }
+
+    case "page.move": {
+      await writeManifest(root, applied.design.manifest);
+      return { written: [MANIFEST_FILE], removed: [], orphaned: [] };
+    }
+
+    case "page.remove": {
+      const file = applied.inverse.type === "page.create" ? applied.inverse.file : null;
+      await writeManifest(root, applied.design.manifest);
+      if (file) {
+        try {
+          const result = await removeDesignFile(root, file);
+          return {
+            written: [MANIFEST_FILE],
+            removed: result.removed ? [file] : [],
+            orphaned: [],
+          };
+        } catch {
+          return { written: [MANIFEST_FILE], removed: [], orphaned: [file] };
+        }
+      }
+      return { written: [MANIFEST_FILE], removed: [], orphaned: [] };
     }
   }
-  return { written: [MANIFEST_FILE], removed: [], orphaned: [] };
 }
 
 /**

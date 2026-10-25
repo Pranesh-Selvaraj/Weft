@@ -70,6 +70,62 @@ describe("document commands", () => {
     expect(restored.design.pages[1].nodes[node.id]).toEqual(node);
   });
 
+  it("renames a page and restores the old name through the inverse", () => {
+    const design = twoPageDesign();
+    const page = design.pages[1];
+    const applied = applyDocumentCommand(design, {
+      type: "page.rename",
+      pageId: page.id,
+      name: "Pricing",
+    });
+    expect(applied.design.pages[1].name).toBe("Pricing");
+    expect(applied.design.manifest.pages[1].name).toBe("Pricing");
+    expect(applied.inverse).toEqual({
+      type: "page.rename",
+      pageId: page.id,
+      name: "Second",
+    });
+    const undone = applyDocumentCommand(applied.design, applied.inverse);
+    expect(undone.design.pages[1].name).toBe("Second");
+    expect(undone.design.manifest.pages[1].name).toBe("Second");
+  });
+
+  it("moves a page in both the page and manifest order with an inverse", () => {
+    const design = twoPageDesign();
+    const third = createPage({ name: "Third" });
+    const withThree = applyDocumentCommand(design, {
+      type: "page.create",
+      page: third,
+      file: nextPageFile(design.manifest, third.name),
+    }).design;
+    const applied = applyDocumentCommand(withThree, {
+      type: "page.move",
+      pageId: third.id,
+      index: 0,
+    });
+    expect(applied.design.pages.map((page) => page.name)).toEqual([
+      "Third",
+      "First",
+      "Second",
+    ]);
+    expect(applied.design.manifest.pages.map((page) => page.name)).toEqual([
+      "Third",
+      "First",
+      "Second",
+    ]);
+    expect(applied.inverse).toEqual({
+      type: "page.move",
+      pageId: third.id,
+      index: 2,
+    });
+    const undone = applyDocumentCommand(applied.design, applied.inverse);
+    expect(undone.design.pages.map((page) => page.name)).toEqual([
+      "First",
+      "Second",
+      "Third",
+    ]);
+  });
+
   it("refuses the last page and duplicate files or ids", () => {
     const one = createDesign({ name: "One" });
     expect(() => applyDocumentCommand(one, { type: "page.remove", pageId: one.pages[0].id })).toThrow(

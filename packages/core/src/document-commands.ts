@@ -20,7 +20,9 @@ export type DocumentCommand =
       file: string;
       index?: number;
     }
-  | { type: "page.remove"; pageId: string };
+  | { type: "page.remove"; pageId: string }
+  | { type: "page.rename"; pageId: string; name: string }
+  | { type: "page.move"; pageId: string; index: number };
 
 export interface AppliedDocumentCommand {
   design: DesignFile;
@@ -76,6 +78,22 @@ export function readDocumentCommand(input: unknown): DocumentCommand {
   }
   if (type === "page.remove") {
     return { type, pageId: readString(input.pageId, "pageId") };
+  }
+  if (type === "page.rename") {
+    const pageId = readString(input.pageId, "pageId");
+    const name = readString(input.name, "page.rename.name").trim();
+    if (!name) {
+      throw new WeftCommandError("command.page", "page.rename.name must not be blank.");
+    }
+    return { type, pageId, name };
+  }
+  if (type === "page.move") {
+    const pageId = readString(input.pageId, "pageId");
+    const index = readIndex(input.index);
+    if (index === undefined) {
+      throw new WeftCommandError("command.index", "page.move.index is required.");
+    }
+    return { type, pageId, index };
   }
   throw new WeftCommandError("command.type", `Unknown document command type ${JSON.stringify(type)}.`);
 }
@@ -144,6 +162,61 @@ export function applyDocumentCommand(
         },
         inverse: { type: "page.remove", pageId: page.id },
         createdPageIds: [page.id],
+        removedPageIds: [],
+      };
+    }
+    case "page.rename": {
+      const pageIndex = design.pages.findIndex((page) => page.id === command.pageId);
+      const refIndex = design.manifest.pages.findIndex((page) => page.id === command.pageId);
+      if (pageIndex === -1 || refIndex === -1) {
+        throw new WeftCommandError("page.missing", `Page ${command.pageId} does not exist.`);
+      }
+      const name = command.name.trim();
+      if (!name) {
+        throw new WeftCommandError("command.page", "A page name must not be blank.");
+      }
+      const oldName = design.pages[pageIndex].name;
+      const page = { ...design.pages[pageIndex], name };
+      const ref = { ...design.manifest.pages[refIndex], name };
+      const pages = [...design.pages];
+      pages[pageIndex] = page;
+      const manifestPages = [...design.manifest.pages];
+      manifestPages[refIndex] = ref;
+      return {
+        design: {
+          manifest: { ...design.manifest, pages: manifestPages },
+          pages,
+        },
+        inverse: { type: "page.rename", pageId: command.pageId, name: oldName },
+        createdPageIds: [],
+        removedPageIds: [],
+      };
+    }
+    case "page.move": {
+      const pageIndex = design.pages.findIndex((page) => page.id === command.pageId);
+      const refIndex = design.manifest.pages.findIndex((page) => page.id === command.pageId);
+      if (pageIndex === -1 || refIndex === -1) {
+        throw new WeftCommandError("page.missing", `Page ${command.pageId} does not exist.`);
+      }
+      if (command.index >= design.pages.length) {
+        throw new WeftCommandError(
+          "page.index",
+          `Page index ${command.index} is beyond the end of the design.`,
+        );
+      }
+      const pages = [...design.pages];
+      const [page] = pages.splice(pageIndex, 1);
+      pages.splice(command.index, 0, page);
+      const manifestPages = [...design.manifest.pages];
+      const [ref] = manifestPages.splice(refIndex, 1);
+      manifestPages.splice(command.index, 0, ref);
+      return {
+        design: {
+          manifest: { ...design.manifest, pages: manifestPages },
+          pages,
+        },
+        inverse: { type: "page.move", pageId: command.pageId, index: pageIndex },
+        createdPageIds: [],
         removedPageIds: [],
       };
     }

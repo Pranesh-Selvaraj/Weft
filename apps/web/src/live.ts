@@ -230,6 +230,8 @@ export interface DesignSource {
   openDesign(designPath: string): void;
   createPage(name?: string): string | null;
   deletePage(pageId: string): void;
+  renamePage(pageId: string, name: string): void;
+  movePage(pageId: string, index: number): void;
   startServer(projectPath: string): void;
   stopServer(projectPath: string): void;
 }
@@ -399,6 +401,37 @@ export function useDesignSource(): DesignSource {
         return;
       }
       dispatchDesign({ type: "page.remove", pageId }, "normal", "Delete page");
+    },
+    [dispatchDesign, mode, status],
+  );
+
+  const renamePage = useCallback(
+    (pageId: string, name: string): void => {
+      if (pendingRef.current.size > 0 || pendingDesignRef.current.size > 0) return;
+      const trimmed = name.trim();
+      if (!trimmed) return;
+      if (mode !== "live" || status !== "live") {
+        setError("The live bridge is not connected.");
+        return;
+      }
+      dispatchDesign(
+        { type: "page.rename", pageId, name: trimmed },
+        "normal",
+        "Rename page",
+      );
+    },
+    [dispatchDesign, mode, status],
+  );
+
+  const movePage = useCallback(
+    (pageId: string, index: number): void => {
+      if (pendingRef.current.size > 0 || pendingDesignRef.current.size > 0) return;
+      if (!Number.isInteger(index) || index < 0) return;
+      if (mode !== "live" || status !== "live") {
+        setError("The live bridge is not connected.");
+        return;
+      }
+      dispatchDesign({ type: "page.move", pageId, index }, "normal", "Move page");
     },
     [dispatchDesign, mode, status],
   );
@@ -792,6 +825,8 @@ export function useDesignSource(): DesignSource {
     openDesign,
     createPage,
     deletePage,
+    renamePage,
+    movePage,
     startServer,
     stopServer,
   };
