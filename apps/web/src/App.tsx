@@ -1044,6 +1044,16 @@ export function App() {
                     </div>
                   )}
                 </div>
+                {page.children.length === 0 && (
+                  <div className="page-empty-hint" aria-live="polite">
+                    <strong>Empty page</strong>
+                    <span>
+                      {source.editable
+                        ? "Draw a frame, text, rectangle or ellipse with the tools on the left."
+                        : "This page has no layers."}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           ) : (

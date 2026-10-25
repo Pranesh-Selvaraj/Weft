@@ -38,6 +38,7 @@ The static path remains the zero-process preview and the fallback.
 - Move a selected layer by dragging its rendered DOM; resize it with the eight selection handles. Each gesture is one `node.update` command with an inverse. The inspector remains available for exact values.
 - Browse the nested layer tree, expand/collapse containers, and select any layer. The tree auto-expands to the selected node.
 - Create a blank page with **+ Page**, rename it with **Rename** or by double-clicking its tab, drag tabs to reorder, and delete the active page with **Delete** (confirmation, last page protected). Page commands share the same undo/redo history as node commands.
+- Empty pages show an in-artboard hint explaining that the visible area is a blank page and pointing to the creation tools.
 - Edit name, position, size, opacity, fill and text content in the inspector. Changes commit on blur/Enter.
 - Delete a layer, undo with Cmd/Ctrl+Z, redo with Cmd/Ctrl+Shift+Z. Every creation is a normal command with an inverse.
 - See live file changes from the CLI or an agent, and the last editor's attribution.
