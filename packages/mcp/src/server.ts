@@ -357,7 +357,7 @@ function registerTools(server: McpServer, context: McpContext): void {
         const applied = applyDocumentCommand(design, command);
         const files = dryRun
           ? { written: [], removed: [], orphaned: [] }
-          : await writeDocumentCommand(directory, command, applied);
+          : await writeDocumentCommand(directory, command, applied, design);
         return jsonResult({
           ok: true,
           commandId: newId("cm"),

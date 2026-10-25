@@ -4,6 +4,7 @@
 - **Date:** 2026-10-25
 - **Area:** Contract / document model
 - **Extends:** ADR 0005, ADR 0014
+- **Extended by:** [0018](0018-page-organization.md) (page rename/move)
 
 ## Context
 

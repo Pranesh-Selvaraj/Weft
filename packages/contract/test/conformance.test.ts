@@ -225,6 +225,12 @@ describe("published schema", () => {
       schemaResult({ ...create, file: "weft.json" }).ok,
       "the manifest path is reserved",
     ).toBe(false);
+    expect(
+      schemaResult({ type: "page.rename", pageId: page.id, name: "Renamed" }).ok,
+    ).toBe(true);
+    expect(
+      schemaResult({ type: "page.move", pageId: page.id, index: 0 }).ok,
+    ).toBe(true);
   });
 
   it("accepts the starter design", () => {

@@ -461,6 +461,44 @@ describe("local bridge", () => {
       expect(afterCreate.manifest.pages).toHaveLength(2);
       expect(afterCreate.manifest.pages[1]).toMatchObject({ id: page.id, name: "Second page" });
 
+      const renamePromise = waitForMessage(
+        socket,
+        (message) => message.type === "designCommandResult" && message.requestId === "page-rename-1",
+      );
+      socket.send(
+        JSON.stringify({
+          type: "designCommand",
+          requestId: "page-rename-1",
+          command: { type: "page.rename", pageId: page.id, name: "Pricing" },
+        }),
+      );
+      const renamed = await renamePromise;
+      if (renamed.type !== "designCommandResult") throw new Error("unexpected message");
+      expect(renamed.ok).toBe(true);
+      const afterRename = (await fetch(`${bridge.url}/api/design`, {
+        headers: { cookie: sessionCookie(bridge) },
+      }).then((response) => response.json())) as DesignPayload;
+      expect(afterRename.manifest.pages[1].name).toBe("Pricing");
+
+      const movePromise = waitForMessage(
+        socket,
+        (message) => message.type === "designCommandResult" && message.requestId === "page-move-1",
+      );
+      socket.send(
+        JSON.stringify({
+          type: "designCommand",
+          requestId: "page-move-1",
+          command: { type: "page.move", pageId: page.id, index: 0 },
+        }),
+      );
+      const moved = await movePromise;
+      if (moved.type !== "designCommandResult") throw new Error("unexpected message");
+      expect(moved.ok).toBe(true);
+      const afterMove = (await fetch(`${bridge.url}/api/design`, {
+        headers: { cookie: sessionCookie(bridge) },
+      }).then((response) => response.json())) as DesignPayload;
+      expect(afterMove.manifest.pages[0].name).toBe("Pricing");
+
       const removedPromise = waitForMessage(
         socket,
         (message) => message.type === "designCommandResult" && message.requestId === "page-remove-1",

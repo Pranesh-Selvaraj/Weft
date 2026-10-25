@@ -845,10 +845,35 @@ body,
 .page-actions {
   display: grid;
   flex: 0 0 auto;
-  grid-template-columns: 1fr 1fr;
-  gap: 5px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
   padding: 9px 8px;
   border-top: 1px solid var(--line);
+}
+
+.page-tab[draggable="true"] {
+  cursor: grab;
+}
+
+.page-tab.is-dragging {
+  opacity: 0.42;
+}
+
+.page-tab.is-drop-target {
+  box-shadow: inset 2px 0 var(--accent), inset -2px 0 var(--accent);
+}
+
+.page-tab-input {
+  width: 108px;
+  height: 29px;
+  padding: 0 9px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  outline: none;
+  background: var(--input);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 12px;
 }
 
 .page-actions .button {

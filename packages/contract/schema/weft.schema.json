@@ -1288,6 +1288,46 @@
               "$ref": "#/$defs/pageId"
             }
           }
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "pageId",
+            "name"
+          ],
+          "properties": {
+            "type": {
+              "const": "page.rename"
+            },
+            "pageId": {
+              "$ref": "#/$defs/pageId"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "pageId",
+            "index"
+          ],
+          "properties": {
+            "type": {
+              "const": "page.move"
+            },
+            "pageId": {
+              "$ref": "#/$defs/pageId"
+            },
+            "index": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
         }
       ]
     },

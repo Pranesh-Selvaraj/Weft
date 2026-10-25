@@ -209,11 +209,14 @@ manifest and page files and return an inverse, like node commands.
 Commands:
   create    Create an empty page (--name)
   remove    Remove a page (--page <id|name>)
+  rename    Rename a page (--page <id|name> --name <name>)
+  move      Move a page to an index (--page <id|name> --index <n>)
   apply     Apply a document command JSON file (--command; "-" or omitted reads stdin)
 
 Options:
-  --name <name>     Page name for "create"
-  --page <id|name>  Page selector for "remove"
+  --name <name>     Page name for "create" or "rename"
+  --page <id|name>  Page selector for "remove", "rename" and "move"
+  --index <n>       Zero-based destination index for "move"
   --command <path>  Document command JSON for "apply"
   --json            Machine-readable output
   --help            Show this help`;
@@ -327,6 +330,7 @@ const EXTRACT_OPTIONS: OptionConfig = {
 const PAGE_OPTIONS: OptionConfig = {
   name: { type: "string" },
   page: { type: "string" },
+  index: { type: "string" },
   command: { type: "string" },
   ...JSON_OPTION,
 };
@@ -1028,6 +1032,44 @@ async function pageCommand(
       }
       command = { type: "page.remove", pageId: page.id };
       label = `Removed page ${JSON.stringify(page.name)}`;
+    } else if (subcommand === "rename") {
+      if (typeof parsed.values.page !== "string" || parsed.values.page.length === 0) {
+        err("--page <id|name> is required for page rename.");
+        return 2;
+      }
+      if (typeof parsed.values.name !== "string" || parsed.values.name.trim().length === 0) {
+        err("--name <name> is required for page rename.");
+        return 2;
+      }
+      const page = getPage(design, parsed.values.page);
+      if (!page) {
+        err(`No page matches ${JSON.stringify(parsed.values.page)}.`);
+        return 1;
+      }
+      command = { type: "page.rename", pageId: page.id, name: parsed.values.name.trim() };
+      label = `Renamed page ${JSON.stringify(page.name)} to ${JSON.stringify(command.name)}`;
+    } else if (subcommand === "move") {
+      if (typeof parsed.values.page !== "string" || parsed.values.page.length === 0) {
+        err("--page <id|name> is required for page move.");
+        return 2;
+      }
+      const index = Number(parsed.values.index);
+      if (
+        typeof parsed.values.index !== "string" ||
+        !Number.isInteger(index) ||
+        index < 0 ||
+        index >= design.pages.length
+      ) {
+        err(`--index must be an integer between 0 and ${Math.max(0, design.pages.length - 1)}.`);
+        return 2;
+      }
+      const page = getPage(design, parsed.values.page);
+      if (!page) {
+        err(`No page matches ${JSON.stringify(parsed.values.page)}.`);
+        return 1;
+      }
+      command = { type: "page.move", pageId: page.id, index };
+      label = `Moved page ${JSON.stringify(page.name)} to index ${index}`;
     } else if (subcommand === "apply") {
       const text = await readCommandText(parsed.values.command, cwd, stdin);
       command = readDocumentCommand(parseJson(text));
@@ -1039,7 +1081,7 @@ async function pageCommand(
     }
 
     const applied = applyDocumentCommand(design, command);
-    const written = await writeDocumentCommand(directory, command, applied);
+    const written = await writeDocumentCommand(directory, command, applied, design);
     const payload = {
       ok: true,
       command,
@@ -1060,6 +1102,9 @@ async function pageCommand(
     } else if (command.type === "page.remove") {
       out(`${label}.`);
       out("The inverse contains the removed page and can be applied with page apply.");
+    } else if (command.type === "page.rename" || command.type === "page.move") {
+      out(`${label}.`);
+      out(`Pages: ${applied.design.pages.length}`);
     } else {
       out(label);
       out(`Pages: ${applied.design.pages.length}`);

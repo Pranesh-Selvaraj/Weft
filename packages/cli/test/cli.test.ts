@@ -425,6 +425,32 @@ describe("weft CLI", () => {
     expect(design.manifest.pages).toHaveLength(1);
   });
 
+  it("renames and moves pages through the CLI", async () => {
+    const dir = await init();
+    expect(await run(["page", "create", "demo.weft", "--name", "About", "--json"])).toBe(0);
+    expect(
+      await run([
+        "page",
+        "rename",
+        "demo.weft",
+        "--page",
+        "About",
+        "--name",
+        "Pricing",
+        "--json",
+      ]),
+    ).toBe(0);
+    let design = await readDesign(dir);
+    expect(design.pages.map((page) => page.name)).toEqual(["Page 1", "Pricing"]);
+
+    expect(
+      await run(["page", "move", "demo.weft", "--page", "Pricing", "--index", "0", "--json"]),
+    ).toBe(0);
+    design = await readDesign(dir);
+    expect(design.pages.map((page) => page.name)).toEqual(["Pricing", "Page 1"]);
+    expect(design.manifest.pages.map((page) => page.name)).toEqual(["Pricing", "Page 1"]);
+  });
+
   it("exposes MCP help without starting the stdio server", async () => {
     expect(await run(["mcp", "--help"])).toBe(0);
     expect(out.join("\n")).toContain("weft mcp");

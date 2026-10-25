@@ -228,7 +228,7 @@ Create frames, text and shapes from the UI, plus a basic layer tree and selectio
 
 Exit criteria: a user can create a new page and frame from the browser, not only edit an existing starter; every creation is a normal command with undo.
 
-Node creation (frames, text, rectangles, ellipses), parent-aware insertion, the layer tree and browser page create/delete now use ordinary page or document commands with inverses and undo. See ADR 0014 and ADR 0015. Page rename/reorder remains a follow-up.
+Node creation (frames, text, rectangles, ellipses), parent-aware insertion, the layer tree and browser page create/delete now use ordinary page or document commands with inverses and undo. See ADR 0014 and ADR 0015. Page rename/reorder are now implemented; page duplicate and background/token editors remain follow-ups.
 
 ### 9. `feat/agent-mcp` (partially implemented)
 

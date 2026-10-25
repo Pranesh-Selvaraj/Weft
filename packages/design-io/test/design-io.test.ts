@@ -398,6 +398,38 @@ describe("document file writes", () => {
 });
 
 describe("writeDocumentCommand", () => {
+  it("writes page rename and move manifest changes", async () => {
+    const design = buildDesign();
+    await writeDesign(designDir, design);
+    const page = createPage({ name: "Second" });
+    const create = {
+      type: "page.create" as const,
+      page,
+      file: nextPageFile(design.manifest, page.name),
+    };
+    const created = applyDocumentCommand(design, create);
+    await writeDocumentCommand(designDir, create, created, design);
+    const afterCreate = await readDesign(designDir);
+
+    const renameCommand = { type: "page.rename" as const, pageId: page.id, name: "Pricing" };
+    const rename = applyDocumentCommand(afterCreate, renameCommand);
+    const renamed = await writeDocumentCommand(designDir, renameCommand, rename, afterCreate);
+    expect(renamed.written).toContain(MANIFEST_FILE);
+    const afterRename = await readDesign(designDir);
+    expect(afterRename.pages[1].name).toBe("Pricing");
+    expect(afterRename.manifest.pages[1].name).toBe("Pricing");
+
+    const move = applyDocumentCommand(afterRename, { type: "page.move", pageId: page.id, index: 0 });
+    await writeDocumentCommand(
+      designDir,
+      { type: "page.move", pageId: page.id, index: 0 },
+      move,
+      afterRename,
+    );
+    const afterMove = await readDesign(designDir);
+    expect(afterMove.pages.map((candidate) => candidate.name)).toEqual(["Pricing", "Landing"]);
+  });
+
   it("commits page creation and removal with inverse-safe files", async () => {
     const design = buildDesign();
     await writeDesign(designDir, design);
@@ -408,7 +440,7 @@ describe("writeDocumentCommand", () => {
       file: nextPageFile(design.manifest, page.name),
     };
     const appliedCreate = applyDocumentCommand(design, create);
-    const created = await writeDocumentCommand(designDir, create, appliedCreate);
+    const created = await writeDocumentCommand(designDir, create, appliedCreate, design);
     expect(created.written).toEqual([create.file, MANIFEST_FILE]);
     expect(created.removed).toEqual([]);
     const afterCreate = await readDesign(designDir);
@@ -418,7 +450,7 @@ describe("writeDocumentCommand", () => {
     const remove = appliedCreate.inverse;
     if (remove.type !== "page.remove") throw new Error("expected page.remove");
     const appliedRemove = applyDocumentCommand(afterCreate, remove);
-    const removed = await writeDocumentCommand(designDir, remove, appliedRemove);
+    const removed = await writeDocumentCommand(designDir, remove, appliedRemove, afterCreate);
     expect(removed.removed).toEqual([create.file]);
     const afterRemove = await readDesign(designDir, { requireFiles: false });
     expect(afterRemove.manifest.pages).toHaveLength(1);
