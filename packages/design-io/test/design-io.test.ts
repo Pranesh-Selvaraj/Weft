@@ -20,9 +20,11 @@ import {
   MANIFEST_FILE,
   readDesign,
   readSnapshotPayloads,
+  removeDesignFile,
   resolveDesignPath,
   summarizeDesign,
   writeDesign,
+  writeManifest,
   writePageFile,
   writeSnapshotFiles,
   WeftIoError,
@@ -370,5 +372,23 @@ describe("snapshot payloads", () => {
     await expect(readSnapshotPayloads(designDir, [insertNode(design.pages[0], unsafe)])).rejects.toBeInstanceOf(
       WeftIoError,
     );
+  });
+});
+
+describe("document file writes", () => {
+  it("writes a manifest atomically and removes a design-relative file", async () => {
+    const design = buildDesign();
+    await writeDesign(designDir, design);
+    const name = "Renamed";
+    await writeManifest(designDir, {
+      ...design.manifest,
+      name,
+    });
+    expect(JSON.parse(await readFile(join(designDir, MANIFEST_FILE), "utf8")).name).toBe(name);
+
+    const removed = await removeDesignFile(designDir, design.manifest.pages[0].file);
+    expect(removed.removed).toBe(true);
+    expect(await removeDesignFile(designDir, design.manifest.pages[0].file)).toMatchObject({ removed: false });
+    await expect(removeDesignFile(designDir, "../outside.json")).rejects.toBeInstanceOf(WeftIoError);
   });
 });

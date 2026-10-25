@@ -7,9 +7,11 @@ import { beforeAll, describe, expect, it } from "vitest";
 import {
   createDesign,
   createNode,
+  createPage,
   insertNode,
   newId,
   parseJson,
+  readDocumentCommand,
   readPageCommand,
   validateDesign,
   validateManifest,
@@ -193,6 +195,36 @@ describe("published schema", () => {
       expect(result.ok, `${command.type}: ${result.errors}`).toBe(true);
       expect(commandCodes({ pageId, command })).toEqual([]);
     }
+  });
+
+  it("publishes page document commands", () => {
+    const page = createPage({ name: "About" });
+    const create = {
+      type: "page.create",
+      page,
+      file: "pages/about.json",
+    };
+    const createResult = schemaResult(create);
+    expect(createResult.ok, createResult.errors).toBe(true);
+    expect(readDocumentCommand(create).type).toBe("page.create");
+
+    const requestResult = schemaResult({ command: create });
+    expect(requestResult.ok, requestResult.errors).toBe(true);
+
+    const removeResult = schemaResult({
+      type: "page.remove",
+      pageId: page.id,
+    });
+    expect(removeResult.ok, removeResult.errors).toBe(true);
+    expect(readDocumentCommand({ type: "page.remove", pageId: page.id })).toEqual({
+      type: "page.remove",
+      pageId: page.id,
+    });
+
+    expect(
+      schemaResult({ ...create, file: "weft.json" }).ok,
+      "the manifest path is reserved",
+    ).toBe(false);
   });
 
   it("accepts the starter design", () => {

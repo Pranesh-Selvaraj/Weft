@@ -6,10 +6,12 @@ import {
   isId,
   serialize,
   validateDesign,
+  validateManifest,
   validatePage,
   WeftValidationError,
   type Asset,
   type DesignFile,
+  type DesignManifest,
   type PageDocument,
   type SnapshotFiles,
   type TokenTree,
@@ -140,6 +142,39 @@ export async function writePageFile(
   const target = resolveDesignPath(root, file);
   await writeFileAtomic(target, serialize(page));
   return { directory: root, file };
+}
+
+/** Write only the manifest, atomically, after structural validation. */
+export async function writeManifest(
+  directory: string,
+  manifest: DesignManifest,
+): Promise<{ directory: string; file: string }> {
+  const issues = validateManifest(manifest);
+  if (issues.length > 0) throw new WeftValidationError(issues);
+  const root = resolve(directory);
+  await writeFileAtomic(resolveDesignPath(root, MANIFEST_FILE), serialize(manifest));
+  return { directory: root, file: MANIFEST_FILE };
+}
+
+/**
+ * Remove a design-relative file. A missing file is already in the desired
+ * state; unsafe paths are refused by resolveDesignPath.
+ */
+export async function removeDesignFile(
+  directory: string,
+  relativePath: string,
+): Promise<{ directory: string; file: string; removed: boolean }> {
+  const root = resolve(directory);
+  const target = resolveDesignPath(root, relativePath);
+  try {
+    await unlink(target);
+    return { directory: root, file: relativePath, removed: true };
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return { directory: root, file: relativePath, removed: false };
+    }
+    throw error;
+  }
 }
 
 /**

@@ -1,4 +1,4 @@
-import type { CommandActor, DesignManifest, PageCommand } from "@weft/core";
+import type { CommandActor, DesignManifest, DocumentCommand, PageCommand } from "@weft/core";
 import type { SnapshotPayload } from "@weft/design-io";
 import type { DevServerSnapshot } from "@weft/dev-server";
 import type { MergeConflict } from "@weft/session";
@@ -46,6 +46,8 @@ export interface OpenDesignRequest {
 
 export interface InitMessage extends DesignPayload {
   type: "init";
+  /** Marks a rebuild caused by a document command so the initiator can keep its history. */
+  reason?: "designCommand";
 }
 
 export interface UpdateMessage {
@@ -108,6 +110,36 @@ export interface CommandBroadcastMessage {
   actor?: CommandActor;
 }
 
+export interface DocumentCommandRequestMessage {
+  type: "designCommand";
+  requestId: string;
+  command: DocumentCommand;
+  actor?: CommandActor;
+}
+
+export interface DocumentCommandResultMessage {
+  type: "designCommandResult";
+  requestId: string;
+  ok: boolean;
+  revision: number;
+  commandId?: string;
+  inverse?: DocumentCommand;
+  createdPageIds?: string[];
+  removedPageIds?: string[];
+  actor?: CommandActor;
+  error?: { code: string; message: string };
+}
+
+export interface DocumentCommandBroadcastMessage {
+  type: "designCommand";
+  revision: number;
+  commandId: string;
+  command: DocumentCommand;
+  createdPageIds: string[];
+  removedPageIds: string[];
+  actor?: CommandActor;
+}
+
 export type BridgeMessage =
   | InitMessage
   | UpdateMessage
@@ -116,11 +148,14 @@ export type BridgeMessage =
   | PongMessage
   | DevServerMessage
   | CommandResultMessage
-  | CommandBroadcastMessage;
+  | CommandBroadcastMessage
+  | DocumentCommandResultMessage
+  | DocumentCommandBroadcastMessage;
 
 export type ClientMessage =
   | { type: "ping" | "refresh" }
-  | CommandRequestMessage;
+  | CommandRequestMessage
+  | DocumentCommandRequestMessage;
 
 /** Encode a Yjs update for the JSON transport used by the local bridge. */
 export function encodeUpdate(update: Uint8Array): string {

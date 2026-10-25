@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type {
-  CommandActor,
-  DesignManifest,
-  PageCommand,
-  PageDocument,
+import {
+  createPage as createEmptyPage,
+  nextPageFile,
+  type CommandActor,
+  type DesignManifest,
+  type DocumentCommand,
+  type PageCommand,
+  type PageDocument,
 } from "@weft/core";
 import type { SnapshotPayload } from "@weft/render";
 import { PageSession, type MergeConflict } from "@weft/session";
@@ -79,6 +82,7 @@ interface DesignPayload {
 
 interface InitMessage extends DesignPayload {
   type: "init";
+  reason?: "designCommand";
 }
 
 interface UpdateMessage {
@@ -132,6 +136,36 @@ interface CommandBroadcastMessage {
   actor?: CommandActor;
 }
 
+interface DocumentCommandRequestMessage {
+  type: "designCommand";
+  requestId: string;
+  command: DocumentCommand;
+  actor?: CommandActor;
+}
+
+interface DocumentCommandResultMessage {
+  type: "designCommandResult";
+  requestId: string;
+  ok: boolean;
+  revision: number;
+  commandId?: string;
+  inverse?: DocumentCommand;
+  createdPageIds?: string[];
+  removedPageIds?: string[];
+  actor?: CommandActor;
+  error?: { code: string; message: string };
+}
+
+interface DocumentCommandBroadcastMessage {
+  type: "designCommand";
+  revision: number;
+  commandId: string;
+  command: DocumentCommand;
+  createdPageIds: string[];
+  removedPageIds: string[];
+  actor?: CommandActor;
+}
+
 interface DevServerMessage {
   type: "dev";
   server: DevServerSnapshot;
@@ -145,6 +179,8 @@ type ServerMessage =
   | DevServerMessage
   | CommandResultMessage
   | CommandBroadcastMessage
+  | DocumentCommandResultMessage
+  | DocumentCommandBroadcastMessage
   | { type: "pong" };
 
 type CommandKind = "normal" | "undo" | "redo";
@@ -155,11 +191,20 @@ interface PendingCommand {
   pageId: string;
 }
 
-interface HistoryEntry {
+interface PageHistoryEntry {
+  kind: "page";
   pageId: string;
   command: PageCommand;
   label: string;
 }
+
+interface DocumentHistoryEntry {
+  kind: "design";
+  command: DocumentCommand;
+  label: string;
+}
+
+type HistoryEntry = PageHistoryEntry | DocumentHistoryEntry;
 
 export interface DesignSource {
   manifest: DesignManifest;
@@ -183,6 +228,8 @@ export interface DesignSource {
   undo(): void;
   redo(): void;
   openDesign(designPath: string): void;
+  createPage(name?: string): string | null;
+  deletePage(pageId: string): void;
   startServer(projectPath: string): void;
   stopServer(projectPath: string): void;
 }
@@ -248,6 +295,7 @@ export function useDesignSource(): DesignSource {
   const sessionsRef = useRef<Map<string, PageSession>>(new Map());
   const socketRef = useRef<WebSocket | null>(null);
   const pendingRef = useRef<Map<string, PendingCommand>>(new Map());
+  const pendingDesignRef = useRef<Map<string, { kind: CommandKind; label: string }>>(new Map());
 
   const dispatch = useCallback(
     (pageId: string, command: PageCommand, kind: CommandKind, label: string): void => {
@@ -271,6 +319,27 @@ export function useDesignSource(): DesignSource {
     [],
   );
 
+  const dispatchDesign = useCallback(
+    (command: DocumentCommand, kind: CommandKind, label: string): void => {
+      const ws = socketRef.current;
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        setError("The live bridge is not connected.");
+        return;
+      }
+      const requestId = newRequestId();
+      pendingDesignRef.current.set(requestId, { kind, label });
+      setPending((count) => count + 1);
+      const message: DocumentCommandRequestMessage = {
+        type: "designCommand",
+        requestId,
+        command,
+        actor: LOCAL_ACTOR,
+      };
+      ws.send(JSON.stringify(message));
+    },
+    [],
+  );
+
   const sendCommand = useCallback(
     (pageId: string, command: PageCommand, label = command.type): void => {
       dispatch(pageId, command, "normal", label);
@@ -279,20 +348,60 @@ export function useDesignSource(): DesignSource {
   );
 
   const undo = useCallback((): void => {
-    if (pendingRef.current.size > 0) return;
+    if (pendingRef.current.size > 0 || pendingDesignRef.current.size > 0) return;
     const entry = undoStack[undoStack.length - 1];
     if (!entry) return;
     setUndoStack((current) => current.slice(0, -1));
-    dispatch(entry.pageId, entry.command, "undo", entry.label);
-  }, [dispatch, undoStack]);
+    if (entry.kind === "design") {
+      dispatchDesign(entry.command, "undo", entry.label);
+    } else {
+      dispatch(entry.pageId, entry.command, "undo", entry.label);
+    }
+  }, [dispatch, dispatchDesign, undoStack]);
 
   const redo = useCallback((): void => {
-    if (pendingRef.current.size > 0) return;
+    if (pendingRef.current.size > 0 || pendingDesignRef.current.size > 0) return;
     const entry = redoStack[redoStack.length - 1];
     if (!entry) return;
     setRedoStack((current) => current.slice(0, -1));
-    dispatch(entry.pageId, entry.command, "redo", entry.label);
-  }, [dispatch, redoStack]);
+    if (entry.kind === "design") {
+      dispatchDesign(entry.command, "redo", entry.label);
+    } else {
+      dispatch(entry.pageId, entry.command, "redo", entry.label);
+    }
+  }, [dispatch, dispatchDesign, redoStack]);
+
+  const createPage = useCallback(
+    (name?: string): string | null => {
+      if (pendingRef.current.size > 0 || pendingDesignRef.current.size > 0) return null;
+      if (mode !== "live" || status !== "live") {
+        setError("The live bridge is not connected.");
+        return null;
+      }
+      const pageName = name?.trim() || `Page ${manifest.pages.length + 1}`;
+      const page = createEmptyPage({ name: pageName });
+      const command: DocumentCommand = {
+        type: "page.create",
+        page,
+        file: nextPageFile(manifest, page.name),
+      };
+      dispatchDesign(command, "normal", "Create page");
+      return page.id;
+    },
+    [dispatchDesign, manifest, mode, status],
+  );
+
+  const deletePage = useCallback(
+    (pageId: string): void => {
+      if (pendingRef.current.size > 0 || pendingDesignRef.current.size > 0) return;
+      if (mode !== "live" || status !== "live") {
+        setError("The live bridge is not connected.");
+        return;
+      }
+      dispatchDesign({ type: "page.remove", pageId }, "normal", "Delete page");
+    },
+    [dispatchDesign, mode, status],
+  );
 
   const openDesign = useCallback((designPath: string): void => {
     const socket = socketRef.current;
@@ -391,13 +500,14 @@ export function useDesignSource(): DesignSource {
 
     const clearHistory = (): void => {
       pendingRef.current.clear();
+      pendingDesignRef.current.clear();
       setPending(0);
       setUndoStack([]);
       setRedoStack([]);
       setLastActor(null);
     };
 
-    const applyPayload = (payload: DesignPayload): string | null => {
+    const applyPayload = (payload: DesignPayload, preserveHistory = false): string | null => {
       const next = new Map<string, PageSession>();
       try {
         for (const wire of payload.pages) {
@@ -441,7 +551,7 @@ export function useDesignSource(): DesignSource {
         setDevError(null);
         setServerBusy(null);
         setSwitching(false);
-        clearHistory();
+        if (!preserveHistory) clearHistory();
         return null;
       } catch (caught) {
         destroySessions(next);
@@ -479,8 +589,38 @@ export function useDesignSource(): DesignSource {
       setError(null);
       if (!message.inverse || !entry) return;
 
-      const history: HistoryEntry = {
+      const history: PageHistoryEntry = {
+        kind: "page",
         pageId: entry.pageId,
+        command: message.inverse,
+        label: entry.label,
+      };
+      if (entry.kind === "normal") {
+        setUndoStack((current) => [...current, history]);
+        setRedoStack([]);
+      } else if (entry.kind === "undo") {
+        setRedoStack((current) => [...current, history]);
+      } else {
+        setUndoStack((current) => [...current, history]);
+      }
+    };
+
+    const handleDocumentCommandResult = (message: DocumentCommandResultMessage): void => {
+      const entry = pendingDesignRef.current.get(message.requestId);
+      if (entry) pendingDesignRef.current.delete(message.requestId);
+      setPending((count) => Math.max(0, count - 1));
+      if (message.revision !== undefined) setRevision(message.revision);
+      if (message.actor) setLastActor(message.actor);
+
+      if (!message.ok) {
+        setError(message.error?.message ?? "The bridge rejected the page command.");
+        return;
+      }
+      setError(null);
+      if (!message.inverse || !entry) return;
+
+      const history: DocumentHistoryEntry = {
+        kind: "design",
         command: message.inverse,
         label: entry.label,
       };
@@ -513,7 +653,9 @@ export function useDesignSource(): DesignSource {
 
         switch (message.type) {
           case "init": {
-            const failure = applyPayload(message);
+            const preserveHistory =
+              message.reason === "designCommand" && pendingDesignRef.current.size > 0;
+            const failure = applyPayload(message, preserveHistory);
             if (failure) {
               setError(failure);
               setStatus("disconnected");
@@ -534,6 +676,10 @@ export function useDesignSource(): DesignSource {
           }
           case "commandResult": {
             handleCommandResult(message);
+            break;
+          }
+          case "designCommandResult": {
+            handleDocumentCommandResult(message);
             break;
           }
           case "command": {
@@ -559,6 +705,7 @@ export function useDesignSource(): DesignSource {
         if (socketRef.current === ws) socketRef.current = null;
         if (disposed) return;
         pendingRef.current.clear();
+        pendingDesignRef.current.clear();
         setPending(0);
         setSwitching(false);
         setServerBusy(null);
@@ -643,6 +790,8 @@ export function useDesignSource(): DesignSource {
     undo,
     redo,
     openDesign,
+    createPage,
+    deletePage,
     startServer,
     stopServer,
   };

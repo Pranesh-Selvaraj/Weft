@@ -15,6 +15,12 @@
     },
     {
       "$ref": "#/$defs/commandEnvelope"
+    },
+    {
+      "$ref": "#/$defs/documentCommand"
+    },
+    {
+      "$ref": "#/$defs/documentCommandRequest"
     }
   ],
   "$defs": {
@@ -1236,6 +1242,73 @@
         },
         "meta": {
           "$ref": "#/$defs/jsonObject"
+        }
+      }
+    },
+    "documentCommand": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "page",
+            "file"
+          ],
+          "properties": {
+            "type": {
+              "const": "page.create"
+            },
+            "page": {
+              "$ref": "#/$defs/page"
+            },
+            "file": {
+              "type": "string",
+              "minLength": 1,
+              "not": {
+                "const": "weft.json"
+              }
+            },
+            "index": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "pageId"
+          ],
+          "properties": {
+            "type": {
+              "const": "page.remove"
+            },
+            "pageId": {
+              "$ref": "#/$defs/pageId"
+            }
+          }
+        }
+      ]
+    },
+    "documentCommandRequest": {
+      "type": "object",
+      "required": [
+        "command"
+      ],
+      "properties": {
+        "command": {
+          "$ref": "#/$defs/documentCommand"
+        },
+        "actor": {
+          "$ref": "#/$defs/actor"
+        },
+        "id": {
+          "$ref": "#/$defs/commandId"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
         }
       }
     }
