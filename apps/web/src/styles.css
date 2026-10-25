@@ -960,6 +960,34 @@ body,
   transform-origin: top left;
 }
 
+.page-empty-hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 24px;
+  background: color-mix(in srgb, var(--chrome-strong) 55%, transparent);
+  color: var(--muted);
+  text-align: center;
+  pointer-events: none;
+}
+
+.page-empty-hint strong {
+  color: var(--ink-soft);
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 500;
+}
+
+.page-empty-hint span {
+  max-width: 330px;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
 .canvas-error {
   position: absolute;
   top: 16px;
