@@ -38,6 +38,7 @@ import {
 } from "@weft/design-io";
 import { startBridge, WeftBridgeError, type WeftBridge } from "@weft/bridge";
 import { extractSnapshot, ExtractError } from "@weft/extract";
+import { McpError, runWeftMcpStdio } from "@weft/mcp";
 import {
   addProject,
   listProjects,
@@ -86,6 +87,7 @@ Commands:
   id        Generate Weft ids for new entities or commands
   extract   Capture an allowlisted running page into a snapshot frame
   page      Create, remove or apply a page-level document command
+  mcp       Serve the document contract as MCP tools over stdio
   dev       Serve the live preview and watch a design directory
   workspace Register local projects and discover their designs
   help      Show help
@@ -104,6 +106,7 @@ Examples:
   weft apply designs/marketing --command change.json
   weft extract designs/marketing http://127.0.0.1:3000/ --project ~/projects/marketing
   weft page create designs/marketing --name About
+  weft mcp --workspace ~/.weft/workspace.json
   weft dev designs/marketing
   weft workspace add ~/projects/marketing
   weft workspace list`;
@@ -215,6 +218,20 @@ Options:
   --json            Machine-readable output
   --help            Show this help`;
 
+const MCP_USAGE = `Usage: weft mcp [options]
+
+Serve the Weft document contract as MCP tools over stdio. Stdout is reserved
+for the MCP protocol; logs and errors go to stderr.
+
+Options:
+  --workspace <file>  Workspace registry to expose (default: $WEFT_WORKSPACE or ~/.weft/workspace.json)
+  --design <dir>      Expose one design directory instead of a workspace
+  --read-only         Disable page and node mutations
+  --help              Show this help
+
+Example client configuration:
+  { "command": "node", "args": ["/path/to/weft/packages/cli/dist/main.js", "mcp", "--workspace", "/home/me/.weft/workspace.json"] }`;
+
 const DEV_USAGE = `Usage: weft dev <directory> [options]
 
 Serve the built web preview and watch the design directory. The bridge streams
@@ -259,6 +276,7 @@ const USAGE_BY_COMMAND: Record<string, string> = {
   id: ID_USAGE,
   extract: EXTRACT_USAGE,
   page: PAGE_USAGE,
+  mcp: MCP_USAGE,
   dev: DEV_USAGE,
   workspace: WORKSPACE_USAGE,
 };
@@ -311,6 +329,12 @@ const PAGE_OPTIONS: OptionConfig = {
   page: { type: "string" },
   command: { type: "string" },
   ...JSON_OPTION,
+};
+const MCP_OPTIONS: OptionConfig = {
+  workspace: { type: "string" },
+  design: { type: "string" },
+  "read-only": { type: "boolean" },
+  help: { type: "boolean" },
 };
 const DEV_OPTIONS: OptionConfig = {
   port: { type: "string" },
@@ -393,7 +417,8 @@ function handleError(
     error instanceof WeftOperationError ||
     error instanceof WeftBridgeError ||
     error instanceof WorkspaceError ||
-    error instanceof ExtractError
+    error instanceof ExtractError ||
+    error instanceof McpError
   ) {
     if (json) emitJson(out, { ok: false, error: { code: error.code, message: error.message } });
     else err(`${error.code}: ${error.message}`);
@@ -1048,6 +1073,45 @@ async function pageCommand(
   }
 }
 
+async function mcpCommand(
+  argv: string[],
+  cwd: string,
+  out: Writer,
+  err: Writer,
+): Promise<number> {
+  const parsed = parseCommand(argv, MCP_OPTIONS, MCP_USAGE, err);
+  if (!parsed) return 2;
+  if (parsed.values.help) {
+    out(MCP_USAGE);
+    return 0;
+  }
+  if (parsed.positionals.length > 0) {
+    err("weft mcp does not take positional arguments.");
+    out(MCP_USAGE);
+    return 2;
+  }
+  if (parsed.values.workspace !== undefined && parsed.values.design !== undefined) {
+    err("Choose either --workspace or --design, not both.");
+    return 2;
+  }
+  const design =
+    typeof parsed.values.design === "string" ? resolve(cwd, parsed.values.design) : undefined;
+  const workspace =
+    typeof parsed.values.workspace === "string"
+      ? workspaceFileFrom(parsed.values.workspace, cwd)
+      : undefined;
+  try {
+    await runWeftMcpStdio({
+      ...(design ? { designDir: design } : {}),
+      ...(workspace ? { workspaceFile: workspace } : {}),
+      readOnly: parsed.values["read-only"] === true,
+    });
+    return 0;
+  } catch (error) {
+    return handleError(error, false, out, err);
+  }
+}
+
 async function devCommand(
   argv: string[],
   cwd: string,
@@ -1359,6 +1423,8 @@ export async function runCli(argv: string[], io: CliIO = {}): Promise<number> {
         return await extractCommand(rest, cwd, out, err);
       case "page":
         return await pageCommand(rest, cwd, out, err, io.stdin ?? readStdinDefault);
+      case "mcp":
+        return await mcpCommand(rest, cwd, out, err);
       case "dev":
         return await devCommand(rest, cwd, out, err);
       case "workspace":

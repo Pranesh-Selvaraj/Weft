@@ -38,6 +38,7 @@ Captured HTML / assets                    Project directories
 - extraction requires an exact loopback origin in `extract.origins`; the capture browser routes HTTP/WebSocket traffic to allowlisted origins only, blocks service workers/dialogs/popups and uses a fresh context;
 - captured markup/CSS are sanitized in the browser and then verified by a dependency-free Node pass that fails closed on executable tags, event attributes or non-data URLs; images are inlined as data URLs;
 - snapshot payloads render in `sandbox=""` iframes with a CSP that allows only inline styles and `data:` images;
+- the MCP server is stdio-only, accepts only designs in its startup workspace/single-design allowlist, can run with `--read-only`, reuses the same command validation/atomic writes, and attributes writes to the fixed MCP actor;
 - dev-server URLs are loopback HTTP(S) only, cwd is checked lexically and through `realpath`, the config file is a capped regular file that rejects symlinks, and managed children are stopped as a process group;
 - `/api/dev/start` and `/api/dev/stop` require the session cookie and Origin check;
 - Host and Origin checks against the loopback host and port;
@@ -66,8 +67,8 @@ These are deliberately tracked before Weft is used on real projects:
 - no bridge/UI Extract action or git-commit metadata yet;
 - page removal has no filesystem journal: a crash between manifest write and file unlink can leave an orphan page file; the page content needed for undo lives in the command inverse and in git history, not a durable transaction log;
 - no asset server for image nodes and thumbnails; snapshot payloads are served inline;
-- no per-agent permission boundary;
-- no published, signed release artifacts.
+- MCP has no per-project/tool permissions, durable audit log, rate limits or remote auth; a writable server can edit every design in its allowlist;
+- no published, signed release artifacts or published CLI binary.
 
 ## Planned controls and branch order
 
@@ -76,7 +77,7 @@ These are deliberately tracked before Weft is used on real projects:
 3. `feat/workspace-picker` — implemented: bridge/UI project switching, with `/api/open` accepting only designs discovered in the registry.
 4. `feat/dev-server-control` — implemented: project-declared argv commands, no shell interpolation, process groups, readiness probes, bounded logs, stop, and loopback-only targets.
 5. `feat/extract-snapshots` — implemented: allowlisted capture origins, Playwright/Chromium capture, scoped computed CSS, data-URL assets, a browser sanitizer plus a fail-closed verifier, CSP/sandbox rendering and prompt-injection guidance.
-6. `feat/agent-mcp` — agent tool contract and per-project permissions, context packets, audit log.
+6. `feat/agent-mcp` — partially implemented: stdio MCP server with allowlisted reads/writes, context packets, inverses and read-only mode; per-project/tool permissions and a durable audit log remain.
 7. `feat/export` — tokens and frames to implementation artifacts.
 
 ## Security review checklist for changes

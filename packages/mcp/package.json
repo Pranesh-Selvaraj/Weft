@@ -1,0 +1,33 @@
+{
+  "name": "@weft/mcp",
+  "version": "0.0.0",
+  "description": "MCP server exposing the Weft document contract to coding agents",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "@weft/core": "workspace:*",
+    "@weft/design-io": "workspace:*",
+    "@weft/workspace": "workspace:*",
+    "zod": "^4.6.7"
+  }
+}

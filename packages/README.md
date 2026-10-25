@@ -13,9 +13,9 @@ Shared libraries. The document model is the spine: every other package is a clie
 | `render/` | Read-only DOM renderer: geometry, CSS flex, text, tokens, paints, page bounds, sandboxed snapshots. | Implemented; 7 tests. |
 | `bridge/` | Local live bridge: serves the built app, watches files, accepts browser commands, writes page files, streams Yjs updates over HTTP/WebSocket, enforces loopback/cookie/Origin boundaries, switches workspace designs, serves snapshot payloads, applies node/page commands, and starts/stops declared project servers. | Implemented; 11 tests. |
 | `extract/` | Allowlisted Chromium capture, asset inlining, browser sanitization, fail-closed verification and snapshot-node insertion. Node only. | Implemented; 7 tests. |
-| `cli/` | `weft` headless client: `init`, `validate`, `fmt`, `inspect`, `get`, `apply`, `page`, `id`, `extract`, `dev`, `workspace`. Later `export`, `agent`, `mcp`. | Implemented; 25 tests. |
-| `mcp/` | MCP server exposing the document contract as tools. | Planned. |
-| `agent/` | Harness adapters and the chat session model. | Planned. |
+| `cli/` | `weft` headless client: `init`, `validate`, `fmt`, `inspect`, `get`, `apply`, `page`, `id`, `extract`, `mcp`, `dev`, `workspace`. Later `export`, `agent`. | Implemented; 26 tests. |
+| `mcp/` | MCP server over stdio: allowlisted design reads, node/page commands, validation and context packets. | Implemented; 4 tests. |
+| `agent/` | Chat-session model and adapters beyond MCP. | Planned. |
 
 Rules:
 

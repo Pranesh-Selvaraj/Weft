@@ -230,11 +230,13 @@ Exit criteria: a user can create a new page and frame from the browser, not only
 
 Node creation (frames, text, rectangles, ellipses), parent-aware insertion, the layer tree and browser page create/delete now use ordinary page or document commands with inverses and undo. See ADR 0014 and ADR 0015. Page rename/reorder remains a follow-up.
 
-### 9. `feat/agent-mcp`
+### 9. `feat/agent-mcp` (partially implemented)
 
 MCP server, tool contract, context packets, per-project permissions and audit log.
 
 Exit criteria: pi/opencode/Claude Code/Codex can list pages, read a node, apply a command and receive a screenshot/context packet through the documented contract; every tool call is attributed.
+
+`@weft/mcp` and `weft mcp` now expose allowlisted reads, page/node commands, page document commands, validation and a JSON context packet over stdio; writes are attributed to the fixed MCP actor. Per-project/tool permissions, a durable audit log, screenshots and a published binary remain follow-ups. See [MCP server](mcp.md) and ADR 0016.
 
 ### 10. `feat/export`
 

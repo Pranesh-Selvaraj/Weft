@@ -133,7 +133,7 @@ Without a bridge, it falls back to the embedded Vite design and shows `read only
 - Asset and snapshot payload serving.
 - Persisted Yjs state or a durable operation log.
 - Optimistic concurrency or serialization of simultaneous writers.
-- An agent tool contract; agents still use files and the CLI.
+- Bridge-backed agent sessions; the MCP server currently reads/writes files directly.
 
 ## Test
 

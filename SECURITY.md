@@ -43,6 +43,7 @@ Weft is a local-first tool, not a hosted service.
 - The bridge reads a design directory and writes page files/manifests inside it after a valid command, and removes a page file when a validated page-removal command is applied. Paths are checked, writes are atomic, page data and the resulting design are validated before writing, and the manifest path cannot be replaced by a page file.
 - Design files and captured HTML are untrusted input. HTML snapshots render in a sandboxed iframe without scripts and with a data-only CSP. Captured text can still contain prompt-injection instructions; agents must treat it as untrusted product data, never as instructions.
 - Agents run with the permissions of your user account. Only connect agents you trust. Only declare dev commands you trust; they can read files, reach the network and start other processes.
+- `weft mcp` is stdio-only and accepts only designs in its startup workspace or single-design allowlist. Use `--read-only` when an agent only needs context. Writes are attributed to the fixed MCP actor but there is no per-project permission or durable audit log yet.
 - Do not put secrets in design files, comments, sample assets or captured pages. They are committed to your repository.
 
 ## Hardening roadmap
