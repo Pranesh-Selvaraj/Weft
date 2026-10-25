@@ -7,6 +7,7 @@ Shared libraries. The document model is the spine: every other package is a clie
 | `core/` | Schema, node operations, commands and inverses, validation, deterministic serialization. No DOM, no network, no runtime dependencies. | Implemented; 109 tests. Migrations arrive with the first breaking schema change. |
 | `design-io/` | Design directory access: safe paths, atomic writes, inspect/validate, canonical formatting, init, summary. Node only. | Implemented; 17 tests. |
 | `contract/` | Published JSON Schema draft 2020-12 and conformance fixtures; structural validation only. | Implemented; 7 tests. |
+| `session/` | Yjs-backed live page, command application, sync updates, and three-way file-write merge. Browser and Node. | Implemented; 12 tests. |
 | `cli/` | `weft` headless client: `init`, `validate`, `fmt`, `inspect`, `get`, `apply`, `id`. Later `dev`, `extract`, `export`, `agent`, `mcp`. | Implemented; 19 tests. |
 | `render/` | Document-to-DOM renderer and exporter, shared by the canvas and export. | Planned. |
 | `bridge/` | Local daemon: file materialization, Yjs relay, external-write ingestion, agent sessions. | Planned. |

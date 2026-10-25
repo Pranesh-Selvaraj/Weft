@@ -47,7 +47,7 @@ The **bridge** is a small local process. It serves the editor, owns file materia
 
 Pre-alpha, headless-tooling phase. The founding decisions are recorded in [`docs/decisions/`](docs/decisions/); the working system design is in [`docs/architecture.md`](docs/architecture.md).
 
-The core document model is implemented in [`@weft/core`](packages/core): the schema, pure node operations, a deterministic JSON writer, and a dependency-free validator. The filesystem layer and the `weft` CLI are implemented in [`@weft/design-io`](packages/design-io) and [`@weft/cli`](packages/cli). Together they are covered by 152 tests and a readable [starter design](examples/starter.weft/). The CLI can validate, format, inspect, read pages and nodes, and apply attributed commands with an inverse for undo. A published JSON Schema and conformance fixtures make the structural contract available to non-TypeScript clients. No editor is shipped yet.
+The core document model is implemented in [`@weft/core`](packages/core): the schema, pure node operations, a deterministic JSON writer, and a dependency-free validator. The filesystem layer and the `weft` CLI are implemented in [`@weft/design-io`](packages/design-io) and [`@weft/cli`](packages/cli). Together they are covered by 164 tests and a readable [starter design](examples/starter.weft/). The CLI can validate, format, inspect, read pages and nodes, and apply attributed commands with an inverse for undo. A published JSON Schema and conformance fixtures make the structural contract available to non-TypeScript clients. A Yjs-backed session applies the same commands live and merges whole-page file writes without silently dropping live edits. No editor is shipped yet.
 
 The first milestone is deliberately small: open a file in the browser, edit it, have an external agent change it live, and extract one real page into it. See the [MVP exit criteria](docs/product.md#mvp-exit-criteria).
 
@@ -80,7 +80,7 @@ weft/
 └── examples/      # sample design files and host integrations
 ```
 
-The layout is the intended shape; packages are added as decisions land. Founding records: [ADR 0001](docs/decisions/0001-project-name.md) (the name), [ADR 0002](docs/decisions/0002-design-files-as-plain-text.md) (design files as plain text), [ADR 0003](docs/decisions/0003-document-schema-v1.md) (the schema), [ADR 0004](docs/decisions/0004-headless-cli-and-design-io.md) (headless-first tooling), [ADR 0005](docs/decisions/0005-command-protocol.md) (the command protocol), and [ADR 0006](docs/decisions/0006-published-json-schema.md) (the published schema).
+The layout is the intended shape; packages are added as decisions land. Founding records: [ADR 0001](docs/decisions/0001-project-name.md) (the name), [ADR 0002](docs/decisions/0002-design-files-as-plain-text.md) (design files as plain text), [ADR 0003](docs/decisions/0003-document-schema-v1.md) (the schema), [ADR 0004](docs/decisions/0004-headless-cli-and-design-io.md) (headless-first tooling), [ADR 0005](docs/decisions/0005-command-protocol.md) (the command protocol), [ADR 0006](docs/decisions/0006-published-json-schema.md) (the published schema), and [ADR 0007](docs/decisions/0007-yjs-live-sessions.md) (the live session and file-write merge).
 
 ## Documentation
 
@@ -88,6 +88,7 @@ The layout is the intended shape; packages are added as decisions land. Founding
 - [Architecture](docs/architecture.md) — components, document model, agent surfaces, real-time layer, and risks.
 - [CLI](docs/cli.md) — commands, JSON output, exit codes, and agent recipes.
 - [Structural contract](packages/contract/README.md) — the JSON Schema, conformance fixtures, and the structural/semantic boundary.
+- [Live session](packages/session/README.md) — the Yjs page model, command application, sync, and file-write merge policy.
 - [Decision records](docs/decisions/README.md) — why the system is shaped this way.
 - [Project history](docs/HISTORY.md) — the timeline that ties releases, stack changes, and ADRs together.
 - [Changelog](CHANGELOG.md) — what shipped.

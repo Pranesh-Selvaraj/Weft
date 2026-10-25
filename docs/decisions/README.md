@@ -23,6 +23,7 @@ This directory is the project's long-form memory: **what we chose, why, what we 
 | [0004](0004-headless-cli-and-design-io.md) | Headless CLI and design I/O before the editor | Accepted | Tooling |
 | [0005](0005-command-protocol.md) | Serializable page commands with inverses for every mutation | Accepted | Contract |
 | [0006](0006-published-json-schema.md) | Published JSON Schema and a conformance fixture suite | Accepted | Contract |
+| [0007](0007-yjs-live-sessions.md) | Yjs live sessions with fractional order and conservative file-write merge | Accepted | Live document |
 
 ## Decision map
 
@@ -33,10 +34,11 @@ graph TD
     C --> D["0004 · Headless CLI + design I/O<br/>init · validate · fmt · inspect"]
     C --> E["0005 · Command protocol<br/>apply · inverse · attributed edits"]
     E --> F["0006 · JSON Schema + conformance<br/>structural contract"]
-    F --> G["0007 · Editor stack and renderer<br/>(next)"]
-    F --> H["0008 · Bridge and reconciliation<br/>(next)"]
-    F --> I["0009 · Agent tool contract<br/>(next)"]
-    F --> J["0010 · Snapshot extractor<br/>(next)"]
+    F --> G["0007 · Yjs live session<br/>fractional order · file merge"]
+    G --> H["0008 · Editor stack and renderer<br/>(next)"]
+    G --> I["0009 · Local bridge<br/>(next)"]
+    G --> J["0010 · Agent tool contract<br/>(next)"]
+    G --> K["0011 · Snapshot extractor<br/>(next)"]
 ```
 
 ## Adding a record

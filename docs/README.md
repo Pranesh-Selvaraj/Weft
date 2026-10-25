@@ -8,6 +8,7 @@ Start here, then follow the decision records for the reasoning.
 | [Architecture](architecture.md) | How the system is shaped: components, document model, real-time layer, agent surface, rendering, extraction, and risks. |
 | [CLI](cli.md) | Commands, JSON output, exit codes, and how agents should use the headless client. |
 | [Structural contract](../packages/contract/README.md) | The published JSON Schema, conformance fixtures, and the structural/semantic boundary. |
+| [Live session](../packages/session/README.md) | The Yjs page model, command application, sync, and file-write merge policy. |
 | [Decision records](decisions/README.md) | What we chose, why, what we rejected, and what it costs. |
 | [Project history](HISTORY.md) | The timeline linking eras, stack changes, and decisions. |
 | [Changelog](../CHANGELOG.md) | What shipped, in user-facing prose. |
@@ -21,6 +22,7 @@ Start here, then follow the decision records for the reasoning.
 5. [ADR 0004](decisions/0004-headless-cli-and-design-io.md) for the headless-first tooling boundary.
 6. [ADR 0005](decisions/0005-command-protocol.md) for the mutation API and inverse-based undo.
 7. [ADR 0006](decisions/0006-published-json-schema.md) for the published structural contract.
-8. [Architecture](architecture.md) for the draft implementation shape.
-9. [CLI](cli.md) to run, inspect and edit a design.
-10. [ADR index](decisions/README.md) to see which decisions are settled and which are still open.
+8. [ADR 0007](decisions/0007-yjs-live-sessions.md) for the live session and file-write merge.
+9. [Architecture](architecture.md) for the draft implementation shape.
+10. [CLI](cli.md) to run, inspect and edit a design.
+11. [ADR index](decisions/README.md) to see which decisions are settled and which are still open.
