@@ -45,11 +45,28 @@ The **bridge** is a small local process. It serves the editor, owns file materia
 
 ## Status
 
-Pre-alpha, document-model phase. The founding decisions are recorded in [`docs/decisions/`](docs/decisions/); the working system design is in [`docs/architecture.md`](docs/architecture.md).
+Pre-alpha, headless-tooling phase. The founding decisions are recorded in [`docs/decisions/`](docs/decisions/); the working system design is in [`docs/architecture.md`](docs/architecture.md).
 
-The core document model is implemented in [`@weft/core`](packages/core): the schema, pure node operations, a deterministic JSON writer, and a dependency-free validator, covered by 94 tests and a readable [starter design](examples/starter.weft/). No editor is shipped yet.
+The core document model is implemented in [`@weft/core`](packages/core): the schema, pure node operations, a deterministic JSON writer, and a dependency-free validator. The filesystem layer and the `weft` CLI are implemented in [`@weft/design-io`](packages/design-io) and [`@weft/cli`](packages/cli). Together they are covered by 125 tests and a readable [starter design](examples/starter.weft/). No editor is shipped yet.
 
 The first milestone is deliberately small: open a file in the browser, edit it, have an external agent change it live, and extract one real page into it. See the [MVP exit criteria](docs/product.md#mvp-exit-criteria).
+
+## Try it
+
+```bash
+pnpm install
+pnpm build
+
+# Inspect the read-only starter design.
+pnpm weft validate examples/starter.weft
+pnpm weft inspect examples/starter.weft --json
+
+# Create and validate a new design.
+pnpm weft init /tmp/weft-demo --name "Demo"
+pnpm weft validate /tmp/weft-demo
+```
+
+`weft fmt` rewrites the manifest and pages into canonical JSON; `--check` reports without writing. Every command supports `--json` for agents and CI. See the [CLI guide](docs/cli.md).
 
 ## Repository layout
 
@@ -61,12 +78,13 @@ weft/
 └── examples/      # sample design files and host integrations
 ```
 
-The layout is the intended shape; packages are added as decisions land. Founding records: [ADR 0001](docs/decisions/0001-project-name.md) (the name) and [ADR 0002](docs/decisions/0002-design-files-as-plain-text.md) (design files as plain text).
+The layout is the intended shape; packages are added as decisions land. Founding records: [ADR 0001](docs/decisions/0001-project-name.md) (the name), [ADR 0002](docs/decisions/0002-design-files-as-plain-text.md) (design files as plain text), [ADR 0003](docs/decisions/0003-document-schema-v1.md) (the schema), and [ADR 0004](docs/decisions/0004-headless-cli-and-design-io.md) (headless-first tooling).
 
 ## Documentation
 
 - [Product definition](docs/product.md) — who it is for, what it does, and how we know the first version is done.
 - [Architecture](docs/architecture.md) — components, document model, agent surfaces, real-time layer, and risks.
+- [CLI](docs/cli.md) — commands, JSON output, exit codes, and agent recipes.
 - [Decision records](docs/decisions/README.md) — why the system is shaped this way.
 - [Project history](docs/HISTORY.md) — the timeline that ties releases, stack changes, and ADRs together.
 - [Changelog](CHANGELOG.md) — what shipped.

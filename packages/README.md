@@ -5,15 +5,16 @@ Shared libraries. The document model is the spine: every other package is a clie
 | Package | Responsibility | Status |
 | --- | --- | --- |
 | `core/` | Schema, node operations, validation, deterministic serialization. No DOM, no network, no runtime dependencies. | Implemented; 94 tests. Migrations arrive with the first breaking schema change. |
+| `design-io/` | Design directory access: safe paths, atomic writes, inspect/validate, canonical formatting, init, summary. Node only. | Implemented; 17 tests. |
+| `cli/` | `weft` headless client: `init`, `validate`, `fmt`, `inspect`, with `--json`. Later `dev`, `extract`, `export`, `agent`, `mcp`. | Implemented; 14 tests. |
 | `render/` | Document-to-DOM renderer and exporter, shared by the canvas and export. | Planned. |
 | `bridge/` | Local daemon: file materialization, Yjs relay, external-write ingestion, agent sessions. | Planned. |
-| `cli/` | `weft init`, `dev`, `extract`, `export`, `agent`, `mcp`. | Planned. |
 | `mcp/` | MCP server exposing the document contract as tools. | Planned. |
 | `agent/` | Harness adapters and the chat session model. | Planned. |
 | `extract/` | Capture of a running page into a snapshot frame. | Planned. |
 
 Rules:
 
-- Depend on `core` downward only; no package imports from an app.
+- Depend on `core` downward only; no package imports from an app. `design-io` and `cli` sit above `core`; the browser never imports them.
 - No package reaches around the document contract for a shortcut, including the editor.
 - Every package that ships gets a typecheck and a test target before it is considered usable.

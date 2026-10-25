@@ -213,14 +213,14 @@ function checkRelativePath(
   value: unknown,
   issues: Issues,
   path: string,
-  extensions: readonly string[],
+  extensions?: readonly string[],
 ): value is string {
   if (!checkNonEmptyString(value, issues, path, "path.invalid")) return false;
   if (!isSafeRelativePath(value)) {
     add(issues, path, "path.unsafe", "Expected a relative path that stays inside the design directory.");
     return false;
   }
-  if (!extensions.some((extension) => value.endsWith(extension))) {
+  if (extensions && !extensions.some((extension) => value.endsWith(extension))) {
     add(issues, path, "path.extension", `Expected a path ending in ${extensions.join(" or ")}.`);
     return false;
   }
@@ -315,7 +315,7 @@ function validateAssets(assets: unknown, issues: Issues, path = "assets"): void 
       if (ids.has(asset.id)) add(issues, `${assetPath}.id`, "asset.duplicate", `Duplicate asset id ${asset.id}.`);
       ids.add(asset.id);
     }
-    if (checkRelativePath(asset.file, issues, `${assetPath}.file`, [".svg", ".png", ".jpg", ".jpeg", ".webp", ".avif", ".gif", ".woff2", ".mp4", ".webm"])) {
+    if (checkRelativePath(asset.file, issues, `${assetPath}.file`)) {
       if (files.has(asset.file)) {
         add(issues, `${assetPath}.file`, "asset.duplicate-file", `Duplicate asset file ${asset.file}.`);
       }

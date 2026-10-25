@@ -20,6 +20,7 @@ This directory is the project's long-form memory: **what we chose, why, what we 
 | [0001](0001-project-name.md) | Project name: Weft | Accepted | Identity |
 | [0002](0002-design-files-as-plain-text.md) | Design files are plain-text, agent-readable documents | Accepted | Document model |
 | [0003](0003-document-schema-v1.md) | Document schema v1: flat nodes, deterministic JSON, captured pages beside the tree | Accepted | Document model |
+| [0004](0004-headless-cli-and-design-io.md) | Headless CLI and design I/O before the editor | Accepted | Tooling |
 
 ## Decision map
 
@@ -27,10 +28,11 @@ This directory is the project's long-form memory: **what we chose, why, what we 
 graph TD
     A["0001 · Name: Weft"] --> B["0002 · Plain-text design files"]
     B --> C["0003 · Document schema v1<br/>flat nodes · deterministic JSON"]
-    C --> D["0004 · Editor stack and renderer<br/>(next)"]
-    C --> E["0005 · Bridge and file reconciliation<br/>(next)"]
-    C --> F["0006 · Agent tool contract<br/>(next)"]
-    C --> G["0007 · Snapshot extractor<br/>(next)"]
+    C --> D["0004 · Headless CLI + design I/O<br/>init · validate · fmt · inspect"]
+    D --> E["0005 · Editor stack and renderer<br/>(next)"]
+    D --> F["0006 · Bridge and reconciliation<br/>(next)"]
+    D --> G["0007 · Agent tool contract<br/>(next)"]
+    D --> H["0008 · Snapshot extractor<br/>(next)"]
 ```
 
 ## Adding a record

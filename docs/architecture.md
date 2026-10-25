@@ -1,6 +1,6 @@
 # Architecture
 
-**Status:** Draft. The constraints, the plain-text decision (ADR 0002) and the v1 document schema (ADR 0003) are agreed and implemented in `packages/core`. Choices marked *(proposed)* still need their own decision records; nothing here overrides an accepted ADR.
+**Status:** Draft. The constraints, the plain-text decision (ADR 0002), the v1 document schema (ADR 0003) and the headless CLI layer (ADR 0004) are agreed. The core and the CLI are implemented; choices marked *(proposed)* still need their own decision records, and nothing here overrides an accepted ADR.
 
 ## 1. Constraints
 
@@ -47,9 +47,10 @@ flowchart TB
 
 - **`apps/web`** — the editor: canvas, layers, inspector, presence, chat. React + TypeScript *(proposed)*. Renders frames as DOM; uses canvas only for selection chrome and the minimap.
 - **`packages/core`** — document schema, node operations, validation, migrations, deterministic serialization. No DOM, no network. Shared by the editor, bridge, CLI, MCP server, and exporter.
+- **`packages/design-io`** — Node filesystem access for design directories: safe paths, atomic writes, read/inspect/validate, canonical formatting, init, summary. Keeps Node out of the browser core.
 - **`packages/render`** — document-to-DOM renderer and exporter. One renderer so the canvas and the export cannot disagree.
 - **`packages/bridge`** — local daemon: serves the editor in development, persists Yjs state, materializes files, watches external writes, authenticates local clients, and proxies agent sessions.
-- **`packages/cli`** — `weft init`, `weft dev`, `weft extract`, `weft export`, `weft agent`, `weft mcp`.
+- **`packages/cli`** — the headless `weft` client. Today: `init`, `validate`, `fmt`, `inspect`, with human and `--json` output. Later: `dev`, `extract`, `export`, `agent`, `mcp`.
 - **`packages/mcp`** — MCP server exposing the document contract as tools.
 - **`packages/agent`** — adapters that start and talk to harnesses: a generic process adapter plus presets.
 - **`packages/extract`** — Playwright-based capture of a running page into a snapshot frame.
@@ -161,6 +162,7 @@ weft/
 │   └── relay/             # optional collaboration server (later)
 ├── packages/
 │   ├── core/              # schema, operations, migrations
+│   ├── design-io/         # design directory read/write/format/inspect
 │   ├── render/            # DOM renderer + exporter
 │   ├── bridge/            # local daemon
 │   ├── cli/               # weft CLI
@@ -186,4 +188,4 @@ weft/
 
 ## 9. What gets specified next
 
-The document schema and operations are settled in ADR 0003 and implemented in `packages/core`. Each remaining area becomes an ADR before implementation: editor stack and renderer (0004), bridge protocol and file reconciliation (0005), agent tool contract and adapters (0006), snapshot extractor (0007). The ADR index is the source of truth for the current status of each.
+The document schema and operations are settled in ADR 0003 and implemented in `packages/core`; the headless CLI and design I/O layer are settled in ADR 0004 and implemented in `packages/design-io` and `packages/cli`. Each remaining area becomes an ADR before implementation: editor stack and renderer (0005), bridge protocol and file reconciliation (0006), agent tool contract and adapters (0007), snapshot extractor (0008). The ADR index is the source of truth for the current status of each.

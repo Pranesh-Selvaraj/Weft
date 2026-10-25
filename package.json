@@ -11,8 +11,9 @@
   "scripts": {
     "dev": "pnpm -r --parallel dev",
     "build": "pnpm -r build",
-    "typecheck": "pnpm -r typecheck",
-    "test": "pnpm -r test"
+    "typecheck": "pnpm -r build && pnpm -r typecheck",
+    "test": "pnpm -r build && pnpm -r test",
+    "weft": "node packages/cli/dist/main.js"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
