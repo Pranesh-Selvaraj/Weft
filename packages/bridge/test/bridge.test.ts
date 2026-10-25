@@ -1,6 +1,6 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import WebSocket from "ws";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
@@ -12,6 +12,7 @@ import {
 } from "@weft/core";
 import { readDesign, writeDesign } from "@weft/design-io";
 import { PageSession } from "@weft/session";
+import { writeWorkspace } from "@weft/workspace";
 import {
   startBridge,
   type BridgeMessage,
@@ -231,6 +232,83 @@ describe("local bridge", () => {
       }),
     ).rejects.toMatchObject({ code: "host.unsafe" });
   });
+
+  it("lists a workspace and switches the active design", async () => {
+    const secondDesign = createDesign({ name: "Second design", pageName: "Settings" });
+    const secondDir = join(root, "second.weft");
+    await writeDesign(secondDir, secondDesign);
+
+    const workspaceFile = join(root, "workspace.json");
+    await writeWorkspace(
+      {
+        version: 1,
+        projects: [
+          {
+            path: resolve(designDir),
+            name: "First",
+            addedAt: new Date().toISOString(),
+          },
+          {
+            path: resolve(secondDir),
+            name: "Second",
+            addedAt: new Date().toISOString(),
+          },
+        ],
+      },
+      workspaceFile,
+    );
+
+    const bridge = await startBridge({
+      designDir,
+      workspaceFile,
+      host: "127.0.0.1",
+      port: 0,
+      webDist: null,
+    });
+
+    try {
+      const api = (await fetch(`${bridge.url}/api/design`, {
+        headers: { cookie: sessionCookie(bridge) },
+      }).then((response) => response.json())) as DesignPayload;
+      expect(api.workspace?.projects).toHaveLength(2);
+      expect(api.workspace?.activeDesignPath).toBe(resolve(designDir));
+
+      const unauthorized = await fetch(`${bridge.url}/api/open`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ designPath: secondDir }),
+      });
+      expect(unauthorized.status).toBe(401);
+
+      const opened = await fetch(`${bridge.url}/api/open`, {
+        method: "POST",
+        headers: {
+          cookie: sessionCookie(bridge),
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ designPath: secondDir }),
+      });
+      expect(opened.status).toBe(200);
+
+      const after = (await fetch(`${bridge.url}/api/design`, {
+        headers: { cookie: sessionCookie(bridge) },
+      }).then((response) => response.json())) as DesignPayload;
+      expect(after.manifest.name).toBe("Second design");
+      expect(after.workspace?.activeDesignPath).toBe(resolve(secondDir));
+
+      const outside = await fetch(`${bridge.url}/api/open`, {
+        method: "POST",
+        headers: {
+          cookie: sessionCookie(bridge),
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ designPath: join(root, "outside.weft") }),
+      });
+      expect(outside.status).toBe(403);
+    } finally {
+      await bridge.close();
+    }
+  }, 15000);
 
   it("refuses to start when the built web app is missing", async () => {
     const missing = join(root, "missing-web");

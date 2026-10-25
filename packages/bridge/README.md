@@ -12,7 +12,7 @@ pnpm weft dev examples/starter.weft
 # http://127.0.0.1:5250
 ```
 
-`pnpm dev` is the static Vite preview (no bridge). `weft dev <design.weft>` is the live bridge over the built app.
+`pnpm dev` is the static Vite preview (no bridge). `weft dev <design.weft>` opens one design. `weft workspace dev` opens the workspace picker over registered projects.
 
 Options:
 
@@ -41,6 +41,7 @@ The built web app must exist at `apps/web/dist`; `pnpm build` produces it. Set `
 - `GET /api/design` → `{ revision, manifest, pages: [{ pageId, update }] }`
   - Requires the session cookie. `update` is a base64-encoded Yjs state update for that page.
 - `GET /api/health` → `{ ok, revision, pages }`
+- `POST /api/open` → `{ designPath }` opens another registered design. Requires the session cookie; paths outside the workspace are rejected. All connected clients receive a fresh `init` with the newly active design.
 
 ### WebSocket: `/api/live`
 
@@ -55,7 +56,7 @@ On connect the server sends:
 }
 ```
 
-Then it may send:
+In workspace mode `init` also carries `workspace.file`, `workspace.activeDesignPath`, and the registered projects/designs. Then the bridge may send:
 
 ```json
 { "type": "update", "revision": 2, "pageId": "pg_…", "update": "base64…" }
@@ -95,13 +96,15 @@ The web app fetches `/api/design`; if the response is JSON, it:
 1. builds `PageSession`s from the page updates;
 2. connects to `/api/live`;
 3. applies `update` messages and re-materializes pages;
-4. shows `live`, `connecting` or `offline` in the top bar.
+4. shows the project/design picker when the bridge has a workspace;
+5. shows `live`, `connecting` or `offline` in the top bar.
 
 Without a bridge, it falls back to the embedded Vite design and shows `read only`.
 
 ## Not here yet
 
 - Page-level commands (page name, background, tokens).
+- Project dev-server control and extraction.
 - Presence/cursors, team authentication, remote bind.
 - Asset and snapshot payload serving.
 - Persisted Yjs state or a durable operation log.
@@ -114,4 +117,4 @@ Without a bridge, it falls back to the embedded Vite design and shows `read only
 pnpm --filter @weft/bridge test
 ```
 
-The suite covers HTTP design/health, session-cookie authorization, cross-origin rejection, loopback-only hosts, WebSocket init, live Yjs updates from file writes, browser commands and undo writes, invalid-write recovery, and the missing-web-build error.
+The suite covers HTTP design/health, session-cookie authorization, cross-origin rejection, loopback-only hosts, workspace listing and switching, rejecting unregistered paths, WebSocket init, live Yjs updates from file writes, browser commands and undo writes, invalid-write recovery, and the missing-web-build error.

@@ -16,10 +16,32 @@ interface WirePage {
   update: string;
 }
 
+interface WorkspaceDesignInfo {
+  path: string;
+  name: string;
+  projectPath: string;
+  projectName: string;
+}
+
+interface WorkspaceProjectInfo {
+  path: string;
+  name: string;
+  exists: boolean;
+  designs: WorkspaceDesignInfo[];
+  error?: string;
+}
+
+interface WorkspacePayload {
+  file: string;
+  activeDesignPath: string;
+  projects: WorkspaceProjectInfo[];
+}
+
 interface DesignPayload {
   revision: number;
   manifest: DesignManifest;
   pages: WirePage[];
+  workspace?: WorkspacePayload;
 }
 
 interface InitMessage extends DesignPayload {
@@ -113,9 +135,12 @@ export interface DesignSource {
   canUndo: boolean;
   canRedo: boolean;
   lastActor: CommandActor | null;
+  workspace: WorkspacePayload | null;
+  switching: boolean;
   sendCommand(pageId: string, command: PageCommand, label?: string): void;
   undo(): void;
   redo(): void;
+  openDesign(designPath: string): void;
 }
 
 const LOCAL_ACTOR: CommandActor = { id: "browser", kind: "human", name: "You" };
@@ -165,6 +190,8 @@ export function useDesignSource(): DesignSource {
   const [conflicts, setConflicts] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [lastActor, setLastActor] = useState<CommandActor | null>(null);
+  const [workspace, setWorkspace] = useState<WorkspacePayload | null>(null);
+  const [switching, setSwitching] = useState(false);
   const [pending, setPending] = useState(0);
   const [undoStack, setUndoStack] = useState<HistoryEntry[]>([]);
   const [redoStack, setRedoStack] = useState<HistoryEntry[]>([]);
@@ -218,6 +245,36 @@ export function useDesignSource(): DesignSource {
     dispatch(entry.pageId, entry.command, "redo", entry.label);
   }, [dispatch, redoStack]);
 
+  const openDesign = useCallback((designPath: string): void => {
+    const socket = socketRef.current;
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+      setError("The live bridge is not connected.");
+      return;
+    }
+    if (switching) return;
+    setSwitching(true);
+    setError(null);
+
+    void fetch("/api/open", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ designPath }),
+    })
+      .then(async (response) => {
+        if (response.ok) return;
+        const payload = (await response.json().catch(() => null)) as
+          | { error?: { message?: string } }
+          | null;
+        setError(payload?.error?.message ?? "Could not open the design.");
+      })
+      .catch((caught: unknown) => {
+        setError(messageOf(caught));
+      })
+      .finally(() => {
+        setSwitching(false);
+      });
+  }, [switching]);
+
   useEffect(() => {
     let disposed = false;
     let socket: WebSocket | null = null;
@@ -268,9 +325,11 @@ export function useDesignSource(): DesignSource {
 
         setManifest(payload.manifest);
         setPages(ordered);
+        setWorkspace(payload.workspace ?? null);
         setRevision(payload.revision);
         setConflicts(0);
         setError(null);
+        setSwitching(false);
         clearHistory();
         return null;
       } catch (caught) {
@@ -386,6 +445,7 @@ export function useDesignSource(): DesignSource {
         if (disposed) return;
         pendingRef.current.clear();
         setPending(0);
+        setSwitching(false);
         setStatus("disconnected");
         if (retry) clearTimeout(retry);
         retry = setTimeout(() => {
@@ -458,8 +518,11 @@ export function useDesignSource(): DesignSource {
     canUndo: editable && pending === 0 && undoStack.length > 0,
     canRedo: editable && pending === 0 && redoStack.length > 0,
     lastActor,
+    workspace,
+    switching,
     sendCommand,
     undo,
     redo,
+    openDesign,
   };
 }

@@ -1,5 +1,6 @@
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync } from "node:fs";
+import { realpath } from "node:fs/promises";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,12 +18,14 @@ import {
 } from "@weft/core";
 import { readDesign, writePageFile, WeftIoError } from "@weft/design-io";
 import { PageSession } from "@weft/session";
+import { listProjects, readWorkspace } from "@weft/workspace";
 import {
   encodeUpdate,
   type BridgeMessage,
   type CommandRequestMessage,
   type DesignPayload,
   type InitMessage,
+  type WorkspacePayload,
   type WirePage,
 } from "./protocol.js";
 import { serveStatic } from "./static.js";
@@ -46,6 +49,11 @@ export interface BridgeOptions {
   webDist?: string | null;
   /** Watch the design directory for changes. Default: true. */
   watch?: boolean;
+  /**
+   * Enable the workspace picker by exposing the registered projects and
+   * allowing the browser to open another registered design.
+   */
+  workspaceFile?: string;
 }
 
 export class WeftBridgeError extends Error {
@@ -131,9 +139,13 @@ function readActor(value: unknown): CommandActor | undefined {
  * streams state, but does not accept client commands or write canonical files.
  */
 export class WeftBridge {
-  readonly designDir: string;
+  designDir: string;
 
   readonly sessionToken: string;
+
+  private readonly workspaceFile: string | null;
+  private workspace: WorkspacePayload | null = null;
+  private designVersion = 0;
 
   private readonly host: string;
   private readonly requestedPort: number;
@@ -156,6 +168,9 @@ export class WeftBridge {
 
   constructor(options: BridgeOptions) {
     this.designDir = resolve(options.designDir);
+    this.workspaceFile = options.workspaceFile
+      ? resolve(options.workspaceFile)
+      : null;
     const requestedHost = options.host ?? "127.0.0.1";
     this.host = requestedHost === "[::1]" ? "::1" : requestedHost;
     if (!LOOPBACK_HOSTS.has(this.host)) {
@@ -216,6 +231,7 @@ export class WeftBridge {
     }
 
     try {
+      await this.loadWorkspace();
       await this.loadInitial();
       await this.listen();
       if (this.watchEnabled) await this.startWatcher();
@@ -264,6 +280,39 @@ export class WeftBridge {
       });
     });
     this.closing = false;
+  }
+
+  private async loadWorkspace(): Promise<void> {
+    if (!this.workspaceFile) return;
+    const config = await readWorkspace(this.workspaceFile);
+    const listings = await listProjects(config);
+    const designs = listings.flatMap((listing) => listing.designs);
+    if (designs.length === 0) {
+      throw new WeftBridgeError(
+        "workspace.empty",
+        `No designs found in workspace ${this.workspaceFile}. Run weft workspace add <project> first.`,
+      );
+    }
+
+    const active = resolve(this.designDir);
+    if (!designs.some((design) => resolve(design.path) === active)) {
+      throw new WeftBridgeError(
+        "workspace.design",
+        `Design ${active} is not in workspace ${this.workspaceFile}.`,
+      );
+    }
+
+    this.workspace = {
+      file: this.workspaceFile,
+      activeDesignPath: active,
+      projects: listings.map((listing) => ({
+        path: listing.path,
+        name: listing.name,
+        exists: listing.exists,
+        designs: listing.designs,
+        ...(listing.error ? { error: listing.error } : {}),
+      })),
+    };
   }
 
   private async loadInitial(): Promise<void> {
@@ -380,7 +429,9 @@ export class WeftBridge {
     this.reloading = true;
 
     try {
+      const version = this.designVersion;
       const design = await readDesign(this.designDir, { requireFiles: false });
+      if (version !== this.designVersion) return;
       const manifestChanged =
         !this.manifest || !sameManifest(this.manifest, design.manifest);
 
@@ -514,6 +565,51 @@ export class WeftBridge {
         return;
       }
 
+      if (url.pathname === "/api/open") {
+        if (request.method !== "POST") {
+          this.sendJson(response, 405, { ok: false, error: { code: "method.not-allowed" } });
+          return;
+        }
+        if (!this.workspace) {
+          this.sendJson(response, 404, { ok: false, error: { code: "workspace.none" } });
+          return;
+        }
+        if (!this.isAuthorized(request)) {
+          this.sendJson(response, 401, { ok: false, error: { code: "session.unauthorized" } });
+          return;
+        }
+        if (!this.isAllowedOrigin(request)) {
+          this.sendJson(response, 403, { ok: false, error: { code: "origin.forbidden" } });
+          return;
+        }
+        try {
+          const body = await this.readJsonBody(request);
+          const designPath =
+            isRecord(body) && typeof body.designPath === "string" ? body.designPath : null;
+          if (!designPath) {
+            this.sendJson(response, 400, {
+              ok: false,
+              error: { code: "request.invalid", message: "designPath is required." },
+            });
+            return;
+          }
+          await this.openDesign(designPath);
+          this.sendJson(response, 200, {
+            ok: true,
+            activeDesignPath: this.workspace.activeDesignPath,
+          });
+        } catch (error) {
+          const status = error instanceof WeftBridgeError && error.code === "workspace.denied"
+            ? 403
+            : 400;
+          this.sendJson(response, status, {
+            ok: false,
+            error: { code: errorCode(error), message: errorMessage(error) },
+          });
+        }
+        return;
+      }
+
       if (url.pathname === "/api/design") {
         if (request.method !== "GET") {
           this.sendJson(response, 405, { ok: false, error: { code: "method.not-allowed" } });
@@ -575,7 +671,78 @@ export class WeftBridge {
         update: encodeUpdate(session.encodeStateAsUpdate()),
       });
     }
-    return { revision: this.revision, manifest: this.manifest, pages };
+    return {
+      revision: this.revision,
+      manifest: this.manifest,
+      pages,
+      ...(this.workspace ? { workspace: this.workspace } : {}),
+    };
+  }
+
+  private async openDesign(designPath: string): Promise<void> {
+    if (!this.workspace) {
+      throw new WeftBridgeError("workspace.none", "This bridge was not started with a workspace.");
+    }
+
+    let target = resolve(designPath);
+    try {
+      target = await realpath(target);
+    } catch {
+      throw new WeftBridgeError("workspace.denied", `Design ${target} does not exist.`);
+    }
+
+    const allowed = this.workspace.projects.some((project) =>
+      project.designs.some((design) => resolve(design.path) === target),
+    );
+    if (!allowed) {
+      throw new WeftBridgeError(
+        "workspace.denied",
+        `Design ${target} is not registered in this workspace.`,
+      );
+    }
+    if (target === this.designDir) return;
+
+    this.designVersion += 1;
+    const design = await readDesign(target, { requireFiles: false });
+    if (this.reloadTimer) {
+      clearTimeout(this.reloadTimer);
+      this.reloadTimer = undefined;
+    }
+    await this.watcher?.close().catch(() => undefined);
+    this.watcher = undefined;
+
+    this.designDir = target;
+    this.manifest = design.manifest;
+    this.workspace = { ...this.workspace, activeDesignPath: target };
+    this.rebuildSessions(design);
+    this.revision += 1;
+    this.broadcastInit();
+
+    if (this.watchEnabled) await this.startWatcher();
+  }
+
+  private async readJsonBody(request: IncomingMessage): Promise<unknown> {
+    return new Promise((resolveBody, rejectBody) => {
+      const chunks: Buffer[] = [];
+      let size = 0;
+      request.on("data", (chunk: Buffer) => {
+        size += chunk.length;
+        if (size > 64 * 1024) {
+          request.destroy();
+          rejectBody(new WeftBridgeError("request.too-large", "Request body is too large."));
+          return;
+        }
+        chunks.push(chunk);
+      });
+      request.on("end", () => {
+        try {
+          resolveBody(JSON.parse(Buffer.concat(chunks).toString("utf8")));
+        } catch {
+          rejectBody(new WeftBridgeError("request.json", "Request body must be valid JSON."));
+        }
+      });
+      request.on("error", (error) => rejectBody(error));
+    });
   }
 
   private initMessage(): InitMessage {

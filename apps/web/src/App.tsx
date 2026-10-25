@@ -203,9 +203,37 @@ export function App() {
         </div>
 
         <div className="design">
-          <span className="design-name">{source.manifest.name}</span>
+          {source.workspace ? (
+            <select
+              className="design-select"
+              aria-label="Design"
+              value={source.workspace.activeDesignPath}
+              disabled={!source.editable || source.switching}
+              onChange={(event) => source.openDesign(event.target.value)}
+            >
+              {source.workspace.projects
+                .filter((project) => project.designs.length > 0)
+                .map((project) => (
+                  <optgroup key={project.path} label={project.name}>
+                    {project.designs.map((design) => (
+                      <option key={design.path} value={design.path}>
+                        {design.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+            </select>
+          ) : (
+            <span className="design-name">{source.manifest.name}</span>
+          )}
           <span className="design-meta">
-            {source.mode === "live" ? "live preview" : "read-only preview"}
+            {source.switching
+              ? "switching design…"
+              : source.workspace
+                ? "workspace preview"
+                : source.mode === "live"
+                  ? "live preview"
+                  : "read-only preview"}
           </span>
         </div>
 

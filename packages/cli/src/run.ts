@@ -30,7 +30,7 @@ import {
   type DesignInspection,
   type DesignSummary,
 } from "@weft/design-io";
-import { startBridge, WeftBridgeError } from "@weft/bridge";
+import { startBridge, WeftBridgeError, type WeftBridge } from "@weft/bridge";
 import {
   addProject,
   listProjects,
@@ -191,12 +191,16 @@ Commands:
   add <project>           Register a project root
   list                    List registered projects and discovered designs
   remove <project|name>   Unregister a project
+  dev                     Serve the live app with the registered workspace
 
 Options:
-  --file <path>   Workspace file (default: $WEFT_WORKSPACE or ~/.weft/workspace.json)
-  --name <name>   Display name for "add"
-  --json          Machine-readable output
-  --help          Show this help`;
+  --file <path>     Workspace file (default: $WEFT_WORKSPACE or ~/.weft/workspace.json)
+  --name <name>     Display name for "add"
+  --design <path>   Initial design for "dev" (path or unique name)
+  --port <n>        Port for "dev" (default: 5250)
+  --host <h>        Loopback host for "dev" (default: 127.0.0.1)
+  --json            Machine-readable output for init/add/list/remove
+  --help            Show this help`;
 
 const USAGE_BY_COMMAND: Record<string, string> = {
   init: INIT_USAGE,
@@ -249,6 +253,13 @@ const WORKSPACE_OPTIONS: OptionConfig = {
   file: { type: "string" },
   name: { type: "string" },
   ...JSON_OPTION,
+};
+const WORKSPACE_DEV_OPTIONS: OptionConfig = {
+  file: { type: "string" },
+  design: { type: "string" },
+  port: { type: "string" },
+  host: { type: "string" },
+  help: { type: "boolean" },
 };
 const ID_PREFIXES: IdPrefix[] = ["ds", "pg", "nd", "as", "cm"];
 
@@ -779,16 +790,7 @@ async function devCommand(
     out(`Weft dev · ${bridge.url}`);
     out(`Watching ${bridge.designDir}`);
     out("Press Ctrl+C to stop.");
-
-    await new Promise<void>((resolveStop) => {
-      const stop = (): void => {
-        process.off("SIGINT", stop);
-        process.off("SIGTERM", stop);
-        void bridge.close().finally(() => resolveStop());
-      };
-      process.on("SIGINT", stop);
-      process.on("SIGTERM", stop);
-    });
+    await waitForBridgeStop(bridge);
     return 0;
   } catch (error) {
     return handleError(error, false, out, err);
@@ -822,6 +824,89 @@ function printProjects(write: Writer, projects: ProjectListing[]): void {
   }
 }
 
+async function waitForBridgeStop(bridge: WeftBridge): Promise<void> {
+  await new Promise<void>((resolveStop) => {
+    const stop = (): void => {
+      process.off("SIGINT", stop);
+      process.off("SIGTERM", stop);
+      void bridge.close().finally(() => resolveStop());
+    };
+    process.on("SIGINT", stop);
+    process.on("SIGTERM", stop);
+  });
+}
+
+async function workspaceDevCommand(
+  argv: string[],
+  cwd: string,
+  out: Writer,
+  err: Writer,
+): Promise<number> {
+  const parsed = parseCommand(argv, WORKSPACE_DEV_OPTIONS, WORKSPACE_USAGE, err);
+  if (!parsed) return 2;
+  if (parsed.values.help) {
+    out(WORKSPACE_USAGE);
+    return 0;
+  }
+
+  const file = workspaceFileFrom(parsed.values.file, cwd);
+  const config = await readWorkspace(file);
+  const projects = await listProjects(config);
+  const designs = projects.flatMap((project) => project.designs);
+  if (designs.length === 0) {
+    err(`No designs found in workspace ${file}. Run weft workspace add <project> first.`);
+    return 1;
+  }
+
+  let selected = designs[0];
+  if (typeof parsed.values.design === "string") {
+    const selector = parsed.values.design;
+    const selectorPath = resolve(cwd, selector);
+    const matches = designs.filter(
+      (design) =>
+        design.path === selectorPath ||
+        design.path === selector ||
+        design.name === selector,
+    );
+    if (matches.length === 0) {
+      err(`No design matches ${JSON.stringify(selector)} in ${file}.`);
+      return 1;
+    }
+    if (matches.length > 1) {
+      err(`Design name ${JSON.stringify(selector)} is ambiguous; pass a path instead.`);
+      return 1;
+    }
+    selected = matches[0];
+  }
+
+  const port = parsed.values.port === undefined ? 5250 : Number(parsed.values.port);
+  if (!Number.isInteger(port) || port < 0 || port > 65535) {
+    err("--port must be an integer between 0 and 65535.");
+    return 2;
+  }
+  const host =
+    typeof parsed.values.host === "string" && parsed.values.host.length > 0
+      ? parsed.values.host
+      : "127.0.0.1";
+
+  try {
+    const bridge = await startBridge({
+      designDir: selected.path,
+      workspaceFile: file,
+      host,
+      port,
+    });
+    out(`Weft workspace · ${bridge.url}`);
+    out(`Workspace · ${file}`);
+    out(`Design · ${selected.name} (${selected.path})`);
+    out("Press Ctrl+C to stop.");
+    await waitForBridgeStop(bridge);
+    return 0;
+  } catch (error) {
+    return handleError(error, false, out, err);
+  }
+}
+
 async function workspaceCommand(
   argv: string[],
   cwd: string,
@@ -832,6 +917,10 @@ async function workspaceCommand(
   if (!subcommand || subcommand === "help" || subcommand === "--help" || subcommand === "-h") {
     out(WORKSPACE_USAGE);
     return 0;
+  }
+
+  if (subcommand === "dev") {
+    return workspaceDevCommand(rest, cwd, out, err);
   }
 
   const parsed = parseCommand(rest, WORKSPACE_OPTIONS, WORKSPACE_USAGE, err);
