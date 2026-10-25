@@ -13,7 +13,9 @@
     "build": "pnpm -r build",
     "typecheck": "pnpm -r build && pnpm -r typecheck",
     "test": "pnpm -r build && pnpm -r test",
-    "weft": "node packages/cli/dist/main.js"
+    "weft": "node packages/cli/dist/main.js",
+    "verify": "pnpm build && pnpm typecheck && pnpm test && pnpm weft validate examples/starter.weft && pnpm weft fmt examples/starter.weft --check",
+    "audit": "pnpm audit --audit-level high"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
