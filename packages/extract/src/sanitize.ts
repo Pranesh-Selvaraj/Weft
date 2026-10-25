@@ -1,3 +1,5 @@
+import { ExtractError } from "./errors.js";
+
 const BLOCKED_ELEMENTS = [
   "script",
   "style",
@@ -12,45 +14,36 @@ const BLOCKED_ELEMENTS = [
   "form",
 ] as const;
 
+function unsafe(message: string): never {
+  throw new ExtractError("extract.sanitize", message);
+}
+
 /**
- * A final, dependency-free defence pass over browser-sanitized markup. The
- * browser capture already removes these nodes and attributes; this pass keeps a
- * regression in that code from writing executable HTML into a design.
+ * The browser clone is the primary sanitizer. This Node pass verifies that
+ * executable markup, event attributes and network-capable URL attributes did
+ * not survive; it fails closed instead of trying to repair HTML with regular
+ * expressions. That makes a browser-sanitizer regression loud and leaves no
+ * partially cleaned string to write into a design.
  */
 export function sanitizeCapturedMarkup(html: string): string {
-  let output = html.replace(/<!--[\s\S]*?-->/g, "").replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, "");
+  const lower = html.toLowerCase();
   for (const tag of BLOCKED_ELEMENTS) {
-    const paired = new RegExp(`<${tag}\\b[^>]*>[\\s\\S]*?<\\/${tag}\\s*>`, "gi");
-    const unpaired = new RegExp(`<\\/?${tag}\\b[^>]*>`, "gi");
-    output = output.replace(paired, "").replace(unpaired, "");
+    if (lower.includes(`<${tag}`)) {
+      unsafe(`Captured markup still contains a <${tag}> element.`);
+    }
+  }
+  if (/\son[a-z0-9_-]+\s*=/i.test(html)) {
+    unsafe("Captured markup still contains an event-handler attribute.");
   }
 
-  // Event handlers, executable attributes and refresh/navigation surfaces.
-  output = output.replace(
-    /\son[a-z0-9_-]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi,
-    "",
-  );
-  output = output.replace(
-    /\s(srcdoc|formaction|ping|target|download)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi,
-    "",
-  );
-  output = output.replace(
-    /\s(srcdoc|formaction|action|method)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi,
-    "",
-  );
-
-  // Anything that could navigate or fetch outside the snapshot must not remain.
-  // Keep data: payloads and same-document #fragment references; remove all
-  // other URLs, including relative ones that could reach the network.
-  output = output.replace(
-    /\s+(src|href|xlink:href)\s*=\s*("([^"]*)"|'([^']*)'|([^\s>]+))/gi,
-    (match: string, _name: string, _quoted: string, double: string | undefined, single: string | undefined, bare: string | undefined) => {
-      const value = double ?? single ?? bare ?? "";
-      return value.startsWith("data:image/") || value.startsWith("#") ? match : "";
-    },
-  );
-  output = output.replace(/\s+srcset\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "");
-  return output;
+  const urlAttribute = /\s+(src|href|xlink:href)\s*=\s*("([^"]*)"|'([^']*)'|([^\s>]+))/gi;
+  for (const match of html.matchAll(urlAttribute)) {
+    const value = match[3] ?? match[4] ?? match[5] ?? "";
+    if (!value.startsWith("data:image/") && !value.startsWith("#")) {
+      unsafe(`Captured markup still contains a non-data URL attribute: ${value.slice(0, 80)}`);
+    }
+  }
+  return html;
 }
 
 /** Remove stylesheet escapes and external network fetches from captured CSS. */

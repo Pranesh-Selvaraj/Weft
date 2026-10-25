@@ -449,9 +449,15 @@ export async function captureWithPlaywright(
               for (let index = 0; index < bytes.length; index += chunk) {
                 binary += String.fromCharCode(...bytes.subarray(index, index + chunk));
               }
-              const contentType =
+              const contentType = (
                 response.headers.get("content-type") ??
-                (absolute.pathname.endsWith(".svg") ? "image/svg+xml" : "application/octet-stream");
+                (absolute.pathname.endsWith(".svg") ? "image/svg+xml" : "application/octet-stream")
+              ).toLowerCase();
+              if (!contentType.startsWith("image/")) {
+                warnings.push(`Skipped non-image asset ${absolute.href}.`);
+                assetCache.set(absolute.href, null);
+                return null;
+              }
               const dataUrl = `data:${contentType};base64,${btoa(binary)}`;
               assetCache.set(absolute.href, dataUrl);
               return dataUrl;

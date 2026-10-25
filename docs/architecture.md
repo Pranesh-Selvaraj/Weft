@@ -157,7 +157,7 @@ The renderer and browser editor are implemented in `@weft/render` and `apps/web`
 1. refuse a URL unless its exact origin is in the project's `extract.origins`;
 2. load the page in a fresh browser context whose HTTP/WebSocket routes allow only those loopback origins;
 3. serialize the selected subtree with computed styles, inline same-origin images as data URLs, and strip scripts, forms, frames, event handlers and external URLs;
-4. run a second dependency-free sanitizer over the markup and CSS;
+4. verify the markup and CSS with a dependency-free Node pass that fails closed on executable constructs or non-data URLs;
 5. write sanitized HTML/CSS beside the page and insert a snapshot node with source URL, selector, viewport, timestamp and file references.
 
 Snapshot payloads render in a `sandbox=""` iframe with a restrictive CSP. The editor never executes captured scripts. The extractor is a local, allowlisted capture path, not a general remote browser service; see [Snapshot extraction](extraction.md) and ADR 0013.
@@ -196,7 +196,7 @@ weft/
 | Large documents | JSON and DOM both degrade at thousands of nodes. | Per-page documents, culling, explicit node budgets, profiling gates. |
 | Agent quality | A loose tool contract produces sloppy edits. | Small typed operations, dry-run previews, attribution, and undo. |
 | Harness fragmentation | Each harness streams output and calls tools differently. | Thin adapters with MCP as the common denominator; file access always works. |
-| Snapshot security | Captured HTML is untrusted input. | Origin/asset allowlists, request routing, two sanitizer passes, data-only assets, sandboxed iframe and CSP. |
+| Snapshot security | Captured HTML is untrusted input. | Origin/asset allowlists, request routing, browser sanitization plus a fail-closed verifier, data-only assets, sandboxed iframe and CSP. |
 | Naming collision | "Weft" may already be used commercially. | Trademark and domain check before any public launch; renaming is cheap while private. |
 
 ## 9. What gets specified next

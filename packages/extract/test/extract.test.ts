@@ -37,8 +37,8 @@ afterEach(async () => {
 });
 
 const fakeCapture: CapturePage = async (request) => ({
-  html: '<div class="captured"><h1>Captured heading</h1><script>alert(1)</script><img src="http://127.0.0.1:3000/x.png" onload="alert(2)"></div>',
-  css: '[data-weft-k="0"]{color:#111;background:url(http://127.0.0.1:3000/x.png)}@import "https://evil.test/x.css";',
+  html: '<div class="captured"><h1>Captured heading</h1><img src="data:image/png;base64,AA" alt="fixture"></div>',
+  css: '[data-weft-k="0"]{color:#111;background:url(data:image/png;base64,AA)}', 
   source: {
     url: request.url,
     ...(request.selector ? { selector: request.selector } : {}),
@@ -49,14 +49,19 @@ const fakeCapture: CapturePage = async (request) => ({
 });
 
 describe("snapshot sanitization", () => {
-  it("removes executable markup and external fetches", () => {
-    const html = sanitizeCapturedMarkup(
-      '<div onclick="x()"><script>alert(1)</script><a href="https://evil.test">link</a><img src="https://evil.test/x.png"><img src="data:image/png;base64,AA"></div>',
-    );
-    expect(html).not.toContain("<script");
-    expect(html).not.toContain("onclick");
-    expect(html).not.toContain("evil.test");
-    expect(html).toContain("data:image/png;base64,AA");
+  it("fails closed on executable markup and external fetches", () => {
+    expect(() =>
+      sanitizeCapturedMarkup('<div><script>alert(1)</script></div>'),
+    ).toThrow(/script/);
+    expect(() =>
+      sanitizeCapturedMarkup('<div onclick="x()">text</div>'),
+    ).toThrow(/event-handler/);
+    expect(() =>
+      sanitizeCapturedMarkup('<img src="https://evil.test/x.png">'),
+    ).toThrow(/non-data URL/);
+    expect(
+      sanitizeCapturedMarkup('<img src="data:image/png;base64,AA">'),
+    ).toContain("data:image/png;base64,AA");
   });
 
   it("removes stylesheet imports and non-data URLs", () => {

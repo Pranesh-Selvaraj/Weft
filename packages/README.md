@@ -12,7 +12,7 @@ Shared libraries. The document model is the spine: every other package is a clie
 | `session/` | Yjs-backed live page, command application, sync updates, and three-way file-write merge. Browser and Node. | Implemented; 12 tests. |
 | `render/` | Read-only DOM renderer: geometry, CSS flex, text, tokens, paints, page bounds, sandboxed snapshots. | Implemented; 7 tests. |
 | `bridge/` | Local live bridge: serves the built app, watches files, accepts browser commands, writes page files, streams Yjs updates over HTTP/WebSocket, enforces loopback/cookie/Origin boundaries, switches workspace designs, serves snapshot payloads, and starts/stops declared project servers. | Implemented; 10 tests. |
-| `extract/` | Allowlisted Chromium capture, asset inlining, sanitization and snapshot-node insertion. Node only. | Implemented; 7 tests. |
+| `extract/` | Allowlisted Chromium capture, asset inlining, browser sanitization, fail-closed verification and snapshot-node insertion. Node only. | Implemented; 7 tests. |
 | `cli/` | `weft` headless client: `init`, `validate`, `fmt`, `inspect`, `get`, `apply`, `id`, `extract`, `dev`, `workspace`. Later `export`, `agent`, `mcp`. | Implemented; 24 tests. |
 | `mcp/` | MCP server exposing the document contract as tools. | Planned. |
 | `agent/` | Harness adapters and the chat session model. | Planned. |

@@ -37,7 +37,7 @@ The project must declare the origin in `weft.project.json`:
 - Service workers, dialogs and popups are blocked or closed; a fresh browser context is used.
 - Scripts, styles, frames, forms, event handlers, SVG animations and external URLs are removed from the result.
 - Images and CSS `url()` assets are inlined as `data:image/...` under per-asset and total budgets.
-- The Node sanitizer runs again as a regression defense.
+- A dependency-free Node verifier fails closed if executable markup or a non-data URL survives the browser pass.
 - The renderer places snapshots in `sandbox=""` iframes with a restrictive CSP.
 
 See [`docs/extraction.md`](../../docs/extraction.md) and ADR 0013 for the complete policy and limits.

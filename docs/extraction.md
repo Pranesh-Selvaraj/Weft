@@ -92,7 +92,7 @@ The files are committed with the design. `weft validate` checks that they exist.
 2. Opens a fresh headless Chromium context with a loopback-only request route and WebSocket gate.
 3. Waits for the page and selector, then collects the selected subtree and computed styles.
 4. Inlines same-origin images and CSS background assets as `data:` URLs within size budgets.
-5. Removes scripts, styles, frames, forms, event handlers, navigation attributes, SVG animations and external URLs.
+5. Verifies the browser-sanitized markup contains no executable tags, event attributes or non-data URL attributes; an unexpected construct aborts the capture.
 6. Writes the payload atomically, inserts the snapshot node, and writes the page last.
 7. Renders the payload in a sandboxed iframe with a restrictive CSP.
 
