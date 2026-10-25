@@ -45,7 +45,8 @@ Captured HTML / assets                    Project directories
 - security headers (`nosniff`, no-referrer, frame-ancestors, object/base restrictions);
 - deterministic schema and semantic validation before writes;
 - path traversal and absolute-path checks for design files;
-- atomic page writes;
+- atomic page/manifest writes; page creation/removal validates page ids, file paths, manifest collisions and the last-page invariant; the manifest path cannot be replaced by a page file;
+- page removal writes the manifest before unlinking the old page file, so a failure cannot leave the manifest pointing at missing content;
 - command parsing, stable error codes, and inverse-based rollback on write failure;
 - sandboxed snapshot iframes in the renderer;
 - no database, no cloud dependency, no remote bind;
@@ -63,6 +64,7 @@ These are deliberately tracked before Weft is used on real projects:
 - extraction fidelity is partial: external fonts/assets are blocked, canvas/video/iframes are omitted, and captured text can still carry prompt-injection instructions (treated as untrusted data, not executable code);
 - capture requires a local Chromium/Chrome binary and executes the allowlisted app's own scripts during capture;
 - no bridge/UI Extract action or git-commit metadata yet;
+- page removal has no filesystem journal: a crash between manifest write and file unlink can leave an orphan page file; the page content needed for undo lives in the command inverse and in git history, not a durable transaction log;
 - no asset server for image nodes and thumbnails; snapshot payloads are served inline;
 - no per-agent permission boundary;
 - no published, signed release artifacts.

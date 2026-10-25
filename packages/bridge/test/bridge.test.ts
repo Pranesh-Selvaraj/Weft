@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -7,8 +7,10 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   createDesign,
   createNode,
+  createPage,
   insertNode,
   newId,
+  nextPageFile,
   type DesignFile,
   type SnapshotNode,
   type TextNode,
@@ -419,6 +421,68 @@ describe("local bridge", () => {
       });
       expect(outside.status).toBe(403);
     } finally {
+      await bridge.close();
+    }
+  }, 15000);
+
+  it("creates and removes pages through a document command", async () => {
+    const bridge = await startBridge({
+      designDir,
+      host: "127.0.0.1",
+      port: 0,
+      webDist: null,
+    });
+    const socket = connectLive(bridge);
+    try {
+      await new Promise<void>((resolveOpen, rejectOpen) => {
+        socket.once("open", () => resolveOpen());
+        socket.once("error", (error) => rejectOpen(error));
+      });
+      const page = createPage({ name: "Second page" });
+      const command = {
+        type: "page.create" as const,
+        page,
+        file: nextPageFile(design.manifest, page.name),
+      };
+      const createdPromise = waitForMessage(
+        socket,
+        (message) => message.type === "designCommandResult" && message.requestId === "page-create-1",
+      );
+      socket.send(JSON.stringify({ type: "designCommand", requestId: "page-create-1", command }));
+      const created = await createdPromise;
+      if (created.type !== "designCommandResult") throw new Error("unexpected message");
+      expect(created.ok).toBe(true);
+      expect(created.createdPageIds).toEqual([page.id]);
+      expect(created.inverse).toEqual({ type: "page.remove", pageId: page.id });
+
+      const afterCreate = (await fetch(`${bridge.url}/api/design`, {
+        headers: { cookie: sessionCookie(bridge) },
+      }).then((response) => response.json())) as DesignPayload;
+      expect(afterCreate.manifest.pages).toHaveLength(2);
+      expect(afterCreate.manifest.pages[1]).toMatchObject({ id: page.id, name: "Second page" });
+
+      const removedPromise = waitForMessage(
+        socket,
+        (message) => message.type === "designCommandResult" && message.requestId === "page-remove-1",
+      );
+      socket.send(
+        JSON.stringify({
+          type: "designCommand",
+          requestId: "page-remove-1",
+          command: created.inverse,
+        }),
+      );
+      const removed = await removedPromise;
+      if (removed.type !== "designCommandResult") throw new Error("unexpected message");
+      expect(removed.ok).toBe(true);
+      expect(removed.removedPageIds).toEqual([page.id]);
+      const afterRemove = (await fetch(`${bridge.url}/api/design`, {
+        headers: { cookie: sessionCookie(bridge) },
+      }).then((response) => response.json())) as DesignPayload;
+      expect(afterRemove.manifest.pages).toHaveLength(1);
+      await expect(readFile(join(designDir, command.file))).rejects.toThrow();
+    } finally {
+      socket.close();
       await bridge.close();
     }
   }, 15000);

@@ -31,6 +31,7 @@ This directory is the project's long-form memory: **what we chose, why, what we 
 | [0012](0012-declared-dev-servers.md) | Declared project dev servers | Accepted | Local workspace |
 | [0013](0013-snapshot-extraction.md) | Snapshot extraction | Accepted | Capture / security |
 | [0014](0014-editor-create-tools.md) | Editor creation tools and layer tree | Accepted | UI / editing |
+| [0015](0015-page-document-commands.md) | Page-level document commands | Accepted | Contract / document model |
 
 ## Decision map
 
@@ -49,8 +50,9 @@ graph TD
     K --> L["0012 · Declared dev servers<br/>argv · readiness · process group"]
     L --> M["0013 · Snapshot extraction<br/>allowlist · sanitize · sandbox"]
     M --> N["0014 · Editor creation tools<br/>tools · layer tree · insert command"]
-    N --> O["0015 · Agent tool contract<br/>(next)"]
-    N --> P["0016 · Export + handoff<br/>(next)"]
+    N --> O["0015 · Page document commands<br/>create · remove · inverses"]
+    O --> P["0016 · Agent tool contract<br/>(next)"]
+    O --> Q["0017 · Export + handoff<br/>(next)"]
 ```
 
 ## Adding a record

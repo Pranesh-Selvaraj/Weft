@@ -242,6 +242,7 @@ export function App() {
   const [tool, setTool] = useState<Tool>("select");
   const [drag, setDrag] = useState<DragState | null>(null);
   const [pendingSelectId, setPendingSelectId] = useState<string | null>(null);
+  const [pendingPageId, setPendingPageId] = useState<string | null>(null);
   const stageScaleRef = useRef<HTMLDivElement>(null);
   const suppressClickRef = useRef(false);
 
@@ -268,6 +269,13 @@ export function App() {
       setPendingSelectId(null);
     }
   }, [page, pendingSelectId]);
+
+  useEffect(() => {
+    if (pendingPageId && source.pages.some((candidate) => candidate.id === pendingPageId)) {
+      setActivePageId(pendingPageId);
+      setPendingPageId(null);
+    }
+  }, [pendingPageId, source.pages]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
@@ -333,7 +341,11 @@ export function App() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [page, selectedNode, source, tool]);
 
-  const bounds = page ? getPageBounds(page) : { width: 800, height: 600 };
+  const pageBounds = page ? getPageBounds(page) : { width: 0, height: 0 };
+  const bounds = {
+    width: Math.max(800, pageBounds.width),
+    height: Math.max(600, pageBounds.height),
+  };
   const { ref, scale } = useFitScale(bounds.width, bounds.height);
   const tabs = source.manifest.pages.filter((ref) =>
     source.pages.some((candidate) => candidate.id === ref.id),
@@ -654,6 +666,32 @@ export function App() {
               }}
             />
           )}
+          <div className="page-actions">
+            <button
+              type="button"
+              className="button"
+              disabled={!source.editable || source.pending > 0}
+              onClick={() => {
+                const id = source.createPage();
+                if (id) setPendingPageId(id);
+              }}
+            >
+              + New page
+            </button>
+            <button
+              type="button"
+              className="button is-danger"
+              disabled={!source.editable || source.pending > 0 || source.pages.length <= 1}
+              onClick={() => {
+                if (!page) return;
+                if (window.confirm(`Delete page “${page.name}”?`)) {
+                  source.deletePage(page.id);
+                }
+              }}
+            >
+              Delete page
+            </button>
+          </div>
         </aside>
         <main className="canvas" ref={ref}>
           {page ? (
@@ -676,6 +714,8 @@ export function App() {
                   <PageView
                     page={page}
                     manifest={source.manifest}
+                    width={bounds.width}
+                    height={bounds.height}
                     snapshotPayloads={source.snapshots}
                   />
                   {selectedNode && (

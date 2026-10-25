@@ -85,6 +85,23 @@ Client messages:
 
 A command produces a `commandResult` for the initiating client containing `ok`, `inverse`, `createdNodeIds`, `commandId`, `revision` and `actor`. A failed command contains `ok: false` and an error code/message. A successful command also broadcasts a `command` message for attribution.
 
+Document commands create or remove whole pages and use a separate message:
+
+```json
+{
+  "type": "designCommand",
+  "requestId": "…",
+  "command": {
+    "type": "page.create",
+    "page": { "…": "page document" },
+    "file": "pages/about.json"
+  },
+  "actor": { "id": "browser", "kind": "human", "name": "You" }
+}
+```
+
+`page.remove` uses `{ "type": "page.remove", "pageId": "pg_…" }`. The bridge writes the new page file and manifest (or writes the manifest and unlinks the page file), then rebuilds sessions and broadcasts an `init` with `reason: "designCommand"` followed by a `designCommand` attribution. The initiating client receives `designCommandResult` with `ok`, `inverse`, `createdPageIds`, `removedPageIds`, `commandId`, `revision` and `actor`. A failed write returns `ok: false`; newly written files are cleaned up where possible.
+
 ## Reload behavior
 
 - File changes are debounced and wait for write stability.
@@ -124,4 +141,4 @@ Without a bridge, it falls back to the embedded Vite design and shows `read only
 pnpm --filter @weft/bridge test
 ```
 
-The suite covers HTTP design/health, session-cookie authorization, cross-origin rejection, loopback-only hosts, workspace listing and switching, rejecting unregistered paths, starting and stopping a declared project server, serving snapshot payloads, WebSocket init, live Yjs updates from file writes, browser commands and undo writes, invalid-write recovery, and the missing-web-build error.
+The suite covers HTTP design/health, session-cookie authorization, cross-origin rejection, loopback-only hosts, workspace listing and switching, rejecting unregistered paths, starting and stopping a declared project server, serving snapshot payloads, document page creation/removal, WebSocket init, live Yjs updates from file writes, browser commands and undo writes, invalid-write recovery, and the missing-web-build error.

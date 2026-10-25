@@ -842,6 +842,21 @@ body,
   line-height: 1.5;
 }
 
+.page-actions {
+  display: grid;
+  flex: 0 0 auto;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  padding: 9px 8px;
+  border-top: 1px solid var(--line);
+}
+
+.page-actions .button {
+  padding: 7px 4px;
+  font-size: 9px;
+  text-align: center;
+}
+
 .workspace[data-tool="frame"] .stage-scale,
 .workspace[data-tool="text"] .stage-scale,
 .workspace[data-tool="rect"] .stage-scale,

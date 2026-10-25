@@ -7,9 +7,13 @@ import { fileURLToPath } from "node:url";
 import { watch, type FSWatcher } from "chokidar";
 import WebSocket, { WebSocketServer } from "ws";
 import {
+  applyDocumentCommand,
   createCommandEnvelope,
+  newId,
+  readDocumentCommand,
   readPageCommand,
   serialize,
+  validateDesign,
   WeftCommandError,
   WeftOperationError,
   WeftValidationError,
@@ -21,6 +25,8 @@ import { DevServerError, DevServerManager, type DevServerSnapshot } from "@weft/
 import {
   readDesign,
   readSnapshotPayloads,
+  removeDesignFile,
+  writeManifest,
   writePageFile,
   WeftIoError,
   type SnapshotPayload,
@@ -32,6 +38,7 @@ import {
   type BridgeMessage,
   type CommandRequestMessage,
   type DesignPayload,
+  type DocumentCommandRequestMessage,
   type InitMessage,
   type WorkspacePayload,
   type WirePage,
@@ -894,8 +901,12 @@ export class WeftBridge {
     });
   }
 
-  private initMessage(): InitMessage {
-    return { type: "init", ...this.designPayload() };
+  private initMessage(reason?: "designCommand"): InitMessage {
+    return {
+      type: "init",
+      ...this.designPayload(),
+      ...(reason ? { reason } : {}),
+    };
   }
 
   private handleConnection(ws: WebSocket): void {
@@ -924,6 +935,28 @@ export class WeftBridge {
       this.scheduleReload();
       return;
     }
+    if (parsed.type === "designCommand") {
+      const requestId = typeof parsed.requestId === "string" ? parsed.requestId : "";
+      try {
+        const command = readDocumentCommand(parsed.command);
+        const actor = readActor(parsed.actor);
+        void this.handleDocumentCommand(ws, {
+          type: "designCommand",
+          requestId,
+          command,
+          actor,
+        });
+      } catch (error) {
+        this.send(ws, {
+          type: "designCommandResult",
+          requestId,
+          ok: false,
+          revision: this.revision,
+          error: { code: errorCode(error), message: errorMessage(error) },
+        });
+      }
+      return;
+    }
     if (parsed.type !== "command") return;
 
     const requestId = typeof parsed.requestId === "string" ? parsed.requestId : "";
@@ -945,6 +978,85 @@ export class WeftBridge {
         pageId,
         ok: false,
         error: { code: errorCode(error), message: errorMessage(error) },
+      });
+    }
+  }
+
+  private async handleDocumentCommand(
+    ws: WebSocket,
+    message: DocumentCommandRequestMessage,
+  ): Promise<void> {
+    let commandId: string | undefined;
+    try {
+      if (!this.manifest) {
+        throw new WeftBridgeError("bridge.not-ready", "The bridge has no loaded design.");
+      }
+      const version = ++this.designVersion;
+      const design = await readDesign(this.designDir, { requireFiles: false });
+      if (version !== this.designVersion) {
+        throw new WeftBridgeError("bridge.superseded", "The design changed while applying the command.");
+      }
+      const command = message.command;
+      const applied = applyDocumentCommand(design, command);
+      const issues = validateDesign(applied.design.manifest, applied.design.pages);
+      if (issues.length > 0) throw new WeftValidationError(issues);
+
+      if (command.type === "page.create") {
+        await writePageFile(this.designDir, command.file, command.page, {
+          tokens: applied.design.manifest.tokens,
+          assets: applied.design.manifest.assets,
+        });
+        try {
+          await writeManifest(this.designDir, applied.design.manifest);
+        } catch (error) {
+          await removeDesignFile(this.designDir, command.file).catch(() => undefined);
+          throw error;
+        }
+      } else {
+        const ref = design.manifest.pages.find((entry) => entry.id === command.pageId);
+        await writeManifest(this.designDir, applied.design.manifest);
+        if (ref) {
+          await removeDesignFile(this.designDir, ref.file).catch((error: unknown) => {
+            console.error("[weft bridge] removed page file could not be deleted:", error);
+          });
+        }
+      }
+
+      this.manifest = applied.design.manifest;
+      this.snapshots = await readSnapshotPayloads(this.designDir, applied.design.pages);
+      this.rebuildSessions(applied.design);
+      this.revision += 1;
+      commandId = newId("cm");
+      this.broadcastInit("designCommand");
+      this.broadcast({
+        type: "designCommand",
+        revision: this.revision,
+        commandId,
+        command,
+        createdPageIds: applied.createdPageIds,
+        removedPageIds: applied.removedPageIds,
+        actor: message.actor,
+      });
+      this.send(ws, {
+        type: "designCommandResult",
+        requestId: message.requestId,
+        ok: true,
+        revision: this.revision,
+        commandId,
+        inverse: applied.inverse,
+        createdPageIds: applied.createdPageIds,
+        removedPageIds: applied.removedPageIds,
+        actor: message.actor,
+      });
+    } catch (error) {
+      this.send(ws, {
+        type: "designCommandResult",
+        requestId: message.requestId,
+        ok: false,
+        revision: this.revision,
+        ...(commandId ? { commandId } : {}),
+        error: { code: errorCode(error), message: errorMessage(error) },
+        actor: message.actor,
       });
     }
   }
@@ -1026,9 +1138,9 @@ export class WeftBridge {
     }
   }
 
-  private broadcastInit(): void {
+  private broadcastInit(reason?: "designCommand"): void {
     if (!this.manifest) return;
-    const message = this.initMessage();
+    const message = this.initMessage(reason);
     for (const client of this.clients) this.send(client, message);
   }
 

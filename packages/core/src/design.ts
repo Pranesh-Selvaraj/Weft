@@ -53,6 +53,11 @@ export function slugify(name: string): string {
   return slug || "page";
 }
 
+/** Return a design-relative page file path that does not collide with existing pages. */
+export function nextPageFile(manifest: DesignManifest, name: string): string {
+  return uniquePageFile(manifest, name);
+}
+
 function uniquePageFile(manifest: DesignManifest, name: string): string {
   const used = new Set(manifest.pages.map((page) => page.file));
   const base = slugify(name);

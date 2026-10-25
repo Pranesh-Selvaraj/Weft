@@ -36,6 +36,7 @@ The static path remains the zero-process preview and the fallback.
 - Click a layer to select it; the selection box follows the rendered DOM.
 - Use the left tool panel to create frames, text, rectangles and ellipses (`V`, `F`, `T`, `R`, `O`). Drag for a custom size or click for a default size; creation inside a selected frame becomes a child of that frame.
 - Browse the nested layer tree, expand/collapse containers, and select any layer. The tree auto-expands to the selected node.
+- Create a blank page with **New page** and delete the active page with **Delete page** (confirmation, last page protected). Page commands share the same undo/redo history as node commands.
 - Edit name, position, size, opacity, fill and text content in the inspector. Changes commit on blur/Enter.
 - Delete a layer, undo with Cmd/Ctrl+Z, redo with Cmd/Ctrl+Shift+Z. Every creation is a normal command with an inverse.
 - See live file changes from the CLI or an agent, and the last editor's attribution.
@@ -48,10 +49,10 @@ The static preview is read-only and has no bridge, inspector edits or history.
 
 ## Not here yet
 
-- Browser page creation/deletion; drag/resize, multi-select, layer reordering and visibility/lock controls, components.
+- Page rename/reorder/duplicate; drag/resize, multi-select, layer reordering and visibility/lock controls, components.
 - A browser Extract button; extraction currently starts from the CLI.
-- Presence/cursors, chat, page-level commands.
+- Presence/cursors, chat, page rename/background/token commands.
 - Asset serving for image nodes and zoom controls.
 - Shadow-DOM isolation, large-document culling, mobile editing layout.
 
-See ADR 0008 for the stack and renderer, ADR 0009 for the bridge, ADR 0010 for selection/the inspector/undo, ADR 0012 for declared dev servers, ADR 0013 for snapshot extraction, and ADR 0014 for creation tools and the layer tree.
+See ADR 0008 for the stack and renderer, ADR 0009 for the bridge, ADR 0010 for selection/the inspector/undo, ADR 0012 for declared dev servers, ADR 0013 for snapshot extraction, and ADR 0014 for creation tools and the layer tree, and ADR 0015 for page-level document commands.
