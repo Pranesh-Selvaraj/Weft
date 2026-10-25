@@ -59,6 +59,9 @@ describe("snapshot sanitization", () => {
     expect(() =>
       sanitizeCapturedMarkup('<img src="https://evil.test/x.png">'),
     ).toThrow(/non-data URL/);
+    expect(() =>
+      sanitizeCapturedMarkup("<img src=https://evil.test/x.png>"),
+    ).toThrow(/non-data URL/);
     expect(
       sanitizeCapturedMarkup('<img src="data:image/png;base64,AA">'),
     ).toContain("data:image/png;base64,AA");

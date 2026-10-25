@@ -494,7 +494,7 @@ export async function captureWithPlaywright(
             element.removeAttribute("data-weft-src");
             if (!source) continue;
             const data = await inlineAsset(source);
-            if (data) {
+            if (data && data.startsWith("data:image/")) {
               if (element.localName.toLowerCase() === "img") element.setAttribute("src", data);
               else element.setAttribute("href", data);
             }

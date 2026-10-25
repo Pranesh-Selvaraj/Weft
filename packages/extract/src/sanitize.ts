@@ -36,11 +36,40 @@ export function sanitizeCapturedMarkup(html: string): string {
     unsafe("Captured markup still contains an event-handler attribute.");
   }
 
-  const urlAttribute = /\s+(src|href|xlink:href)\s*=\s*("([^"]*)"|'([^']*)'|([^\s>]+))/gi;
-  for (const match of html.matchAll(urlAttribute)) {
-    const value = match[3] ?? match[4] ?? match[5] ?? "";
-    if (!value.startsWith("data:image/") && !value.startsWith("#")) {
-      unsafe(`Captured markup still contains a non-data URL attribute: ${value.slice(0, 80)}`);
+  const lowerForAttributes = lower;
+  for (const name of ["xlink:href", "href", "src"]) {
+    let index = 0;
+    while (true) {
+      const found = lowerForAttributes.indexOf(name, index);
+      if (found === -1) break;
+      index = found + name.length;
+      const before = found === 0 ? " " : lowerForAttributes[found - 1];
+      if (before !== " " && before !== "\t" && before !== "\n" && before !== "\r" && before !== "/" && before !== "<") {
+        continue;
+      }
+      let cursor = index;
+      while (cursor < lowerForAttributes.length && /\s/.test(lowerForAttributes[cursor])) cursor += 1;
+      if (lowerForAttributes[cursor] !== "=") continue;
+      cursor += 1;
+      while (cursor < lowerForAttributes.length && /\s/.test(lowerForAttributes[cursor])) cursor += 1;
+      let value: string;
+      if (lowerForAttributes[cursor] === '"' || lowerForAttributes[cursor] === "'") {
+        const quote = lowerForAttributes[cursor];
+        cursor += 1;
+        const end = lowerForAttributes.indexOf(quote, cursor);
+        if (end === -1) unsafe("Captured markup has an unterminated URL attribute.");
+        value = html.slice(cursor, end);
+        index = end + 1;
+      } else {
+        let end = cursor;
+        while (end < lowerForAttributes.length && !/\s|>/.test(lowerForAttributes[end])) end += 1;
+        value = html.slice(cursor, end);
+        index = end;
+      }
+      const normalized = value.toLowerCase();
+      if (!normalized.startsWith("data:image/") && !normalized.startsWith("#")) {
+        unsafe(`Captured markup still contains a non-data URL attribute: ${value.slice(0, 80)}`);
+      }
     }
   }
   return html;
