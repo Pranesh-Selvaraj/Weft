@@ -40,12 +40,13 @@ Start here, then follow the decision records for the reasoning.
 15. [ADR 0014](decisions/0014-editor-create-tools.md) for creation tools and the layer tree.
 16. [ADR 0015](decisions/0015-page-document-commands.md) for page-level document commands.
 17. [ADR 0016](decisions/0016-agent-mcp.md) for the agent MCP contract.
-18. [Architecture](architecture.md) for the implementation shape.
-19. [Security model](security.md) for the trust boundaries and hardening.
-20. [Local workspace](local-workspace.md) for the project registry, picker and dev-server model.
-21. [Declared dev servers](dev-server.md) to declare and run a project server.
-22. [Snapshot extraction](extraction.md) to capture a running page.
-23. [MCP server](mcp.md) to connect a coding agent.
-24. [CLI](cli.md) to run, inspect, edit and extract designs.
-25. [Browser editor](../apps/web/README.md) to open and edit the starter design.
-26. [ADR index](decisions/README.md) to see which decisions are settled and which are still open.
+18. [ADR 0017](decisions/0017-direct-manipulation.md) for direct move/resize manipulation.
+19. [Architecture](architecture.md) for the implementation shape.
+20. [Security model](security.md) for the trust boundaries and hardening.
+21. [Local workspace](local-workspace.md) for the project registry, picker and dev-server model.
+22. [Declared dev servers](dev-server.md) to declare and run a project server.
+23. [Snapshot extraction](extraction.md) to capture a running page.
+24. [MCP server](mcp.md) to connect a coding agent.
+25. [CLI](cli.md) to run, inspect, edit and extract designs.
+26. [Browser editor](../apps/web/README.md) to open and edit the starter design.
+27. [ADR index](decisions/README.md) to see which decisions are settled and which are still open.

@@ -181,16 +181,36 @@ interface SelectionBox {
   height: number;
 }
 
+type ResizeHandle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
+type TransformMode = "move" | ResizeHandle;
+
+interface TransformPreview {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  label: string;
+}
+
+const RESIZE_HANDLES: ResizeHandle[] = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
+
 function SelectionOverlay({
   page,
   selectedId,
   selectedName,
   scale,
+  editable,
+  onResizeStart,
 }: {
   page: PageDocument;
   selectedId: string;
   selectedName: string;
   scale: number;
+  editable: boolean;
+  onResizeStart(
+    handle: ResizeHandle,
+    event: ReactPointerEvent<HTMLSpanElement>,
+  ): void;
 }) {
   const [box, setBox] = useState<SelectionBox | null>(null);
 
@@ -216,6 +236,7 @@ function SelectionOverlay({
   }, [page, selectedId, scale]);
 
   if (!box) return null;
+  const handleSize = Math.max(6, 8 / scale);
   return (
     <div
       className="selection-box"
@@ -227,6 +248,16 @@ function SelectionOverlay({
       }}
     >
       <span className="selection-label">{selectedName}</span>
+      {editable &&
+        RESIZE_HANDLES.map((handle) => (
+          <span
+            key={handle}
+            className={`resize-handle is-${handle}`}
+            data-resize-handle={handle}
+            style={{ width: handleSize, height: handleSize }}
+            onPointerDown={(event) => onResizeStart(handle, event)}
+          />
+        ))}
     </div>
   );
 }
@@ -243,6 +274,7 @@ export function App() {
   const [drag, setDrag] = useState<DragState | null>(null);
   const [pendingSelectId, setPendingSelectId] = useState<string | null>(null);
   const [pendingPageId, setPendingPageId] = useState<string | null>(null);
+  const [transformPreview, setTransformPreview] = useState<TransformPreview | null>(null);
   const stageScaleRef = useRef<HTMLDivElement>(null);
   const suppressClickRef = useRef(false);
 
@@ -429,8 +461,163 @@ export function App() {
     setPendingSelectId(id);
   };
 
+  const startTransform = (
+    mode: TransformMode,
+    node: Node,
+    startClientX: number,
+    startClientY: number,
+  ): void => {
+    if (!page || !source.editable || node.locked) return;
+    const stage = stageScaleRef.current;
+    const start = toPagePoint(startClientX, startClientY);
+    if (!stage || !start) return;
+    const element = stage.querySelector<HTMLElement>(
+      `[data-node-id="${CSS.escape(node.id)}"]`,
+    );
+    const origin = absoluteOrigin(page, node.id);
+    const original = element
+      ? {
+          translate: element.style.translate,
+          width: element.style.width,
+          height: element.style.height,
+        }
+      : null;
+    let current = { x: node.x, y: node.y, width: node.width, height: node.height };
+    let moved = false;
+
+    const showPreview = (): void => {
+      setTransformPreview({
+        left: origin.x + current.x,
+        top: origin.y + current.y,
+        width: current.width,
+        height: current.height,
+        label:
+          mode === "move"
+            ? `${Math.round(current.width)}×${Math.round(current.height)}`
+            : `${Math.round(current.width)} × ${Math.round(current.height)}`,
+      });
+    };
+    showPreview();
+
+    const move = (event: PointerEvent): void => {
+      const point = toPagePoint(event.clientX, event.clientY);
+      if (!point) return;
+      const dx = point.x - start.x;
+      const dy = point.y - start.y;
+      if (!moved && Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+      moved = true;
+
+      let x = node.x;
+      let y = node.y;
+      let width = node.width;
+      let height = node.height;
+      if (mode === "move") {
+        x = node.x + dx;
+        y = node.y + dy;
+      } else {
+        if (mode.includes("e")) width = Math.max(1, node.width + dx);
+        if (mode.includes("w")) {
+          width = Math.max(1, node.width - dx);
+          x = node.x + (node.width - width);
+        }
+        if (mode.includes("s")) height = Math.max(1, node.height + dy);
+        if (mode.includes("n")) {
+          height = Math.max(1, node.height - dy);
+          y = node.y + (node.height - height);
+        }
+      }
+      current = {
+        x: Math.round(x),
+        y: Math.round(y),
+        width: Math.max(1, Math.round(width)),
+        height: Math.max(1, Math.round(height)),
+      };
+
+      if (element) {
+        element.style.translate = `${current.x - node.x}px ${current.y - node.y}px`;
+        if (mode !== "move") {
+          element.style.width = `${current.width}px`;
+          element.style.height = `${current.height}px`;
+        }
+      }
+      showPreview();
+    };
+
+    const restore = (): void => {
+      if (!element || !original) return;
+      element.style.translate = original.translate;
+      element.style.width = original.width;
+      element.style.height = original.height;
+    };
+
+    const cleanup = (): void => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", finish);
+      window.removeEventListener("pointercancel", cancel);
+      setTransformPreview(null);
+    };
+
+    const finish = (): void => {
+      cleanup();
+      restore();
+      if (!moved) return;
+      suppressClickRef.current = true;
+      window.setTimeout(() => {
+        suppressClickRef.current = false;
+      }, 0);
+      source.sendCommand(
+        page.id,
+        {
+          type: "node.update",
+          nodeId: node.id,
+          patch:
+            mode === "move"
+              ? { x: current.x, y: current.y }
+              : {
+                  x: current.x,
+                  y: current.y,
+                  width: current.width,
+                  height: current.height,
+                },
+        },
+        mode === "move" ? "Move layer" : "Resize layer",
+      );
+    };
+
+    const cancel = (): void => {
+      cleanup();
+      restore();
+    };
+
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", finish);
+    window.addEventListener("pointercancel", cancel);
+  };
+
+  const handleResizeStart = (
+    handle: ResizeHandle,
+    event: ReactPointerEvent<HTMLSpanElement>,
+  ): void => {
+    if (!selectedNode || !page || !source.editable) return;
+    event.preventDefault();
+    event.stopPropagation();
+    startTransform(handle, selectedNode, event.clientX, event.clientY);
+  };
+
   const handleStagePointerDown = (event: ReactPointerEvent<HTMLDivElement>): void => {
-    if (tool === "select" || !page || !source.editable) return;
+    if (!page || !source.editable) return;
+    if (tool === "select") {
+      const target = event.target as HTMLElement;
+      if (target.closest("[data-resize-handle]")) return;
+      const nodeElement = target.closest<HTMLElement>("[data-node-id]");
+      const nodeId = nodeElement?.dataset.nodeId;
+      const node = nodeId ? page.nodes[nodeId] : undefined;
+      if (!node || node.locked) return;
+      setSelectedNodeId(node.id);
+      event.preventDefault();
+      startTransform("move", node, event.clientX, event.clientY);
+      return;
+    }
     const start = toPagePoint(event.clientX, event.clientY);
     if (!start) return;
     const activeTool = tool;
@@ -718,12 +905,14 @@ export function App() {
                     height={bounds.height}
                     snapshotPayloads={source.snapshots}
                   />
-                  {selectedNode && (
+                  {selectedNode && !transformPreview && (
                     <SelectionOverlay
                       page={page}
                       selectedId={selectedNode.id}
                       selectedName={selectedNode.name}
                       scale={scale}
+                      editable={source.editable && selectedNode.locked !== true}
+                      onResizeStart={handleResizeStart}
                     />
                   )}
                   {dragBox && tool !== "select" && (dragBox.width > 0 || dragBox.height > 0) && (
@@ -737,6 +926,19 @@ export function App() {
                       }}
                     >
                       <span>{TOOL_META[tool].label}</span>
+                    </div>
+                  )}
+                  {transformPreview && (
+                    <div
+                      className="transform-preview"
+                      style={{
+                        left: transformPreview.left,
+                        top: transformPreview.top,
+                        width: Math.max(1, transformPreview.width),
+                        height: Math.max(1, transformPreview.height),
+                      }}
+                    >
+                      <span>{transformPreview.label}</span>
                     </div>
                   )}
                 </div>
