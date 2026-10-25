@@ -4,7 +4,7 @@
 - **Date:** 2026-10-25
 - **Area:** UI / editing
 - **Extends:** ADR 0010
-- **Extended by:** [0015](0015-page-document-commands.md) (page-level document commands)
+- **Extended by:** [0015](0015-page-document-commands.md) (page-level document commands), [0017](0017-direct-manipulation.md) (direct layout manipulation)
 
 ## Context
 
