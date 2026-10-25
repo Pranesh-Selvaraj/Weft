@@ -34,8 +34,10 @@ Usually out of scope:
 
 Weft is a local-first tool, not a hosted service.
 
-- The bridge binds to `127.0.0.1` by default. `--host` currently accepts other values; do not expose it to an untrusted network.
-- There is **no session authentication token yet**. The browser talks to the bridge over localhost. A future branch adds a session cookie, Origin checks and loopback-only enforcement.
+- The bridge accepts only loopback bind hosts (`127.0.0.1`, `localhost`, `::1`). Non-loopback hosts are rejected.
+- A random per-run token is set as an `HttpOnly`, `SameSite=Strict` session cookie on the app page. `/api/design` and `/api/live` require it; cross-origin requests and WebSocket handshakes are rejected. Host and Origin checks block DNS rebinding and cross-site browser access.
+- WebSocket payloads are limited to 1 MiB, and responses carry restrictive security headers.
+- Restarting the bridge rotates the token; reload open tabs after a restart.
 - The bridge reads a design directory and writes only page files inside it after a valid command. Paths are checked, writes are atomic, and page data is validated before writing.
 - Design files and captured HTML are untrusted input. HTML snapshots render in a sandboxed iframe without scripts. Extraction is not shipped yet.
 - Agents run with the permissions of your user account. Only connect agents you trust. The bridge does not yet supervise arbitrary project processes.
@@ -45,11 +47,10 @@ Weft is a local-first tool, not a hosted service.
 
 The next security work is documented in [`docs/security.md`](docs/security.md) and will land in separate branches:
 
-1. Loopback-only bind, per-run session cookie, Origin checks and WebSocket message limits.
-2. A workspace allowlist so the bridge can only see explicitly added project roots.
-3. A process supervisor that runs only project-declared dev commands with explicit approval.
-4. Capture allowlists and a stricter snapshot policy.
-5. Workspace audit logging and permission boundaries for agents.
+1. A workspace allowlist so the bridge can only see explicitly added project roots.
+2. A process supervisor that runs only project-declared dev commands with explicit approval.
+3. Capture allowlists and a stricter snapshot policy.
+4. Workspace audit logging and permission boundaries for agents.
 
 ## Disclosure timeline
 

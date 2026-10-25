@@ -179,7 +179,7 @@ CI, CodeQL, Dependabot, SECURITY.md, threat model, branch protection and reposit
 
 Exit criteria: `main` is protected, required checks run on every PR, dependency and secret scanning are enabled, and the security policy is published.
 
-### 2. `security/bridge-auth`
+### 2. `security/bridge-auth` (implemented)
 
 Loopback-only host validation, a random per-run session cookie, Origin/Host checks, WebSocket payload limits, and negative tests.
 

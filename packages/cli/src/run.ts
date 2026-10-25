@@ -164,7 +164,8 @@ Requires the web app to be built once with \`pnpm build\`.
 
 Options:
   --port <n>   Port to listen on (default: 5250)
-  --host <h>   Host to bind (default: 127.0.0.1)
+  --host <h>   Loopback host to bind: 127.0.0.1, localhost or ::1
+               (default: 127.0.0.1)
   --help       Show this help`;
 
 const USAGE_BY_COMMAND: Record<string, string> = {

@@ -1,6 +1,6 @@
 # Architecture
 
-**Status:** Draft under active construction. The constraints, the plain-text decision (ADR 0002), the v1 document schema (ADR 0003), the headless CLI layer (ADR 0004), the command protocol (ADR 0005), the published JSON Schema (ADR 0006), the Yjs live session (ADR 0007), the editor stack (ADR 0008), the local bridge (ADR 0009) and the editor interaction model (ADR 0010) are agreed. The core, CLI, structural contract, session engine, renderer, live bridge and browser editing loop are implemented. The agent contract and extractor still need their decision records and code.
+**Status:** Draft under active construction. The constraints, the plain-text decision (ADR 0002), the v1 document schema (ADR 0003), the headless CLI layer (ADR 0004), the command protocol (ADR 0005), the published JSON Schema (ADR 0006), the Yjs live session (ADR 0007), the editor stack (ADR 0008), the local bridge (ADR 0009), the editor interaction model (ADR 0010) and the bridge security boundary (ADR 0011) are agreed. The core, CLI, structural contract, session engine, renderer, live bridge, browser editing loop and local bridge hardening are implemented. The agent contract and extractor still need their decision records and code.
 
 ## 1. Constraints
 
@@ -51,7 +51,7 @@ flowchart TB
 - **`packages/contract`** — the published JSON Schema and conformance fixtures for manifests, pages and commands. Structural validation only; the core remains authoritative for semantic checks.
 - **`packages/session`** — Yjs-backed `PageSession`: live node/placement maps, fractional order keys, command application, materialization, sync updates, and conservative three-way ingestion of whole-page file writes.
 - **`packages/render`** — read-only document-to-DOM renderer: absolute geometry, CSS flex, real text, tokens, paints, sandboxed snapshot iframes and page bounds. Shared by the preview, and later by the editor and export.
-- **`packages/bridge`** — local bridge: serves the built web app and API, watches the design directory, keeps a `PageSession` per page, ingests file writes, accepts browser commands, writes the changed page file atomically, and streams Yjs updates over WebSocket. Auth, presence and agent sessions are next.
+- **`packages/bridge`** — local bridge: serves the built web app and API, watches the design directory, keeps a `PageSession` per page, ingests file writes, accepts browser commands, writes the changed page file atomically, and streams Yjs updates over WebSocket. It is loopback-only and gated by a per-run session cookie, Host/Origin checks and payload limits (ADR 0011). Workspace allowlists, presence and agent sessions are next.
 - **`packages/cli`** — the headless `weft` client. Today: `init`, `validate`, `fmt`, `inspect`, `get`, `apply`, `id`, with human and `--json` output. Later: `dev`, `extract`, `export`, `agent`, `mcp`.
 - **`packages/mcp`** — MCP server exposing the document contract as tools.
 - **`packages/agent`** — adapters that start and talk to harnesses: a generic process adapter plus presets.
@@ -135,7 +135,7 @@ Four tiers with one permissions model:
 
 Adapters are intentionally thin. A harness that can run a CLI, speak MCP, or read files needs no Weft-specific SDK. The adapter only handles process lifecycle, streaming output, and tool-call routing.
 
-**Permissions.** The bridge binds to localhost, requires a per-session token, refuses writes outside the opened design directory, and records every agent operation with author, tool, and timestamp. Remote collaboration is opt-in and authenticated; it does not expose shell access.
+**Permissions.** The bridge is loopback-only, issues a random per-run `HttpOnly` session cookie, rejects cross-origin API/WebSocket requests, refuses writes outside the opened design directory, and attributes command envelopes to an author. A durable audit log, per-project permissions and remote collaboration are planned; remote access is not supported yet.
 
 ## 5. Rendering
 
@@ -197,4 +197,4 @@ weft/
 
 ## 9. What gets specified next
 
-The document schema and operations are settled in ADR 0003, the headless CLI and design I/O layer in ADR 0004, the command protocol in ADR 0005, the published JSON Schema in ADR 0006, the Yjs live session in ADR 0007, the editor stack and DOM renderer in ADR 0008, the local bridge in ADR 0009, and the editor interaction model in ADR 0010; all are implemented. Each remaining area becomes an ADR before implementation: agent tool contract and adapters (0011), snapshot extractor (0012). The ADR index is the source of truth for the current status of each.
+The document schema and operations are settled in ADR 0003, the headless CLI and design I/O layer in ADR 0004, the command protocol in ADR 0005, the published JSON Schema in ADR 0006, the Yjs live session in ADR 0007, the editor stack and DOM renderer in ADR 0008, the local bridge in ADR 0009, the editor interaction model in ADR 0010, and the bridge security boundary in ADR 0011; all are implemented. Each remaining area becomes an ADR before implementation: agent tool contract and adapters (0012), snapshot extractor (0013). The ADR index is the source of truth for the current status of each.
