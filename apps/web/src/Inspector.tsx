@@ -180,86 +180,98 @@ function LayerEditor({
         </div>
       )}
 
-      <label className="field">
-        <span>Name</span>
-        <input
-          value={draft.name}
-          disabled={!editable}
-          onChange={(event) => setDraft({ ...draft, name: event.target.value })}
-          onBlur={commitName}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") event.currentTarget.blur();
-          }}
-        />
-      </label>
+      <section className="inspector-section">
+        <div className="inspector-section-title">Layer</div>
+        <label className="field">
+          <span>Name</span>
+          <input
+            value={draft.name}
+            disabled={!editable}
+            onChange={(event) => setDraft({ ...draft, name: event.target.value })}
+            onBlur={commitName}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") event.currentTarget.blur();
+            }}
+          />
+        </label>
+      </section>
 
-      <div className="field-grid">
-        {(["x", "y", "width", "height"] as const).map((field) => (
-          <label className="field" key={field}>
-            <span>{field}</span>
+      <section className="inspector-section">
+        <div className="inspector-section-title">Layout</div>
+        <div className="field-grid">
+          {(["x", "y", "width", "height"] as const).map((field) => (
+            <label className="field" key={field}>
+              <span>{field}</span>
+              <input
+                type="number"
+                value={draft[field]}
+                disabled={!editable}
+                onChange={(event) => setDraft({ ...draft, [field]: event.target.value })}
+                onBlur={() => commitNumber(field, field === "width" || field === "height" ? { min: 0 } : {})}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") event.currentTarget.blur();
+                }}
+              />
+            </label>
+          ))}
+        </div>
+      </section>
+
+      <section className="inspector-section">
+        <div className="inspector-section-title">Appearance</div>
+        <div className="field-grid">
+          <label className="field">
+            <span>opacity</span>
             <input
               type="number"
-              value={draft[field]}
+              min="0"
+              max="1"
+              step="0.05"
+              value={draft.opacity}
+              placeholder="1"
               disabled={!editable}
-              onChange={(event) => setDraft({ ...draft, [field]: event.target.value })}
-              onBlur={() => commitNumber(field, field === "width" || field === "height" ? { min: 0 } : {})}
+              onChange={(event) => setDraft({ ...draft, opacity: event.target.value })}
+              onBlur={commitOpacity}
               onKeyDown={(event) => {
                 if (event.key === "Enter") event.currentTarget.blur();
               }}
             />
           </label>
-        ))}
-      </div>
-
-      <div className="field-grid">
-        <label className="field">
-          <span>opacity</span>
-          <input
-            type="number"
-            min="0"
-            max="1"
-            step="0.05"
-            value={draft.opacity}
-            placeholder="1"
-            disabled={!editable}
-            onChange={(event) => setDraft({ ...draft, opacity: event.target.value })}
-            onBlur={commitOpacity}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") event.currentTarget.blur();
-            }}
-          />
-        </label>
-        <label className="field">
-          <span>fill</span>
-          <input
-            value={draft.fill}
-            placeholder="transparent"
-            disabled={!editable}
-            onChange={(event) => setDraft({ ...draft, fill: event.target.value })}
-            onBlur={commitFill}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") event.currentTarget.blur();
-            }}
-          />
-        </label>
-      </div>
+          <label className="field">
+            <span>fill</span>
+            <input
+              value={draft.fill}
+              placeholder="transparent"
+              disabled={!editable}
+              onChange={(event) => setDraft({ ...draft, fill: event.target.value })}
+              onBlur={commitFill}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") event.currentTarget.blur();
+              }}
+            />
+          </label>
+        </div>
+      </section>
 
       {node.type === "text" && (
-        <label className="field">
-          <span>content</span>
-          <textarea
-            rows={6}
-            value={draft.content}
-            disabled={!editable}
-            onChange={(event) => setDraft({ ...draft, content: event.target.value })}
-            onBlur={commitContent}
-            onKeyDown={(event) => {
-              if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-                event.currentTarget.blur();
-              }
-            }}
-          />
-        </label>
+        <section className="inspector-section">
+          <div className="inspector-section-title">Content</div>
+          <label className="field">
+            <span>text</span>
+            <textarea
+              rows={6}
+              value={draft.content}
+              disabled={!editable}
+              onChange={(event) => setDraft({ ...draft, content: event.target.value })}
+              onBlur={commitContent}
+              onKeyDown={(event) => {
+                if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+                  event.currentTarget.blur();
+                }
+              }}
+            />
+          </label>
+        </section>
       )}
 
       <div className="inspector-actions">
@@ -277,6 +289,7 @@ function LayerEditor({
       <div className="inspector-footer">
         <span>Last edit</span>
         <strong>{actorLabel(source.lastActor)}</strong>
+        <span className="inspector-shortcut">⌘/Ctrl Z undo · ⇧ for redo</span>
       </div>
     </div>
   );

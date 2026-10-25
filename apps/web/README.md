@@ -38,6 +38,7 @@ The static path remains the zero-process preview and the fallback.
 - Delete a layer, undo with Cmd/Ctrl+Z, redo with Cmd/Ctrl+Shift+Z.
 - See live file changes from the CLI or an agent, and the last editor's attribution.
 - Switch pages; the inspector stays in sync with the active page.
+- Toggle the UI between light and dark from the toolbar. The choice follows the system preference by default and persists locally; design content keeps its own colors.
 
 The static preview is read-only and has no bridge, inspector edits or history.
 

@@ -3,7 +3,9 @@ import type { MouseEvent as ReactMouseEvent } from "react";
 import { getPageBounds, PageView } from "@weft/render";
 import type { PageDocument } from "@weft/core";
 import { Inspector } from "./Inspector";
+import { MoonIcon, SunIcon } from "./icons";
 import { useDesignSource } from "./live";
+import { useTheme } from "./theme";
 
 function useFitScale(width: number, height: number) {
   const ref = useRef<HTMLDivElement>(null);
@@ -89,6 +91,7 @@ function SelectionOverlay({
 
 export function App() {
   const source = useDesignSource();
+  const { theme, toggle: toggleTheme } = useTheme();
   const [activePageId, setActivePageId] = useState<string | null>(
     source.pages[0]?.id ?? null,
   );
@@ -223,6 +226,15 @@ export function App() {
         </nav>
 
         <div className="topbar-right">
+          <button
+            type="button"
+            className="theme-toggle"
+            onClick={toggleTheme}
+            aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
+            title={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
+          >
+            {theme === "dark" ? <SunIcon /> : <MoonIcon />}
+          </button>
           <div className="history-buttons">
             <button
               type="button"

@@ -3,8 +3,24 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="light" />
-    <title>Weft — design preview</title>
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#efeae0" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0f0f0d" media="(prefers-color-scheme: dark)" />
+    <title>Weft — design editor</title>
+    <script>
+      (() => {
+        try {
+          const stored = localStorage.getItem("weft.theme");
+          const dark = stored
+            ? stored === "dark"
+            : window.matchMedia("(prefers-color-scheme: dark)").matches;
+          document.documentElement.dataset.theme = dark ? "dark" : "light";
+          document.documentElement.style.colorScheme = dark ? "dark" : "light";
+        } catch {
+          document.documentElement.dataset.theme = "light";
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
