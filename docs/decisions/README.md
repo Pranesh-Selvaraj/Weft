@@ -28,6 +28,7 @@ This directory is the project's long-form memory: **what we chose, why, what we 
 | [0009](0009-local-bridge-live-preview.md) | Local bridge: watched files, HTTP, and Yjs over WebSocket | Accepted | Live transport |
 | [0010](0010-editor-interaction.md) | Editor interaction: selection, inspector, and commands over the bridge | Accepted | UI / editing |
 | [0011](0011-bridge-security-boundary.md) | Local bridge security boundary | Accepted | Security |
+| [0012](0012-declared-dev-servers.md) | Declared project dev servers | Accepted | Local workspace |
 
 ## Decision map
 
@@ -43,8 +44,9 @@ graph TD
     H --> I["0009 · Local bridge<br/>watcher · HTTP · WebSocket"]
     I --> J["0010 · Editor interaction<br/>selection · inspector · undo"]
     J --> K["0011 · Bridge security boundary<br/>loopback · cookie · origin"]
-    K --> L["0012 · Agent tool contract<br/>(next)"]
-    K --> M["0013 · Snapshot extractor<br/>(next)"]
+    K --> L["0012 · Declared dev servers<br/>argv · readiness · process group"]
+    L --> M["0013 · Agent tool contract<br/>(next)"]
+    L --> N["0014 · Snapshot extractor<br/>(next)"]
 ```
 
 ## Adding a record

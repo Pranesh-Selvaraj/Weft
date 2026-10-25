@@ -2,7 +2,7 @@
 
 The local live bridge for Weft. It serves the built browser app, watches a design directory, keeps one Yjs `PageSession` per page, streams file changes to connected browsers, and accepts browser commands. A valid command is applied to the session, written atomically to the changed page file, and broadcast to every client.
 
-It is a **local editor bridge**: commands write page files. It is loopback-only, uses a per-run session cookie, and rejects cross-origin browser requests. Manifest edits, a workspace allowlist, presence and the agent contract are still ahead.
+It is a **local editor bridge**: commands write page files and declared project dev servers can be started and stopped through the same authenticated API. It is loopback-only, uses a per-run session cookie, and rejects cross-origin browser requests. Presence and the agent contract are still ahead.
 
 ## Run
 
@@ -28,7 +28,7 @@ The built web app must exist at `apps/web/dist`; `pnpm build` produces it. Set `
 ## Security
 
 - The app page sets a random per-run `weft_session` cookie: `HttpOnly; SameSite=Strict; Path=/`.
-- `/api/design` and `/api/live` require the cookie. `/api/health` is public but Host-checked.
+- `/api/design`, `/api/live` and `/api/dev` require the cookie. `/api/health` is public but Host-checked.
 - The `Host` header must be a loopback host and port; a present `Origin` must match the loopback origin. This blocks DNS rebinding and cross-site browser access.
 - WebSocket payloads are capped at 1 MiB.
 - Responses carry `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`, a restrictive `Content-Security-Policy` and `Permissions-Policy`.
@@ -42,6 +42,9 @@ The built web app must exist at `apps/web/dist`; `pnpm build` produces it. Set `
   - Requires the session cookie. `update` is a base64-encoded Yjs state update for that page.
 - `GET /api/health` → `{ ok, revision, pages }`
 - `POST /api/open` → `{ designPath }` opens another registered design. Requires the session cookie; paths outside the workspace are rejected. All connected clients receive a fresh `init` with the newly active design.
+- `GET /api/dev` → `{ ok, servers }` returns snapshots for every registered project. Requires the session cookie.
+- `POST /api/dev/start` → `{ projectPath }` starts a declared managed server, or attaches to an already-running URL when the project has no command. Requires the session cookie and Origin check.
+- `POST /api/dev/stop` → `{ projectPath }` stops a managed server process group or detaches from an attached one. Requires the session cookie and Origin check.
 
 ### WebSocket: `/api/live`
 
@@ -56,12 +59,13 @@ On connect the server sends:
 }
 ```
 
-In workspace mode `init` also carries `workspace.file`, `workspace.activeDesignPath`, and the registered projects/designs. Then the bridge may send:
+In workspace mode `init` also carries `workspace.file`, `workspace.activeDesignPath`, the registered projects/designs, and `workspace.servers` snapshots. Then the bridge may send:
 
 ```json
 { "type": "update", "revision": 2, "pageId": "pg_…", "update": "base64…" }
 { "type": "conflict", "revision": 2, "pageId": "pg_…", "conflicts": [] }
 { "type": "error", "revision": 2, "message": "…" }
+{ "type": "dev", "server": { "projectPath": "/abs/project", "status": "running", "…": "…" } }
 { "type": "command", "revision": 2, "pageId": "pg_…", "commandId": "cm_…", "command": {}, "createdNodeIds": [], "actor": {} }
 ```
 
@@ -97,14 +101,15 @@ The web app fetches `/api/design`; if the response is JSON, it:
 2. connects to `/api/live`;
 3. applies `update` messages and re-materializes pages;
 4. shows the project/design picker when the bridge has a workspace;
-5. shows `live`, `connecting` or `offline` in the top bar.
+5. shows a Project server panel that can start, attach to and stop declared dev servers;
+6. shows `live`, `connecting` or `offline` in the top bar.
 
 Without a bridge, it falls back to the embedded Vite design and shows `read only`.
 
 ## Not here yet
 
 - Page-level commands (page name, background, tokens).
-- Project dev-server control and extraction.
+- Extraction and capture allowlists.
 - Presence/cursors, team authentication, remote bind.
 - Asset and snapshot payload serving.
 - Persisted Yjs state or a durable operation log.
@@ -117,4 +122,4 @@ Without a bridge, it falls back to the embedded Vite design and shows `read only
 pnpm --filter @weft/bridge test
 ```
 
-The suite covers HTTP design/health, session-cookie authorization, cross-origin rejection, loopback-only hosts, workspace listing and switching, rejecting unregistered paths, WebSocket init, live Yjs updates from file writes, browser commands and undo writes, invalid-write recovery, and the missing-web-build error.
+The suite covers HTTP design/health, session-cookie authorization, cross-origin rejection, loopback-only hosts, workspace listing and switching, rejecting unregistered paths, starting and stopping a declared project server, WebSocket init, live Yjs updates from file writes, browser commands and undo writes, invalid-write recovery, and the missing-web-build error.

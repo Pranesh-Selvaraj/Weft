@@ -16,14 +16,14 @@ interface WirePage {
   update: string;
 }
 
-interface WorkspaceDesignInfo {
+export interface WorkspaceDesignInfo {
   path: string;
   name: string;
   projectPath: string;
   projectName: string;
 }
 
-interface WorkspaceProjectInfo {
+export interface WorkspaceProjectInfo {
   path: string;
   name: string;
   exists: boolean;
@@ -31,10 +31,41 @@ interface WorkspaceProjectInfo {
   error?: string;
 }
 
-interface WorkspacePayload {
+type DevServerStatus = "stopped" | "starting" | "running" | "stopping" | "error";
+
+export interface DevServerLogEntry {
+  at: string;
+  stream: "stdout" | "stderr" | "system";
+  text: string;
+}
+
+interface DevServerProblem {
+  code: string;
+  message: string;
+}
+
+export interface DevServerSnapshot {
+  projectPath: string;
+  projectName: string;
+  configPath: string | null;
+  configured: boolean;
+  mode: "managed" | "attach" | null;
+  status: DevServerStatus;
+  url: string | null;
+  pid: number | null;
+  startedAt: string | null;
+  exitCode: number | null;
+  signal: string | null;
+  error: DevServerProblem | null;
+  configError: DevServerProblem | null;
+  logs: DevServerLogEntry[];
+}
+
+export interface WorkspacePayload {
   file: string;
   activeDesignPath: string;
   projects: WorkspaceProjectInfo[];
+  servers: DevServerSnapshot[];
 }
 
 interface DesignPayload {
@@ -99,11 +130,17 @@ interface CommandBroadcastMessage {
   actor?: CommandActor;
 }
 
+interface DevServerMessage {
+  type: "dev";
+  server: DevServerSnapshot;
+}
+
 type ServerMessage =
   | InitMessage
   | UpdateMessage
   | ConflictMessage
   | ErrorMessage
+  | DevServerMessage
   | CommandResultMessage
   | CommandBroadcastMessage
   | { type: "pong" };
@@ -137,10 +174,14 @@ export interface DesignSource {
   lastActor: CommandActor | null;
   workspace: WorkspacePayload | null;
   switching: boolean;
+  devError: string | null;
+  serverBusy: string | null;
   sendCommand(pageId: string, command: PageCommand, label?: string): void;
   undo(): void;
   redo(): void;
   openDesign(designPath: string): void;
+  startServer(projectPath: string): void;
+  stopServer(projectPath: string): void;
 }
 
 const LOCAL_ACTOR: CommandActor = { id: "browser", kind: "human", name: "You" };
@@ -192,6 +233,8 @@ export function useDesignSource(): DesignSource {
   const [lastActor, setLastActor] = useState<CommandActor | null>(null);
   const [workspace, setWorkspace] = useState<WorkspacePayload | null>(null);
   const [switching, setSwitching] = useState(false);
+  const [devError, setDevError] = useState<string | null>(null);
+  const [serverBusy, setServerBusy] = useState<string | null>(null);
   const [pending, setPending] = useState(0);
   const [undoStack, setUndoStack] = useState<HistoryEntry[]>([]);
   const [redoStack, setRedoStack] = useState<HistoryEntry[]>([]);
@@ -275,6 +318,61 @@ export function useDesignSource(): DesignSource {
       });
   }, [switching]);
 
+  const updateServer = useCallback((server: DevServerSnapshot): void => {
+    setWorkspace((current) => {
+      if (!current) return current;
+      const servers = current.servers.some(
+        (candidate) => candidate.projectPath === server.projectPath,
+      )
+        ? current.servers.map((candidate) =>
+            candidate.projectPath === server.projectPath ? server : candidate,
+          )
+        : [...current.servers, server];
+      return { ...current, servers };
+    });
+  }, []);
+
+  const changeServer = useCallback(
+    (projectPath: string, action: "start" | "stop"): void => {
+      if (serverBusy) return;
+      setServerBusy(projectPath);
+      setDevError(null);
+
+      void fetch(`/api/dev/${action}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ projectPath }),
+      })
+        .then(async (response) => {
+          const payload = (await response.json().catch(() => null)) as
+            | { server?: DevServerSnapshot; error?: { message?: string } }
+            | null;
+          if (!response.ok || !payload?.server) {
+            setDevError(payload?.error?.message ?? "The project server request failed.");
+            return;
+          }
+          updateServer(payload.server);
+        })
+        .catch((caught: unknown) => {
+          setDevError(messageOf(caught));
+        })
+        .finally(() => {
+          setServerBusy(null);
+        });
+    },
+    [serverBusy, updateServer],
+  );
+
+  const startServer = useCallback(
+    (projectPath: string): void => changeServer(projectPath, "start"),
+    [changeServer],
+  );
+
+  const stopServer = useCallback(
+    (projectPath: string): void => changeServer(projectPath, "stop"),
+    [changeServer],
+  );
+
   useEffect(() => {
     let disposed = false;
     let socket: WebSocket | null = null;
@@ -325,10 +423,16 @@ export function useDesignSource(): DesignSource {
 
         setManifest(payload.manifest);
         setPages(ordered);
-        setWorkspace(payload.workspace ?? null);
+        setWorkspace(
+          payload.workspace
+            ? { ...payload.workspace, servers: payload.workspace.servers ?? [] }
+            : null,
+        );
         setRevision(payload.revision);
         setConflicts(0);
         setError(null);
+        setDevError(null);
+        setServerBusy(null);
         setSwitching(false);
         clearHistory();
         return null;
@@ -417,6 +521,10 @@ export function useDesignSource(): DesignSource {
             applyUpdate(message);
             break;
           }
+          case "dev": {
+            updateServer(message.server);
+            break;
+          }
           case "commandResult": {
             handleCommandResult(message);
             break;
@@ -446,6 +554,7 @@ export function useDesignSource(): DesignSource {
         pendingRef.current.clear();
         setPending(0);
         setSwitching(false);
+        setServerBusy(null);
         setStatus("disconnected");
         if (retry) clearTimeout(retry);
         retry = setTimeout(() => {
@@ -520,9 +629,13 @@ export function useDesignSource(): DesignSource {
     lastActor,
     workspace,
     switching,
+    devError,
+    serverBusy,
     sendCommand,
     undo,
     redo,
     openDesign,
+    startServer,
+    stopServer,
   };
 }

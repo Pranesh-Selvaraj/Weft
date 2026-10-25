@@ -19,7 +19,7 @@ You will get an acknowledgement, an assessment, and a coordinated disclosure pla
 
 In scope:
 
-- the bridge, CLI, session engine and renderer;
+- the bridge, CLI, session engine, declared dev-server manager and renderer;
 - design-file parsing, path handling, snapshot sandboxing and agent command paths;
 - GitHub workflows, release configuration and repository automation.
 
@@ -35,22 +35,22 @@ Usually out of scope:
 Weft is a local-first tool, not a hosted service.
 
 - The bridge accepts only loopback bind hosts (`127.0.0.1`, `localhost`, `::1`). Non-loopback hosts are rejected.
-- A random per-run token is set as an `HttpOnly`, `SameSite=Strict` session cookie on the app page. `/api/design` and `/api/live` require it; cross-origin requests and WebSocket handshakes are rejected. Host and Origin checks block DNS rebinding and cross-site browser access.
+- A random per-run token is set as an `HttpOnly`, `SameSite=Strict` session cookie on the app page. `/api/design`, `/api/live` and `/api/dev` require it; cross-origin requests and WebSocket handshakes are rejected. Host and Origin checks block DNS rebinding and cross-site browser access.
+- Project dev servers can only run argv commands declared in `weft.project.json`; the browser cannot supply a command. URLs must be loopback, cwd must stay inside the registered project root, and managed children are stopped as a process group. A declared command still runs with your user permissions and is not sandboxed.
 - WebSocket payloads are limited to 1 MiB, and responses carry restrictive security headers.
 - Restarting the bridge rotates the token; reload open tabs after a restart.
 - The bridge reads a design directory and writes only page files inside it after a valid command. Paths are checked, writes are atomic, and page data is validated before writing.
 - Design files and captured HTML are untrusted input. HTML snapshots render in a sandboxed iframe without scripts. Extraction is not shipped yet.
-- Agents run with the permissions of your user account. Only connect agents you trust. The bridge does not yet supervise arbitrary project processes.
+- Agents run with the permissions of your user account. Only connect agents you trust. Only declare dev commands you trust; they can read files, reach the network and start other processes.
 - Do not put secrets in design files, comments, sample assets or captured pages. They are committed to your repository.
 
 ## Hardening roadmap
 
 The next security work is documented in [`docs/security.md`](docs/security.md) and will land in separate branches:
 
-1. Per-project read/write permissions on top of the workspace allowlist.
-2. A process supervisor that runs only project-declared dev commands with explicit approval.
-3. Capture allowlists and a stricter snapshot policy.
-4. Workspace audit logging and permission boundaries for agents.
+1. Per-project read/write permissions and optional resource limits on top of the workspace allowlist.
+2. Capture allowlists and a stricter snapshot policy.
+3. Workspace audit logging and permission boundaries for agents.
 
 ## Disclosure timeline
 

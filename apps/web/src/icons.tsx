@@ -33,3 +33,23 @@ export function MoonIcon() {
     </svg>
   );
 }
+
+export function ServerIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      width="15"
+      height="15"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="3" y="4" width="18" height="12" rx="2" />
+      <path d="M8 20h8M12 16v4" />
+      <path d="M7 8h.01M10 8h.01" />
+    </svg>
+  );
+}

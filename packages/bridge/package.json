@@ -26,6 +26,7 @@
   "dependencies": {
     "@weft/core": "workspace:*",
     "@weft/design-io": "workspace:*",
+    "@weft/dev-server": "workspace:*",
     "@weft/session": "workspace:*",
     "@weft/workspace": "workspace:*",
     "chokidar": "^6.0.0",

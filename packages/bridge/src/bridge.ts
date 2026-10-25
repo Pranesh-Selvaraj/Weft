@@ -16,6 +16,7 @@ import {
   type DesignFile,
   type DesignManifest,
 } from "@weft/core";
+import { DevServerError, DevServerManager, type DevServerSnapshot } from "@weft/dev-server";
 import { readDesign, writePageFile, WeftIoError } from "@weft/design-io";
 import { PageSession } from "@weft/session";
 import { listProjects, readWorkspace } from "@weft/workspace";
@@ -145,6 +146,7 @@ export class WeftBridge {
 
   private readonly workspaceFile: string | null;
   private workspace: WorkspacePayload | null = null;
+  private devServers: DevServerManager | null = null;
   private designVersion = 0;
 
   private readonly host: string;
@@ -252,6 +254,9 @@ export class WeftBridge {
     await this.watcher?.close().catch(() => undefined);
     this.watcher = undefined;
 
+    await this.devServers?.close().catch(() => undefined);
+    this.devServers = null;
+
     for (const unsubscribe of this.unsubs.values()) unsubscribe();
     this.unsubs.clear();
     for (const session of this.sessions.values()) session.destroy();
@@ -302,6 +307,16 @@ export class WeftBridge {
       );
     }
 
+    const devServers = new DevServerManager({
+      projects: listings.map((listing) => ({
+        path: listing.path,
+        name: listing.name,
+      })),
+      onChange: (server) => this.handleDevServerChange(server),
+    });
+    await devServers.init();
+    this.devServers = devServers;
+
     this.workspace = {
       file: this.workspaceFile,
       activeDesignPath: active,
@@ -312,7 +327,17 @@ export class WeftBridge {
         designs: listing.designs,
         ...(listing.error ? { error: listing.error } : {}),
       })),
+      servers: devServers.snapshots(),
     };
+  }
+
+  private handleDevServerChange(server: DevServerSnapshot): void {
+    if (!this.workspace || this.closing) return;
+    const servers = this.workspace.servers.map((candidate) =>
+      candidate.projectPath === server.projectPath ? server : candidate,
+    );
+    this.workspace = { ...this.workspace, servers };
+    this.broadcast({ type: "dev", server });
   }
 
   private async loadInitial(): Promise<void> {
@@ -605,6 +630,87 @@ export class WeftBridge {
           this.sendJson(response, status, {
             ok: false,
             error: { code: errorCode(error), message: errorMessage(error) },
+          });
+        }
+        return;
+      }
+
+      if (url.pathname === "/api/dev") {
+        if (request.method !== "GET") {
+          this.sendJson(response, 405, { ok: false, error: { code: "method.not-allowed" } });
+          return;
+        }
+        if (!this.isAuthorized(request)) {
+          this.sendJson(response, 401, { ok: false, error: { code: "session.unauthorized" } });
+          return;
+        }
+        if (!this.isAllowedOrigin(request)) {
+          this.sendJson(response, 403, { ok: false, error: { code: "origin.forbidden" } });
+          return;
+        }
+        if (!this.devServers) {
+          this.sendJson(response, 404, { ok: false, error: { code: "workspace.none" } });
+          return;
+        }
+        this.sendJson(response, 200, {
+          ok: true,
+          servers: this.devServers.snapshots(),
+        });
+        return;
+      }
+
+      if (url.pathname === "/api/dev/start" || url.pathname === "/api/dev/stop") {
+        if (request.method !== "POST") {
+          this.sendJson(response, 405, { ok: false, error: { code: "method.not-allowed" } });
+          return;
+        }
+        if (!this.isAuthorized(request)) {
+          this.sendJson(response, 401, { ok: false, error: { code: "session.unauthorized" } });
+          return;
+        }
+        if (!this.isAllowedOrigin(request)) {
+          this.sendJson(response, 403, { ok: false, error: { code: "origin.forbidden" } });
+          return;
+        }
+        if (!this.devServers) {
+          this.sendJson(response, 404, { ok: false, error: { code: "workspace.none" } });
+          return;
+        }
+        try {
+          const body = await this.readJsonBody(request);
+          const projectPath =
+            isRecord(body) && typeof body.projectPath === "string"
+              ? body.projectPath
+              : null;
+          if (!projectPath) {
+            this.sendJson(response, 400, {
+              ok: false,
+              error: { code: "request.invalid", message: "projectPath is required." },
+            });
+            return;
+          }
+          const server =
+            url.pathname === "/api/dev/start"
+              ? await this.devServers.start(projectPath)
+              : await this.devServers.stop(projectPath);
+          this.sendJson(response, 200, { ok: true, server });
+        } catch (error) {
+          const status =
+            error instanceof DevServerError
+              ? error.code === "dev.unknown-project"
+                ? 404
+                : error.code === "dev.busy"
+                  ? 409
+                  : error.code === "dev.attach-unreachable"
+                    ? 502
+                    : 400
+              : 500;
+          this.sendJson(response, status, {
+            ok: false,
+            error: {
+              code: error instanceof DevServerError ? error.code : "dev.error",
+              message: errorMessage(error),
+            },
           });
         }
         return;

@@ -221,6 +221,9 @@ importers:
       '@weft/design-io':
         specifier: workspace:*
         version: link:../design-io
+      '@weft/dev-server':
+        specifier: workspace:*
+        version: link:../dev-server
       '@weft/session':
         specifier: workspace:*
         version: link:../session
@@ -272,6 +275,8 @@ importers:
       '@weft/core':
         specifier: workspace:*
         version: link:../core
+
+  packages/dev-server: {}
 
   packages/render:
     dependencies:
