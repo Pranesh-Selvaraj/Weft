@@ -101,9 +101,16 @@ The layout is the intended shape; packages are added as decisions land. Founding
 - [Browser editor](apps/web/README.md) — the Vite/React app, live editing, and `WEFT_DESIGN`.
 - [Renderer](packages/render/README.md) — the DOM renderer API, supported styles, and limits.
 - [Local bridge](packages/bridge/README.md) — `weft dev`, the HTTP/WebSocket protocol, and live reload semantics.
+- [Local workspace](docs/local-workspace.md) — how a local Weft instance can work across registered project roots and running apps.
+- [Security model](docs/security.md) — threat model, current controls, gaps, and hardening branches.
+- [Security policy](SECURITY.md) and [contributing](CONTRIBUTING.md) — reporting and the protected-branch workflow.
 - [Decision records](docs/decisions/README.md) — why the system is shaped this way.
 - [Project history](docs/HISTORY.md) — the timeline that ties releases, stack changes, and ADRs together.
 - [Changelog](CHANGELOG.md) — what shipped.
+
+## Contributing
+
+`main` is protected. Changes land through a feature branch and a pull request with the required `verify` check; see [CONTRIBUTING.md](CONTRIBUTING.md). Report security issues privately per [SECURITY.md](SECURITY.md), never in a public issue.
 
 ## License
 

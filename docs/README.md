@@ -12,6 +12,8 @@ Start here, then follow the decision records for the reasoning.
 | [Browser editor](../apps/web/README.md) | The Vite/React app, live editing, and `WEFT_DESIGN`. |
 | [Renderer](../packages/render/README.md) | The DOM renderer API, supported styles, and limits. |
 | [Local bridge](../packages/bridge/README.md) | `weft dev`, the HTTP/WebSocket protocol, and live reload semantics. |
+| [Local workspace](local-workspace.md) | How a local instance discovers and interacts with other registered projects and running apps. |
+| [Security model](security.md) | Threat model, current controls, known gaps, and the security branch order. |
 | [Decision records](decisions/README.md) | What we chose, why, what we rejected, and what it costs. |
 | [Project history](HISTORY.md) | The timeline linking eras, stack changes, and decisions. |
 | [Changelog](../CHANGELOG.md) | What shipped, in user-facing prose. |
@@ -30,6 +32,8 @@ Start here, then follow the decision records for the reasoning.
 10. [ADR 0009](decisions/0009-local-bridge-live-preview.md) for the local live bridge.
 11. [ADR 0010](decisions/0010-editor-interaction.md) for selection, the inspector and undo.
 12. [Architecture](architecture.md) for the draft implementation shape.
-13. [CLI](cli.md) to run, inspect and edit a design.
-14. [Browser editor](../apps/web/README.md) to open and edit the starter design.
-15. [ADR index](decisions/README.md) to see which decisions are settled and which are still open.
+13. [Security model](security.md) for the trust boundaries and planned hardening.
+14. [Local workspace](local-workspace.md) for the project registry and dev-server model.
+15. [CLI](cli.md) to run, inspect and edit a design.
+16. [Browser editor](../apps/web/README.md) to open and edit the starter design.
+17. [ADR index](decisions/README.md) to see which decisions are settled and which are still open.
