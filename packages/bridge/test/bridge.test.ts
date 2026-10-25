@@ -1,4 +1,5 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import WebSocket from "ws";
@@ -232,6 +233,116 @@ describe("local bridge", () => {
       }),
     ).rejects.toMatchObject({ code: "host.unsafe" });
   });
+
+  it("starts and stops a declared project server through the API", async () => {
+    const listener = createServer();
+    await new Promise<void>((resolveListen) => listener.listen(0, "127.0.0.1", resolveListen));
+    const address = listener.address();
+    const port = typeof address === "object" && address ? address.port : 0;
+    await new Promise<void>((resolveClose) => listener.close(() => resolveClose()));
+
+    const script =
+      'const http=require("node:http");const server=http.createServer((q,s)=>{s.writeHead(200);s.end("ok")});server.listen(Number(process.env.PORT),"127.0.0.1",()=>console.log("listening"));';
+    await writeFile(
+      join(designDir, "weft.project.json"),
+      JSON.stringify(
+        {
+          version: 1,
+          devServer: {
+            url: `http://127.0.0.1:${port}/`,
+            command: [process.execPath, "-e", script],
+            env: { PORT: String(port) },
+            readyTimeoutMs: 5000,
+            stopTimeoutMs: 1000,
+          },
+        },
+        null,
+        2,
+      ),
+    );
+
+    const workspaceFile = join(root, "workspace.json");
+    await writeWorkspace(
+      {
+        version: 1,
+        projects: [
+          {
+            path: resolve(designDir),
+            name: "Server fixture",
+            addedAt: new Date().toISOString(),
+          },
+        ],
+      },
+      workspaceFile,
+    );
+
+    const bridge = await startBridge({
+      designDir,
+      workspaceFile,
+      host: "127.0.0.1",
+      port: 0,
+      webDist: null,
+    });
+
+    try {
+      const listing = (await fetch(`${bridge.url}/api/dev`, {
+        headers: { cookie: sessionCookie(bridge) },
+      }).then((response) => response.json())) as {
+        servers: Array<{ configured: boolean; status: string }>;
+      };
+      expect(listing.servers[0].configured).toBe(true);
+      expect(listing.servers[0].status).toBe("stopped");
+
+      const unauthorized = await fetch(`${bridge.url}/api/dev/start`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ projectPath: designDir }),
+      });
+      expect(unauthorized.status).toBe(401);
+
+      const outside = await fetch(`${bridge.url}/api/dev/start`, {
+        method: "POST",
+        headers: {
+          cookie: sessionCookie(bridge),
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ projectPath: join(root, "outside") }),
+      });
+      expect(outside.status).toBe(404);
+
+      const started = await fetch(`${bridge.url}/api/dev/start`, {
+        method: "POST",
+        headers: {
+          cookie: sessionCookie(bridge),
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ projectPath: designDir }),
+      });
+      expect(started.status).toBe(200);
+      const startedPayload = (await started.json()) as {
+        server: { status: string };
+      };
+      expect(startedPayload.server.status).toBe("running");
+      expect(await fetch(`http://127.0.0.1:${port}/`).then((response) => response.text())).toBe("ok");
+
+      const stopped = await fetch(`${bridge.url}/api/dev/stop`, {
+        method: "POST",
+        headers: {
+          cookie: sessionCookie(bridge),
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ projectPath: designDir }),
+      });
+      expect(stopped.status).toBe(200);
+      const stoppedPayload = (await stopped.json()) as {
+        server: { status: string };
+      };
+      expect(stoppedPayload.server.status).toBe("stopped");
+      await expect(fetch(`http://127.0.0.1:${port}/`)).rejects.toThrow();
+    } finally {
+      await bridge.close();
+    }
+  }, 15000);
 
   it("lists a workspace and switches the active design", async () => {
     const secondDesign = createDesign({ name: "Second design", pageName: "Settings" });

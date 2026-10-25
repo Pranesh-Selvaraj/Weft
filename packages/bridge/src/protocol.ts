@@ -1,4 +1,5 @@
 import type { CommandActor, DesignManifest, PageCommand } from "@weft/core";
+import type { DevServerSnapshot } from "@weft/dev-server";
 import type { MergeConflict } from "@weft/session";
 
 export interface WirePage {
@@ -26,6 +27,7 @@ export interface WorkspacePayload {
   file: string;
   activeDesignPath: string;
   projects: WorkspaceProjectInfo[];
+  servers: DevServerSnapshot[];
 }
 
 export interface DesignPayload {
@@ -67,6 +69,11 @@ export interface PongMessage {
   type: "pong";
 }
 
+export interface DevServerMessage {
+  type: "dev";
+  server: DevServerSnapshot;
+}
+
 export interface CommandRequestMessage {
   type: "command";
   requestId: string;
@@ -104,6 +111,7 @@ export type BridgeMessage =
   | ConflictMessage
   | ErrorMessage
   | PongMessage
+  | DevServerMessage
   | CommandResultMessage
   | CommandBroadcastMessage;
 

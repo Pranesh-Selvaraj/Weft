@@ -3,7 +3,8 @@ import type { MouseEvent as ReactMouseEvent } from "react";
 import { getPageBounds, PageView } from "@weft/render";
 import type { PageDocument } from "@weft/core";
 import { Inspector } from "./Inspector";
-import { MoonIcon, SunIcon } from "./icons";
+import { ServerPanel } from "./ServerPanel";
+import { MoonIcon, ServerIcon, SunIcon } from "./icons";
 import { useDesignSource } from "./live";
 import { useTheme } from "./theme";
 
@@ -96,6 +97,7 @@ export function App() {
     source.pages[0]?.id ?? null,
   );
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [serverOpen, setServerOpen] = useState(false);
 
   useEffect(() => {
     if (activePageId && source.pages.some((page) => page.id === activePageId)) return;
@@ -161,6 +163,12 @@ export function App() {
     source.pages.some((candidate) => candidate.id === ref.id),
   );
   const nodeCount = page ? Object.keys(page.nodes).length : 0;
+  const activeProject = source.workspace?.projects.find((project) =>
+    project.designs.some((design) => design.path === source.workspace?.activeDesignPath),
+  );
+  const activeServer = activeProject
+    ? source.workspace?.servers.find((server) => server.projectPath === activeProject.path)
+    : undefined;
 
   const statusLabel =
     source.mode === "static"
@@ -254,6 +262,23 @@ export function App() {
         </nav>
 
         <div className="topbar-right">
+          {source.workspace && activeProject && (
+            <button
+              type="button"
+              className={`server-toggle${activeServer?.status === "running" ? " is-running" : ""}`}
+              onClick={() => setServerOpen((open) => !open)}
+              aria-expanded={serverOpen}
+              aria-label="Project server"
+              title="Project server"
+            >
+              <ServerIcon />
+              <span className="server-toggle-label">Server</span>
+              <span
+                className={`server-status-dot is-${activeServer?.status ?? "stopped"}`}
+                aria-hidden="true"
+              />
+            </button>
+          )}
           <button
             type="button"
             className="theme-toggle"
@@ -297,6 +322,18 @@ export function App() {
           <span className="meta">{Math.round(scale * 100)}%</span>
         </div>
       </header>
+
+      {serverOpen && source.workspace && activeProject && (
+        <ServerPanel
+          project={activeProject}
+          server={activeServer}
+          busy={source.serverBusy === activeProject.path}
+          error={source.devError}
+          onStart={() => source.startServer(activeProject.path)}
+          onStop={() => source.stopServer(activeProject.path)}
+          onClose={() => setServerOpen(false)}
+        />
+      )}
 
       <div className="workspace">
         <main className="canvas" ref={ref}>

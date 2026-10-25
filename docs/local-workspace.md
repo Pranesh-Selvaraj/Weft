@@ -6,7 +6,7 @@ The short answer: it does not discover them by scanning the machine. A local wor
 
 ## What already works
 
-The `@weft/workspace` registry, `weft workspace init/add/list/remove` and `weft workspace dev` now provide the explicit project allowlist, design discovery and browser design picker described below.
+The `@weft/workspace` registry, `weft workspace init/add/list/remove` and `weft workspace dev` now provide the explicit project allowlist, design discovery and browser design picker described below. `@weft/dev-server` adds declared project servers, attach mode, readiness, logs and process-group stop.
 
 `weft dev <design.weft>` can point at a design directory anywhere on disk, including inside another repository:
 
@@ -20,8 +20,7 @@ The bridge watches that directory and writes pages there. The design can live in
 
 What does not exist yet:
 
-- starting/stopping project dev servers;
-- capturing pages from those servers;
+- capture/extraction and an origin allowlist;
 - serving project assets;
 - per-project permissions and an audit trail.
 
@@ -80,44 +79,41 @@ Each project can check in a small `weft.project.json`:
 ```json
 {
   "version": 1,
-  "designs": ["designs/app.weft", "designs/settings.weft"],
-  "dev": {
+  "devServer": {
     "command": ["pnpm", "dev"],
     "cwd": ".",
-    "url": "http://127.0.0.1:3000",
-    "readyPath": "/"
-  },
-  "sourceRoots": ["apps/web/src"],
-  "extract": {
-    "origins": ["http://127.0.0.1:3000"]
+    "url": "http://127.0.0.1:3000/",
+    "env": { "PORT": "3000" },
+    "readyTimeoutMs": 30000,
+    "stopTimeoutMs": 5000
   }
 }
 ```
 
-- `dev.command` is an **argv array**, not a shell string. No interpolation, no pipes, no `&&`.
-- `dev.cwd` must be inside the project root.
-- `dev.url` must be loopback (`localhost`, `127.0.0.1`, `[::1]`).
-- `sourceRoots` are hints for agents and extraction metadata, not a write permission.
-- `extract.origins` is an explicit capture allowlist. No arbitrary URL fetching.
-- A project can omit `dev` if the user already runs the server elsewhere; Weft can attach by URL and still extract.
-- Unknown fields are preserved but ignored until a later version defines them.
+- `devServer.command` is an **argv array**, not a shell string. No interpolation, no pipes, no `&&`.
+- `devServer.cwd` must stay inside the project root, including after `realpath`.
+- `devServer.url` must be loopback (`localhost`, `127.0.0.1`, `[::1]`), HTTP(S), with no credentials.
+- `devServer.env` is merged over the bridge environment; there is no implicit `.env` loading.
+- A project can omit `command` if the user already runs the server elsewhere; Weft attaches by URL and can still extract later.
+- `designs`, `sourceRoots` and `extract.origins` are proposed fields for later slices; unknown fields are ignored for now, so they can land without a config version bump.
 
 ### Running another project's app
 
 Two modes:
 
 1. **Attach** — the user already runs the dev server in a terminal. Weft is given the loopback URL and only performs HTTP/headless-browser operations against that origin.
-2. **Supervise** — Weft starts the declared command, captures logs, waits for readiness, and stops the process group. This requires explicit approval in the UI or CLI; the command must come from checked-in project config, never from a browser message.
+2. **Supervise** — Weft starts the declared command, captures logs, waits for readiness, and stops the process group. This requires an explicit Start action in the browser; the command must come from checked-in project config, never from a browser message.
 
-The supervisor should:
+The implemented manager:
 
-- run as the current user with the project cwd;
-- use the argv array directly (`spawn(command, args, {cwd, env})`);
-- inherit a filtered environment, not the whole shell environment;
-- use a new process group and kill the group on stop;
-- cap output and expose a log buffer;
-- check readiness against the allowlisted URL;
-- never expose a general “run command” tool to the browser or an agent.
+- runs as the current user with the project cwd;
+- uses the argv array directly with `shell: false` and an explicit environment;
+- creates a process group and kills the group on stop;
+- caps output in a bounded in-memory log ring;
+- checks readiness against the declared loopback URL;
+- never exposes a general “run command” tool to the browser or an agent.
+
+See [Declared dev servers](dev-server.md) for the exact rules and limits.
 
 ### Extraction across projects
 
@@ -198,13 +194,15 @@ Bridge APIs and browser UI that consume the registry: list projects/designs, ope
 
 Exit criteria: the browser lists only registered projects/designs; opening a path outside the registry is rejected; switching designs resets sessions cleanly; one local hub can serve multiple registered designs.
 
-`weft workspace dev` now starts that hub, and the browser has a design selector. Dev-server control is next.
+`weft workspace dev` now starts that hub, and the browser has a design selector. Declared dev servers are implemented in the next slice.
 
-### 5. `feat/dev-server-control`
+### 5. `feat/dev-server-control` (implemented)
 
 `weft.project.json`, attach mode, supervised dev commands, readiness checks, logs and process-group shutdown.
 
 Exit criteria: Weft can start and stop one declared dev server for a registered project; it never executes a command not declared in project config; it cannot start a server outside the root; stopping leaves no orphan process.
+
+The manager and browser Project server panel now implement this. See [Declared dev servers](dev-server.md) and ADR 0012.
 
 ### 6. `feat/extract-snapshots`
 

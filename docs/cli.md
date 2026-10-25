@@ -66,7 +66,7 @@ pnpm weft workspace dev --file ~/.weft/workspace.json
 # optional initial design: --design <path|unique-name>
 ```
 
-The bridge loads the registry, validates the chosen design against it, and exposes a project/design picker in the browser. A design path outside the registered roots is rejected by `/api/open`. `weft dev <dir>` still opens a single design directly.
+The bridge loads the registry, validates the chosen design against it, and exposes a project/design picker in the browser. A design path outside the registered roots is rejected by `/api/open`. The Server panel can start, attach to and stop a project's declared `weft.project.json` server; see [Declared dev servers](dev-server.md). `weft dev <dir>` still opens a single design directly.
 
 ```json
 {
@@ -320,7 +320,7 @@ The published JSON Schema lives in [`@weft/contract`](../packages/contract/schem
 - There is no optimistic concurrency or multi-writer serialization. `weft apply` is a read-modify-write; `weft dev` accepts browser commands and writes page files, so concurrent writers rely on the Yjs session for the live state and the last page write for disk.
 - Browser undo history is per tab and in memory. It clears on reconnect and does not include external CLI or agent file edits. The bridge does not persist a command log yet.
 - `weft dev` is loopback-only and single-user. It has no team authentication, presence, per-project permissions or remote bind.
-- The project picker is implemented; dev-server control, capture allowlists and per-project permissions are later branches.
+- The project picker and declared dev-server control are implemented; capture allowlists and per-project permissions are later branches.
 - `apply` accepts commands for one page at a time.
 
 ## Safety properties

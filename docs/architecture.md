@@ -48,12 +48,13 @@ flowchart TB
 - **`apps/web`** — the browser editor. The read-only preview now has selection, an inspector, keyboard undo/redo and live commands over the bridge. React + Vite + TypeScript (ADR 0008, ADR 0010). Layers, multi-select, drag/resize, presence and chat are next.
 - **`packages/core`** — document schema, node operations, validation, migrations, deterministic serialization. No DOM, no network. Shared by the editor, bridge, CLI, MCP server, and exporter.
 - **`packages/design-io`** — Node filesystem access for design directories: safe paths, atomic writes, read/inspect/validate, canonical formatting, init, summary. Keeps Node out of the browser core.
-- **`packages/workspace`** — explicit local project registry and design discovery: canonical project roots, unique names, atomic owner-only storage, ignored build/hidden directories, missing-root reporting. The bridge/browser picker consumes this allowlist; the dev-server supervisor will too.
+- **`packages/workspace`** — explicit local project registry and design discovery: canonical project roots, unique names, atomic owner-only storage, ignored build/hidden directories, missing-root reporting. The bridge/browser picker and dev-server manager consume this allowlist.
+- **`packages/dev-server`** — declared project dev servers: config validation, attach mode, readiness probes, bounded logs and process-group supervision. The bridge starts/stops one server per registered project through authenticated routes (ADR 0012).
 - **`packages/contract`** — the published JSON Schema and conformance fixtures for manifests, pages and commands. Structural validation only; the core remains authoritative for semantic checks.
 - **`packages/session`** — Yjs-backed `PageSession`: live node/placement maps, fractional order keys, command application, materialization, sync updates, and conservative three-way ingestion of whole-page file writes.
 - **`packages/render`** — read-only document-to-DOM renderer: absolute geometry, CSS flex, real text, tokens, paints, sandboxed snapshot iframes and page bounds. Shared by the preview, and later by the editor and export.
-- **`packages/bridge`** — local bridge: serves the built web app and API, watches the active design directory, keeps a `PageSession` per page, ingests file writes, accepts browser commands, writes the changed page file atomically, and streams Yjs updates over WebSocket. In workspace mode it lists registered designs and switches the active design through a registry-validated `/api/open`. It is loopback-only and gated by a per-run session cookie, Host/Origin checks and payload limits (ADR 0011). Dev-server control, presence and agent sessions are next.
-- **`packages/cli`** — the headless `weft` client. Today: `init`, `validate`, `fmt`, `inspect`, `get`, `apply`, `id`, with human and `--json` output. Later: `dev`, `extract`, `export`, `agent`, `mcp`.
+- **`packages/bridge`** — local bridge: serves the built web app and API, watches the active design directory, keeps a `PageSession` per page, ingests file writes, accepts browser commands, writes the changed page file atomically, and streams Yjs updates over WebSocket. In workspace mode it lists registered designs, switches the active design through a registry-validated `/api/open`, and starts/stops declared project servers through `/api/dev`. It is loopback-only and gated by a per-run session cookie, Host/Origin checks and payload limits (ADR 0011, ADR 0012). Presence, extraction and agent sessions are next.
+- **`packages/cli`** — the headless `weft` client. Today: `init`, `validate`, `fmt`, `inspect`, `get`, `apply`, `id`, `dev`, `workspace`, with human and `--json` output. Later: `extract`, `export`, `agent`, `mcp`.
 - **`packages/mcp`** — MCP server exposing the document contract as tools.
 - **`packages/agent`** — adapters that start and talk to harnesses: a generic process adapter plus presets.
 - **`packages/extract`** — Playwright-based capture of a running page into a snapshot frame.
@@ -153,7 +154,7 @@ The renderer and browser editor are implemented in `@weft/render` and `apps/web`
 
 `weft extract <url> --selector <css> --viewport 1440x900` (with a dev-only browser extension later) uses Playwright to:
 
-1. load the page with the host app's dev server running;
+1. load the page with the host app's dev server running — started by the declared project-server manager or attached to an already-running loopback URL;
 2. serialize the selected subtree and the ancestor layout context it depends on;
 3. inline or rewrite styles into a scoped stylesheet, fetch referenced assets into `assets/`, and strip scripts and analytics;
 4. record source metadata (URL, selector, viewport, commit when available, capture time);
@@ -172,6 +173,7 @@ weft/
 │   ├── core/              # schema, operations, migrations
 │   ├── design-io/         # design directory read/write/format/inspect
 │   ├── workspace/         # local project registry + design discovery
+│   ├── dev-server/        # declared project servers + readiness/supervision
 │   ├── contract/          # published JSON Schema + conformance fixtures
 │   ├── session/           # Yjs live page + file-write reconciliation
 │   ├── render/            # DOM renderer + exporter
@@ -188,7 +190,7 @@ weft/
 
 | Risk | Why it matters | First response |
 | --- | --- | --- |
-| CRDT ↔ file reconciliation | Two writers (human and agent) on one page can silently lose work. | Implemented in `@weft/session` as a three-way merge with explicit conflicts; the bridge still needs the file watcher and transport. |
+| CRDT ↔ file reconciliation | Two writers (human and agent) on one page can silently lose work. | Implemented in `@weft/session` as a three-way merge with explicit conflicts, with the bridge watcher/transport and atomic page writes on top. |
 | Browser layout fidelity | CSS in an editor is not the same as CSS in the host app. | Render captured pages in sandboxed iframes; keep native design nodes on a separate, simpler layout model. |
 | Schema churn | Every format change breaks files and agent integrations. | Versioned schema, migrations, unknown-field preservation, fixtures in CI. |
 | Large documents | JSON and DOM both degrade at thousands of nodes. | Per-page documents, culling, explicit node budgets, profiling gates. |
@@ -199,4 +201,4 @@ weft/
 
 ## 9. What gets specified next
 
-The document schema and operations are settled in ADR 0003, the headless CLI and design I/O layer in ADR 0004, the command protocol in ADR 0005, the published JSON Schema in ADR 0006, the Yjs live session in ADR 0007, the editor stack and DOM renderer in ADR 0008, the local bridge in ADR 0009, the editor interaction model in ADR 0010, and the bridge security boundary in ADR 0011; all are implemented. Each remaining area becomes an ADR before implementation: agent tool contract and adapters (0012), snapshot extractor (0013). The ADR index is the source of truth for the current status of each.
+The document schema and operations are settled in ADR 0003, the headless CLI and design I/O layer in ADR 0004, the command protocol in ADR 0005, the published JSON Schema in ADR 0006, the Yjs live session in ADR 0007, the editor stack and DOM renderer in ADR 0008, the local bridge in ADR 0009, the editor interaction model in ADR 0010, the bridge security boundary in ADR 0011, and declared project dev servers in ADR 0012; all are implemented. Each remaining area becomes an ADR before implementation: agent tool contract and adapters (0013), snapshot extractor (0014). The ADR index is the source of truth for the current status of each.
