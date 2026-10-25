@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { serialize } from "@weft/core";
+import { findNodes, isId, newId, serialize } from "@weft/core";
 import { MANIFEST_FILE, readDesign } from "@weft/design-io";
 import { runCli, VERSION, type CliIO } from "../src/index.js";
 
@@ -30,9 +30,13 @@ afterEach(async () => {
   await rm(root, { recursive: true, force: true });
 });
 
-async function run(args: string[]): Promise<number> {
+async function run(
+  args: string[],
+  stdin?: () => Promise<string>,
+): Promise<number> {
   out.length = 0;
   err.length = 0;
+  io.stdin = stdin;
   return runCli(args, io);
 }
 
@@ -184,6 +188,158 @@ describe("weft CLI", () => {
     const payload = jsonOut<{ ok: boolean; issues: Array<{ code: string }> }>();
     expect(payload.ok).toBe(false);
     expect(payload.issues.map((issue) => issue.code)).toContain("file.missing");
+  });
+
+  it("generates ids", async () => {
+    expect(await run(["id", "--prefix", "pg", "--count", "3", "--json"])).toBe(0);
+    const payload = jsonOut<{ ok: boolean; ids: string[] }>();
+    expect(payload.ok).toBe(true);
+    expect(payload.ids).toHaveLength(3);
+    for (const id of payload.ids) expect(isId(id, "pg")).toBe(true);
+
+    expect(await run(["id"])).toBe(0);
+    expect(isId(out.join("\n").trim(), "nd")).toBe(true);
+
+    expect(await run(["id", "--prefix", "xx"])).toBe(2);
+    expect(await run(["id", "--count", "0"])).toBe(2);
+  });
+
+  it("gets a page and a node as JSON", async () => {
+    const design = await readDesign(starter);
+    const heading = findNodes(design.pages[0], (node) => node.name === "Heading")[0];
+    expect(heading).toBeDefined();
+
+    expect(await run(["get", starter, "--page", "Landing"])).toBe(0);
+    const page = jsonOut<{ id: string; name: string }>();
+    expect(page.name).toBe("Landing");
+    expect(page.id).toBe(design.manifest.pages[0].id);
+
+    expect(await run(["get", starter, "--node", heading.id])).toBe(0);
+    const context = jsonOut<{
+      pageId: string;
+      pageFile: string;
+      node: { id: string; name: string };
+    }>();
+    expect(context.pageId).toBe(design.pages[0].id);
+    expect(context.pageFile).toBe("pages/landing.json");
+    expect(context.node.name).toBe("Heading");
+
+    expect(await run(["get", starter])).toBe(2);
+    expect(await run(["get", starter, "--page", "Landing", "--node", heading.id])).toBe(2);
+    expect(await run(["get", starter, "--node", newId("nd")])).toBe(1);
+    const error = jsonOut<{ ok: boolean; error: { code: string } }>();
+    expect(error.ok).toBe(false);
+    expect(error.error.code).toBe("node.missing");
+  });
+
+  it("applies a command and undoes it with the inverse", async () => {
+    const dir = await init();
+    const design = await readDesign(dir);
+    const pageId = design.pages[0].id;
+    const node = {
+      id: newId("nd"),
+      type: "text",
+      name: "Greeting",
+      x: 0,
+      y: 0,
+      width: 240,
+      height: 32,
+      content: "Hello",
+      style: { font: { family: "Inter", size: 16 } },
+    };
+    const input = {
+      pageId,
+      command: { type: "node.insert", node, parentId: null, index: 0 },
+      actor: { id: "test-agent", kind: "agent", name: "Test agent" },
+    };
+    await writeFile(join(root, "insert.json"), JSON.stringify(input), "utf8");
+
+    expect(await run(["apply", "demo.weft", "--command", "insert.json"])).toBe(0);
+    const result = jsonOut<{
+      ok: boolean;
+      commandId: string;
+      inverse: unknown;
+      createdNodeIds: string[];
+      dryRun: boolean;
+      written: string[];
+    }>();
+    expect(result.ok).toBe(true);
+    expect(isId(result.commandId, "cm")).toBe(true);
+    expect(result.createdNodeIds).toEqual([node.id]);
+    expect(result.dryRun).toBe(false);
+    expect(result.written).toContain("weft.json");
+    expect(result.written).toContain(design.manifest.pages[0].file);
+
+    const withNode = await readDesign(dir);
+    expect(withNode.pages[0].nodes[node.id]?.name).toBe("Greeting");
+
+    expect(
+      await run(["apply", "demo.weft"], async () =>
+        JSON.stringify({ pageId, command: result.inverse }),
+      ),
+    ).toBe(0);
+    const undone = await readDesign(dir);
+    expect(undone.pages[0].nodes).toEqual({});
+  });
+
+  it("dry-runs a command without writing", async () => {
+    const dir = await init();
+    const design = await readDesign(dir);
+    const pageId = design.pages[0].id;
+    const node = {
+      id: newId("nd"),
+      type: "rect",
+      name: "Block",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+    };
+    const insert = {
+      pageId,
+      command: { type: "node.insert", node, parentId: null, index: 0 },
+    };
+    expect(
+      await run(["apply", "demo.weft"], async () => JSON.stringify(insert)),
+    ).toBe(0);
+
+    const update = {
+      pageId,
+      command: { type: "node.update", nodeId: node.id, patch: { name: "Preview" } },
+    };
+    expect(
+      await run(["apply", "demo.weft", "--dry-run"], async () => JSON.stringify(update)),
+    ).toBe(0);
+    const result = jsonOut<{ ok: boolean; dryRun: boolean; written: string[] }>();
+    expect(result.ok).toBe(true);
+    expect(result.dryRun).toBe(true);
+    expect(result.written).toEqual([]);
+    const after = await readDesign(dir);
+    expect(after.pages[0].nodes[node.id]?.name).toBe("Block");
+  });
+
+  it("reports command errors as JSON", async () => {
+    await init();
+    expect(
+      await run(["apply", "demo.weft"], async () =>
+        JSON.stringify({ command: { type: "node.remove", nodeId: newId("nd") } }),
+      ),
+    ).toBe(1);
+    const inputError = jsonOut<{ ok: boolean; error: { code: string } }>();
+    expect(inputError.ok).toBe(false);
+    expect(inputError.error.code).toBe("command.page");
+
+    const design = await readDesign(join(root, "demo.weft"));
+    expect(
+      await run(["apply", "demo.weft"], async () =>
+        JSON.stringify({
+          pageId: design.pages[0].id,
+          command: { type: "node.remove", nodeId: newId("nd") },
+        }),
+      ),
+    ).toBe(1);
+    const nodeError = jsonOut<{ ok: boolean; error: { code: string } }>();
+    expect(nodeError.error.code).toBe("node.missing");
   });
 
   it("writes canonical files on init", async () => {

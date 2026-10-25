@@ -7,16 +7,17 @@
  * looking at the surrounding object.
  */
 
-export type IdPrefix = "ds" | "pg" | "nd" | "as";
+export type IdPrefix = "ds" | "pg" | "nd" | "as" | "cm";
 
 const CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 const ULID_RE = "[0-9A-HJKMNP-TV-Z]{26}";
-const ANY_ID_RE = new RegExp(`^(?:ds|pg|nd|as)_${ULID_RE}$`);
+const ANY_ID_RE = new RegExp(`^(?:ds|pg|nd|as|cm)_${ULID_RE}$`);
 const PREFIX_RE: Record<IdPrefix, RegExp> = {
   ds: new RegExp(`^ds_${ULID_RE}$`),
   pg: new RegExp(`^pg_${ULID_RE}$`),
   nd: new RegExp(`^nd_${ULID_RE}$`),
   as: new RegExp(`^as_${ULID_RE}$`),
+  cm: new RegExp(`^cm_${ULID_RE}$`),
 };
 
 const MAX_RANDOM = (1n << 80n) - 1n;
@@ -95,7 +96,7 @@ export function isId(value: unknown, prefix?: IdPrefix): value is string {
 /** Return the prefix of a valid id, or `null` if the value is not an id. */
 export function idPrefix(value: unknown): IdPrefix | null {
   if (typeof value !== "string") return null;
-  const match = /^(ds|pg|nd|as)_/.exec(value);
+  const match = /^(ds|pg|nd|as|cm)_/.exec(value);
   if (!match || !ANY_ID_RE.test(value)) return null;
   return match[1] as IdPrefix;
 }

@@ -47,7 +47,7 @@ The **bridge** is a small local process. It serves the editor, owns file materia
 
 Pre-alpha, headless-tooling phase. The founding decisions are recorded in [`docs/decisions/`](docs/decisions/); the working system design is in [`docs/architecture.md`](docs/architecture.md).
 
-The core document model is implemented in [`@weft/core`](packages/core): the schema, pure node operations, a deterministic JSON writer, and a dependency-free validator. The filesystem layer and the `weft` CLI are implemented in [`@weft/design-io`](packages/design-io) and [`@weft/cli`](packages/cli). Together they are covered by 125 tests and a readable [starter design](examples/starter.weft/). No editor is shipped yet.
+The core document model is implemented in [`@weft/core`](packages/core): the schema, pure node operations, a deterministic JSON writer, and a dependency-free validator. The filesystem layer and the `weft` CLI are implemented in [`@weft/design-io`](packages/design-io) and [`@weft/cli`](packages/cli). Together they are covered by 145 tests and a readable [starter design](examples/starter.weft/). The CLI can validate, format, inspect, read pages and nodes, and apply attributed commands with an inverse for undo. No editor is shipped yet.
 
 The first milestone is deliberately small: open a file in the browser, edit it, have an external agent change it live, and extract one real page into it. See the [MVP exit criteria](docs/product.md#mvp-exit-criteria).
 
@@ -60,13 +60,15 @@ pnpm build
 # Inspect the read-only starter design.
 pnpm weft validate examples/starter.weft
 pnpm weft inspect examples/starter.weft --json
+pnpm weft get examples/starter.weft --page Landing
 
 # Create and validate a new design.
 pnpm weft init /tmp/weft-demo --name "Demo"
 pnpm weft validate /tmp/weft-demo
+pnpm weft id --prefix nd
 ```
 
-`weft fmt` rewrites the manifest and pages into canonical JSON; `--check` reports without writing. Every command supports `--json` for agents and CI. See the [CLI guide](docs/cli.md).
+`weft fmt` rewrites the manifest and pages into canonical JSON; `--check` reports without writing. `weft apply` applies a JSON command and returns its inverse. See the [CLI guide](docs/cli.md).
 
 ## Repository layout
 
@@ -78,7 +80,7 @@ weft/
 └── examples/      # sample design files and host integrations
 ```
 
-The layout is the intended shape; packages are added as decisions land. Founding records: [ADR 0001](docs/decisions/0001-project-name.md) (the name), [ADR 0002](docs/decisions/0002-design-files-as-plain-text.md) (design files as plain text), [ADR 0003](docs/decisions/0003-document-schema-v1.md) (the schema), and [ADR 0004](docs/decisions/0004-headless-cli-and-design-io.md) (headless-first tooling).
+The layout is the intended shape; packages are added as decisions land. Founding records: [ADR 0001](docs/decisions/0001-project-name.md) (the name), [ADR 0002](docs/decisions/0002-design-files-as-plain-text.md) (design files as plain text), [ADR 0003](docs/decisions/0003-document-schema-v1.md) (the schema), [ADR 0004](docs/decisions/0004-headless-cli-and-design-io.md) (headless-first tooling), and [ADR 0005](docs/decisions/0005-command-protocol.md) (the command protocol).
 
 ## Documentation
 

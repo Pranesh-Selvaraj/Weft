@@ -1,6 +1,6 @@
 # Architecture
 
-**Status:** Draft. The constraints, the plain-text decision (ADR 0002), the v1 document schema (ADR 0003) and the headless CLI layer (ADR 0004) are agreed. The core and the CLI are implemented; choices marked *(proposed)* still need their own decision records, and nothing here overrides an accepted ADR.
+**Status:** Draft. The constraints, the plain-text decision (ADR 0002), the v1 document schema (ADR 0003), the headless CLI layer (ADR 0004) and the command protocol (ADR 0005) are agreed. The core and the CLI are implemented; choices marked *(proposed)* still need their own decision records, and nothing here overrides an accepted ADR.
 
 ## 1. Constraints
 
@@ -50,7 +50,7 @@ flowchart TB
 - **`packages/design-io`** — Node filesystem access for design directories: safe paths, atomic writes, read/inspect/validate, canonical formatting, init, summary. Keeps Node out of the browser core.
 - **`packages/render`** — document-to-DOM renderer and exporter. One renderer so the canvas and the export cannot disagree.
 - **`packages/bridge`** — local daemon: serves the editor in development, persists Yjs state, materializes files, watches external writes, authenticates local clients, and proxies agent sessions.
-- **`packages/cli`** — the headless `weft` client. Today: `init`, `validate`, `fmt`, `inspect`, with human and `--json` output. Later: `dev`, `extract`, `export`, `agent`, `mcp`.
+- **`packages/cli`** — the headless `weft` client. Today: `init`, `validate`, `fmt`, `inspect`, `get`, `apply`, `id`, with human and `--json` output. Later: `dev`, `extract`, `export`, `agent`, `mcp`.
 - **`packages/mcp`** — MCP server exposing the document contract as tools.
 - **`packages/agent`** — adapters that start and talk to harnesses: a generic process adapter plus presets.
 - **`packages/extract`** — Playwright-based capture of a running page into a snapshot frame.
@@ -113,6 +113,7 @@ Snapshot frames are not a dead end: designers annotate nodes inside them, and ag
 
 The canonical file is JSON; the live document is a Yjs CRDT. The bridge is the only writer of canonical files.
 
+- **Mutations are commands.** Every live edit from a person or an agent is a serializable `PageCommand` with an inverse (ADR 0005). The editor and CLI apply the same commands; the bridge will apply them to Yjs and materialize the same JSON.
 - **Human edits** flow into Yjs, then debounce to disk (per page, through a materialization queue).
 - **External agent edits** are detected by the file watcher, diffed against the last materialized state, and applied to Yjs as document operations, preserving the agent as the change author.
 - **Conflicts** between an agent writing a whole page and a human editing it live are the hard case. The bridge treats a file write as a transaction: if the page has no unsaved human edits, replace; if it does, apply a three-way merge at node level and surface any field-level conflict as a reviewable operation instead of silently picking a winner.
@@ -122,11 +123,12 @@ This is the riskiest part of the design and gets its own ADR and test suite befo
 
 ## 4. Agent surface
 
-Three tiers with one permissions model:
+Four tiers with one permissions model:
 
 1. **Files.** An agent with repository access can read and write the design directly. This is the baseline and must always be sufficient for non-interactive agents.
-2. **MCP tools.** `weft mcp` exposes structured operations: list pages, get a node subtree, create/update/delete a node, set tokens, annotate, export. Tools validate against the same schema the editor uses.
-3. **Live channel.** The bridge exposes a WebSocket for chat and tool calls, so an in-canvas assistant and an external harness share one session model. The browser chat panel spawns the user's chosen harness through an adapter or talks to a configured endpoint.
+2. **MCP tools.** `weft mcp` exposes structured operations: list pages, get a node subtree, create/update/delete a node, set tokens, annotate, export. Tools validate against the same schema the editor uses and map to the same `PageCommand` vocabulary.
+3. **Commands.** `weft apply` and the future MCP tools emit serializable commands with an inverse, so an agent edit can be previewed, attributed and undone without a browser.
+4. **Live channel.** The bridge exposes a WebSocket for chat and tool calls, so an in-canvas assistant and an external harness share one session model. The browser chat panel spawns the user's chosen harness through an adapter or talks to a configured endpoint.
 
 Adapters are intentionally thin. A harness that can run a CLI, speak MCP, or read files needs no Weft-specific SDK. The adapter only handles process lifecycle, streaming output, and tool-call routing.
 
@@ -188,4 +190,4 @@ weft/
 
 ## 9. What gets specified next
 
-The document schema and operations are settled in ADR 0003 and implemented in `packages/core`; the headless CLI and design I/O layer are settled in ADR 0004 and implemented in `packages/design-io` and `packages/cli`. Each remaining area becomes an ADR before implementation: editor stack and renderer (0005), bridge protocol and file reconciliation (0006), agent tool contract and adapters (0007), snapshot extractor (0008). The ADR index is the source of truth for the current status of each.
+The document schema and operations are settled in ADR 0003, the headless CLI and design I/O layer in ADR 0004, and the command protocol in ADR 0005; all three are implemented. Each remaining area becomes an ADR before implementation: editor stack and renderer (0006), bridge protocol and file reconciliation (0007), agent tool contract and adapters (0008), snapshot extractor (0009). The ADR index is the source of truth for the current status of each.

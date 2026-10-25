@@ -4,9 +4,9 @@ Shared libraries. The document model is the spine: every other package is a clie
 
 | Package | Responsibility | Status |
 | --- | --- | --- |
-| `core/` | Schema, node operations, validation, deterministic serialization. No DOM, no network, no runtime dependencies. | Implemented; 94 tests. Migrations arrive with the first breaking schema change. |
+| `core/` | Schema, node operations, commands and inverses, validation, deterministic serialization. No DOM, no network, no runtime dependencies. | Implemented; 109 tests. Migrations arrive with the first breaking schema change. |
 | `design-io/` | Design directory access: safe paths, atomic writes, inspect/validate, canonical formatting, init, summary. Node only. | Implemented; 17 tests. |
-| `cli/` | `weft` headless client: `init`, `validate`, `fmt`, `inspect`, with `--json`. Later `dev`, `extract`, `export`, `agent`, `mcp`. | Implemented; 14 tests. |
+| `cli/` | `weft` headless client: `init`, `validate`, `fmt`, `inspect`, `get`, `apply`, `id`. Later `dev`, `extract`, `export`, `agent`, `mcp`. | Implemented; 19 tests. |
 | `render/` | Document-to-DOM renderer and exporter, shared by the canvas and export. | Planned. |
 | `bridge/` | Local daemon: file materialization, Yjs relay, external-write ingestion, agent sessions. | Planned. |
 | `mcp/` | MCP server exposing the document contract as tools. | Planned. |

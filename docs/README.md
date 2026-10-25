@@ -18,6 +18,7 @@ Start here, then follow the decision records for the reasoning.
 3. [ADR 0002](decisions/0002-design-files-as-plain-text.md) for the decision that shapes the whole system.
 4. [ADR 0003](decisions/0003-document-schema-v1.md) for the concrete file, node and serialization model.
 5. [ADR 0004](decisions/0004-headless-cli-and-design-io.md) for the headless-first tooling boundary.
-6. [Architecture](architecture.md) for the draft implementation shape.
-7. [CLI](cli.md) to run and inspect a design.
-8. [ADR index](decisions/README.md) to see which decisions are settled and which are still open.
+6. [ADR 0005](decisions/0005-command-protocol.md) for the mutation API and inverse-based undo.
+7. [Architecture](architecture.md) for the draft implementation shape.
+8. [CLI](cli.md) to run, inspect and edit a design.
+9. [ADR index](decisions/README.md) to see which decisions are settled and which are still open.

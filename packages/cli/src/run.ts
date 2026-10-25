@@ -1,15 +1,31 @@
+import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import {
+  applyDesignCommand,
+  createCommandEnvelope,
+  getPage,
+  getPageRef,
+  isId,
+  newId,
+  parseJson,
+  readPageCommand,
+  validateDesign,
+  WeftCommandError,
+  WeftOperationError,
   WeftParseError,
   WeftValidationError,
+  type CommandActor,
+  type IdPrefix,
   type ValidationIssue,
 } from "@weft/core";
 import {
   formatDesign,
   initDesign,
   inspectDesign,
+  readDesign,
   summarizeDesign,
+  writeDesign,
   WeftIoError,
   type DesignInspection,
   type DesignSummary,
@@ -20,6 +36,8 @@ export interface CliIO {
   cwd?: string;
   stdout?: (line: string) => void;
   stderr?: (line: string) => void;
+  /** Reads the command payload when `--command` is omitted or is `-`. */
+  stdin?: () => Promise<string>;
 }
 
 interface Parsed {
@@ -28,7 +46,12 @@ interface Parsed {
 }
 
 type Writer = (line: string) => void;
+type StdinReader = () => Promise<string>;
 type OptionConfig = Record<string, { type: "string" | "boolean" }>;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 
 const MAIN_USAGE = `weft — agent-native design files
 
@@ -40,10 +63,13 @@ Commands:
   validate  Validate a design directory
   fmt       Rewrite the manifest and pages in canonical form
   inspect   Show pages, nodes, tokens and validation status
+  apply     Apply a JSON command to a page
+  get       Print a page or node as JSON
+  id        Generate Weft ids for new entities or commands
   help      Show help
 
 Options:
-  --json     Machine-readable output
+  --json     Machine-readable output (where supported)
   --help     Show help
   --version  Show the version
 
@@ -51,7 +77,9 @@ Examples:
   weft init designs/marketing --name "Marketing"
   weft validate designs/marketing
   weft fmt designs/marketing --check
-  weft inspect designs/marketing --json`;
+  weft inspect designs/marketing --json
+  weft get designs/marketing --page Landing
+  weft apply designs/marketing --command change.json`;
 
 const INIT_USAGE = `Usage: weft init <directory> [options]
 
@@ -93,11 +121,45 @@ Options:
   --json          Machine-readable output
   --help          Show this help`;
 
+const APPLY_USAGE = `Usage: weft apply <directory> [options]
+
+Apply one JSON command to a page and write the design atomically. The input is
+{"pageId":"pg_...","command":{...}}; read it from --command or stdin. The output
+is always JSON and includes the inverse command for undo.
+
+Options:
+  --command <path>  Read the command from a file; "-" or omitted reads stdin
+  --dry-run         Apply in memory, validate, and report the inverse without writing
+  --help            Show this help`;
+
+const GET_USAGE = `Usage: weft get <directory> (--page <id|name> | --node <id>) [options]
+
+Print a page document or a node with its page context as JSON. The output is
+always JSON so it can be piped into another tool.
+
+Options:
+  --page <id|name>  Print one page document
+  --node <id>       Print one node and the page it belongs to
+  --help            Show this help`;
+
+const ID_USAGE = `Usage: weft id [options]
+
+Generate new Weft ids. Node ids are printed by default.
+
+Options:
+  --prefix <p>   ds, pg, nd, as or cm (default: nd)
+  --count <n>    Number of ids to generate, 1-100 (default: 1)
+  --json         Machine-readable output
+  --help         Show this help`;
+
 const USAGE_BY_COMMAND: Record<string, string> = {
   init: INIT_USAGE,
   validate: VALIDATE_USAGE,
   fmt: FMT_USAGE,
   inspect: INSPECT_USAGE,
+  apply: APPLY_USAGE,
+  get: GET_USAGE,
+  id: ID_USAGE,
 };
 
 const JSON_OPTION = { json: { type: "boolean" as const }, help: { type: "boolean" as const } };
@@ -115,6 +177,22 @@ const FMT_OPTIONS: OptionConfig = {
   check: { type: "boolean" },
   ...JSON_OPTION,
 };
+const APPLY_OPTIONS: OptionConfig = {
+  command: { type: "string" },
+  "dry-run": { type: "boolean" },
+  help: { type: "boolean" },
+};
+const GET_OPTIONS: OptionConfig = {
+  page: { type: "string" },
+  node: { type: "string" },
+  help: { type: "boolean" },
+};
+const ID_OPTIONS: OptionConfig = {
+  prefix: { type: "string" },
+  count: { type: "string" },
+  ...JSON_OPTION,
+};
+const ID_PREFIXES: IdPrefix[] = ["ds", "pg", "nd", "as", "cm"];
 
 function emitJson(write: Writer, value: unknown): void {
   write(JSON.stringify(value, null, 2));
@@ -172,7 +250,11 @@ function handleError(
     else printIssues(err, error.issues);
     return 1;
   }
-  if (error instanceof WeftIoError) {
+  if (
+    error instanceof WeftIoError ||
+    error instanceof WeftCommandError ||
+    error instanceof WeftOperationError
+  ) {
     if (json) emitJson(out, { ok: false, error: { code: error.code, message: error.message } });
     else err(`${error.code}: ${error.message}`);
     return 1;
@@ -380,6 +462,233 @@ async function inspectCommand(
   }
 }
 
+async function readStdinDefault(): Promise<string> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of process.stdin) {
+    chunks.push(Buffer.from(chunk as Uint8Array | string));
+  }
+  return Buffer.concat(chunks).toString("utf8");
+}
+
+function parseActor(value: unknown): CommandActor | undefined {
+  if (value === undefined) return undefined;
+  if (!isRecord(value)) {
+    throw new WeftCommandError("command.actor", "actor must be a JSON object.");
+  }
+  if (typeof value.id !== "string" || value.id.length === 0) {
+    throw new WeftCommandError("command.actor", "actor.id must be a non-empty string.");
+  }
+  if (value.kind !== "human" && value.kind !== "agent" && value.kind !== "system") {
+    throw new WeftCommandError(
+      "command.actor",
+      'actor.kind must be "human", "agent" or "system".',
+    );
+  }
+  if (value.name !== undefined && typeof value.name !== "string") {
+    throw new WeftCommandError("command.actor", "actor.name must be a string when present.");
+  }
+  return {
+    id: value.id,
+    kind: value.kind,
+    ...(typeof value.name === "string" ? { name: value.name } : {}),
+  };
+}
+
+interface ApplyInput {
+  pageId: string;
+  command: ReturnType<typeof readPageCommand>;
+  actor?: CommandActor;
+  id?: string;
+  timestamp?: string;
+}
+
+function parseApplyInput(text: string): ApplyInput {
+  const raw = parseJson(text);
+  if (!isRecord(raw)) {
+    throw new WeftCommandError("command.input", "Command input must be a JSON object.");
+  }
+  if (typeof raw.pageId !== "string" || !isId(raw.pageId, "pg")) {
+    throw new WeftCommandError("command.page", "pageId must be a pg_ ULID.");
+  }
+  const command = readPageCommand(raw.command);
+  const actor = parseActor(raw.actor);
+  let id: string | undefined;
+  if (raw.id !== undefined) {
+    if (typeof raw.id !== "string" || !isId(raw.id, "cm")) {
+      throw new WeftCommandError("command.id", "id must be a cm_ ULID when present.");
+    }
+    id = raw.id;
+  }
+  let timestamp: string | undefined;
+  if (raw.timestamp !== undefined) {
+    if (typeof raw.timestamp !== "string" || Number.isNaN(Date.parse(raw.timestamp))) {
+      throw new WeftCommandError("command.timestamp", "timestamp must be an ISO date string.");
+    }
+    timestamp = raw.timestamp;
+  }
+  return { pageId: raw.pageId, command, actor, id, timestamp };
+}
+
+async function readCommandText(
+  option: string | boolean | undefined,
+  cwd: string,
+  stdin: StdinReader,
+): Promise<string> {
+  if (typeof option === "string" && option !== "-") {
+    const path = resolve(cwd, option);
+    try {
+      return await readFile(path, "utf8");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new WeftIoError("command.read", path, `Could not read command file: ${message}`);
+    }
+  }
+  return stdin();
+}
+
+async function applyCommand(
+  argv: string[],
+  cwd: string,
+  out: Writer,
+  err: Writer,
+  stdin: StdinReader,
+): Promise<number> {
+  const parsed = parseCommand(argv, APPLY_OPTIONS, APPLY_USAGE, err);
+  if (!parsed) return 2;
+  if (parsed.values.help) {
+    out(APPLY_USAGE);
+    return 0;
+  }
+  const directory = directoryFrom(parsed.positionals, cwd, APPLY_USAGE, err);
+  if (!directory) return 2;
+
+  try {
+    const text = await readCommandText(parsed.values.command, cwd, stdin);
+    const request = parseApplyInput(text);
+    const design = await readDesign(directory, { requireFiles: false });
+    const envelope = createCommandEnvelope({
+      pageId: request.pageId,
+      command: request.command,
+      actor: request.actor,
+      id: request.id,
+      timestamp: request.timestamp,
+    });
+    const result = applyDesignCommand(design, envelope.pageId, envelope.command);
+    const dryRun = parsed.values["dry-run"] === true;
+    let written: string[] = [];
+
+    if (dryRun) {
+      const issues = validateDesign(result.design.manifest, result.design.pages);
+      if (issues.length > 0) throw new WeftValidationError(issues);
+    } else {
+      const writeResult = await writeDesign(directory, result.design);
+      written = writeResult.written;
+    }
+
+    emitJson(out, {
+      ok: true,
+      commandId: envelope.id,
+      pageId: envelope.pageId,
+      applied: envelope.command,
+      inverse: result.inverse,
+      createdNodeIds: result.createdNodeIds,
+      dryRun,
+      written,
+    });
+    return 0;
+  } catch (error) {
+    return handleError(error, true, out, err);
+  }
+}
+
+async function getCommand(
+  argv: string[],
+  cwd: string,
+  out: Writer,
+  err: Writer,
+): Promise<number> {
+  const parsed = parseCommand(argv, GET_OPTIONS, GET_USAGE, err);
+  if (!parsed) return 2;
+  if (parsed.values.help) {
+    out(GET_USAGE);
+    return 0;
+  }
+  const hasPage = typeof parsed.values.page === "string";
+  const hasNode = typeof parsed.values.node === "string";
+  if (hasPage === hasNode) {
+    err("Pass exactly one of --page or --node.");
+    err(GET_USAGE);
+    return 2;
+  }
+  const directory = directoryFrom(parsed.positionals, cwd, GET_USAGE, err);
+  if (!directory) return 2;
+
+  try {
+    const design = await readDesign(directory, { requireFiles: false });
+    if (hasPage) {
+      const page = getPage(design, parsed.values.page as string);
+      if (!page) {
+        throw new WeftCommandError(
+          "page.missing",
+          `No page matches ${JSON.stringify(parsed.values.page)}.`,
+        );
+      }
+      emitJson(out, page);
+      return 0;
+    }
+
+    const nodeId = parsed.values.node as string;
+    for (const page of design.pages) {
+      const node = page.nodes[nodeId];
+      if (!node) continue;
+      const ref = getPageRef(design.manifest, page.id);
+      emitJson(out, { pageId: page.id, pageFile: ref?.file ?? "", node });
+      return 0;
+    }
+    throw new WeftCommandError("node.missing", `No node matches ${JSON.stringify(nodeId)}.`);
+  } catch (error) {
+    return handleError(error, true, out, err);
+  }
+}
+
+async function idCommand(
+  argv: string[],
+  out: Writer,
+  err: Writer,
+): Promise<number> {
+  const parsed = parseCommand(argv, ID_OPTIONS, ID_USAGE, err);
+  if (!parsed) return 2;
+  if (parsed.values.help) {
+    out(ID_USAGE);
+    return 0;
+  }
+  if (parsed.positionals.length !== 0) {
+    err("weft id does not take a directory.");
+    err(ID_USAGE);
+    return 2;
+  }
+
+  const prefix = typeof parsed.values.prefix === "string" ? parsed.values.prefix : "nd";
+  if (!ID_PREFIXES.includes(prefix as IdPrefix)) {
+    err(`Unknown prefix ${JSON.stringify(prefix)}.`);
+    err(ID_USAGE);
+    return 2;
+  }
+  const count = parsed.values.count === undefined ? 1 : Number(parsed.values.count);
+  if (!Number.isInteger(count) || count < 1 || count > 100) {
+    err("--count must be an integer between 1 and 100.");
+    return 2;
+  }
+
+  const ids = Array.from({ length: count }, () => newId(prefix as IdPrefix));
+  if (parsed.values.json === true) {
+    emitJson(out, { ok: true, ids });
+  } else {
+    for (const id of ids) out(id);
+  }
+  return 0;
+}
+
 export async function runCli(argv: string[], io: CliIO = {}): Promise<number> {
   const out = io.stdout ?? ((line: string) => process.stdout.write(`${line}\n`));
   const err = io.stderr ?? ((line: string) => process.stderr.write(`${line}\n`));
@@ -420,6 +729,12 @@ export async function runCli(argv: string[], io: CliIO = {}): Promise<number> {
         return await fmtCommand(rest, cwd, out, err);
       case "inspect":
         return await inspectCommand(rest, cwd, out, err);
+      case "apply":
+        return await applyCommand(rest, cwd, out, err, io.stdin ?? readStdinDefault);
+      case "get":
+        return await getCommand(rest, cwd, out, err);
+      case "id":
+        return await idCommand(rest, out, err);
       default:
         err(`Unknown command: ${command}`);
         out(MAIN_USAGE);
