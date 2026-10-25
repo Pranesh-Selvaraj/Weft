@@ -1,0 +1,47 @@
+{
+  "format": "weft",
+  "id": "ds_01M5SGN1NG6XB1H7W25VECGH5Z",
+  "meta": {
+    "description": "A small, hand-crafted example of the Weft document format."
+  },
+  "name": "Weft starter",
+  "pages": [
+    {
+      "file": "pages/landing.json",
+      "id": "pg_01M5SGN1NFP7DPV4NGAP44BWZ5",
+      "name": "Landing"
+    }
+  ],
+  "tokens": {
+    "color": {
+      "accent": "#3B5BDB",
+      "accent-ink": "#FFFFFF",
+      "ink": "#17150F",
+      "line": "#E3DED2",
+      "muted": "#6B665C",
+      "panel": "#FFFFFF",
+      "surface": "#F4F1E8"
+    },
+    "font": {
+      "body": "Inter, system-ui, sans-serif",
+      "display": "Fraunces, Georgia, serif",
+      "mono": "JetBrains Mono, ui-monospace, monospace"
+    },
+    "radius": {
+      "lg": 18,
+      "md": 12,
+      "pill": 999,
+      "sm": 6
+    },
+    "space": {
+      "2xl": 64,
+      "3xl": 96,
+      "lg": 24,
+      "md": 16,
+      "sm": 8,
+      "xl": 40,
+      "xs": 4
+    }
+  },
+  "version": 1
+}

@@ -45,7 +45,9 @@ The **bridge** is a small local process. It serves the editor, owns file materia
 
 ## Status
 
-Pre-alpha, design phase. The founding decisions are recorded in [`docs/decisions/`](docs/decisions/); the working system design is in [`docs/architecture.md`](docs/architecture.md). No editor is shipped yet.
+Pre-alpha, document-model phase. The founding decisions are recorded in [`docs/decisions/`](docs/decisions/); the working system design is in [`docs/architecture.md`](docs/architecture.md).
+
+The core document model is implemented in [`@weft/core`](packages/core): the schema, pure node operations, a deterministic JSON writer, and a dependency-free validator, covered by 94 tests and a readable [starter design](examples/starter.weft/). No editor is shipped yet.
 
 The first milestone is deliberately small: open a file in the browser, edit it, have an external agent change it live, and extract one real page into it. See the [MVP exit criteria](docs/product.md#mvp-exit-criteria).
 

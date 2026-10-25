@@ -15,5 +15,6 @@ Start here, then follow the decision records for the reasoning.
 1. The [README](../README.md) for the pitch and the name.
 2. [Product definition](product.md) for the target.
 3. [ADR 0002](decisions/0002-design-files-as-plain-text.md) for the decision that shapes the whole system.
-4. [Architecture](architecture.md) for the draft implementation shape.
-5. [ADR index](decisions/README.md) to see which decisions are settled and which are still open.
+4. [ADR 0003](decisions/0003-document-schema-v1.md) for the concrete file, node and serialization model.
+5. [Architecture](architecture.md) for the draft implementation shape.
+6. [ADR index](decisions/README.md) to see which decisions are settled and which are still open.

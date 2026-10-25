@@ -8,7 +8,7 @@ This is the narrative record of **what Weft was built with, why, what changed, a
 
 | Era | Period | Editor | Document | Realtime | Agent surface | Why it was chosen | What turned out to be wrong / why we moved on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| **0. Foundation** | Oct 2026 – current | Not built yet | Plain-text `.weft/` directory (ADR 0002) | Yjs planned | Files + MCP + bridge planned | Establish the product definition and the decisions everything else depends on: an agent-native, browser-native canvas with the design file as the durable artifact. | *Not yet tested in code; the architecture is a draft and every stack choice still needs its own ADR.* |
+| **0. Foundation** | Oct 2026 – current | Not built yet | Plain-text `.weft/` directory (ADR 0002), v1 schema implemented in `@weft/core` (ADR 0003) | Yjs planned | Files + MCP + bridge planned | Establish the product definition, the decisions everything depends on, and a tested document model: an agent-native, browser-native canvas with the design file as the durable artifact. | *No editor yet, and every stack choice still needs its own ADR. The schema is proven only by unit tests and the starter example, not by a running canvas.* |
 
 ## Timeline
 
@@ -18,3 +18,4 @@ This is the narrative record of **what Weft was built with, why, what changed, a
 | 2026-10-25 | Design files are plain-text documents | Chose a `.weft/` directory of deterministic JSON and assets as the canonical artifact, with Yjs as the live editing layer and the bridge as the only file writer. | Agents must be able to read, diff, and write designs without a proprietary API; git must remain the history; the file must outlive the editor. | ADR 0002 |
 | 2026-10-25 | Product definition and draft architecture recorded | Wrote the personas, jobs, principles, non-goals, MVP exit criteria, system shape, risks, and the list of decisions still to make. | Give the first implementation a criterion-driven target instead of a calendar or a vibe. | ADR 0001, ADR 0002 |
 | 2026-10-25 | Repository scaffolded | Created the monorepo skeleton, MIT license, decision-record system, and documentation. | Make the project contributable before the first line of product code. | — |
+| 2026-10-25 | Document schema v1 implemented | Shipped `@weft/core`: flat node maps with stable ULIDs, page/manifest types, deterministic serialization, hand-written validation, and pure insert/move/remove/duplicate/update operations. The starter design in `examples/starter.weft/` is validated in the test suite. | A schema that agents can address and git can diff is the foundation for every other component; prove it in unit tests before building an editor on it. | ADR 0003 |

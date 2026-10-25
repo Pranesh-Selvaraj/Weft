@@ -19,17 +19,18 @@ This directory is the project's long-form memory: **what we chose, why, what we 
 | --- | --- | --- | --- |
 | [0001](0001-project-name.md) | Project name: Weft | Accepted | Identity |
 | [0002](0002-design-files-as-plain-text.md) | Design files are plain-text, agent-readable documents | Accepted | Document model |
+| [0003](0003-document-schema-v1.md) | Document schema v1: flat nodes, deterministic JSON, captured pages beside the tree | Accepted | Document model |
 
 ## Decision map
 
 ```mermaid
 graph TD
     A["0001 · Name: Weft"] --> B["0002 · Plain-text design files"]
-    B --> C["0003 · Schema and operations<br/>(next)"]
-    B --> D["0004 · Editor stack and renderer<br/>(next)"]
-    B --> E["0005 · Bridge and file reconciliation<br/>(next)"]
+    B --> C["0003 · Document schema v1<br/>flat nodes · deterministic JSON"]
+    C --> D["0004 · Editor stack and renderer<br/>(next)"]
+    C --> E["0005 · Bridge and file reconciliation<br/>(next)"]
     C --> F["0006 · Agent tool contract<br/>(next)"]
-    B --> G["0007 · Snapshot format and extractor<br/>(next)"]
+    C --> G["0007 · Snapshot extractor<br/>(next)"]
 ```
 
 ## Adding a record

@@ -1,0 +1,376 @@
+{
+  "background": {
+    "color": "{color.surface}",
+    "type": "solid"
+  },
+  "children": [
+    "nd_01M5SGN1NHDF6V573J596BB71W"
+  ],
+  "format": "weft.page",
+  "id": "pg_01M5SGN1NFP7DPV4NGAP44BWZ5",
+  "meta": {
+    "description": "Starter design for Weft. Read it, edit it, or ask an agent to change it."
+  },
+  "name": "Landing",
+  "nodes": {
+    "nd_01M5SGN1NHDF6V573J596BB71W": {
+      "children": [
+        "nd_01M5SGN1NJW1MRVJGCANWJZNAN",
+        "nd_01M5SGN1NJW1MRVJGCANWJZNAP",
+        "nd_01M5SGN1NJW1MRVJGCANWJZNAQ",
+        "nd_01M5SGN1NJW1MRVJGCANWJZNAR",
+        "nd_01M5SGN1NJW1MRVJGCANWJZNAT"
+      ],
+      "clip": true,
+      "height": 900,
+      "id": "nd_01M5SGN1NHDF6V573J596BB71W",
+      "layout": {
+        "align": "start",
+        "direction": "column",
+        "gap": 28,
+        "justify": "center",
+        "mode": "flex",
+        "padding": [
+          88,
+          96
+        ]
+      },
+      "name": "Hero",
+      "style": {
+        "fills": [
+          {
+            "color": "{color.panel}",
+            "type": "solid"
+          }
+        ],
+        "radius": 28,
+        "strokeWidth": 1,
+        "strokes": [
+          {
+            "color": "{color.line}",
+            "type": "solid"
+          }
+        ]
+      },
+      "type": "frame",
+      "width": 1440,
+      "x": 96,
+      "y": 96
+    },
+    "nd_01M5SGN1NJW1MRVJGCANWJZNAN": {
+      "content": "AGENT-NATIVE DESIGN",
+      "height": 20,
+      "id": "nd_01M5SGN1NJW1MRVJGCANWJZNAN",
+      "name": "Eyebrow",
+      "style": {
+        "fills": [
+          {
+            "color": "{color.accent}",
+            "type": "solid"
+          }
+        ],
+        "font": {
+          "family": "JetBrains Mono, ui-monospace, monospace",
+          "letterSpacing": 1.6,
+          "lineHeight": 1.4,
+          "size": 13,
+          "transform": "uppercase",
+          "weight": 500
+        }
+      },
+      "type": "text",
+      "width": 360,
+      "x": 0,
+      "y": 0
+    },
+    "nd_01M5SGN1NJW1MRVJGCANWJZNAP": {
+      "content": "Design files agents can read.",
+      "height": 180,
+      "id": "nd_01M5SGN1NJW1MRVJGCANWJZNAP",
+      "name": "Heading",
+      "style": {
+        "fills": [
+          {
+            "color": "{color.ink}",
+            "type": "solid"
+          }
+        ],
+        "font": {
+          "family": "Fraunces, Georgia, serif",
+          "letterSpacing": -2.4,
+          "lineHeight": 1.02,
+          "size": 84,
+          "weight": 600
+        }
+      },
+      "type": "text",
+      "width": 960,
+      "x": 0,
+      "y": 0
+    },
+    "nd_01M5SGN1NJW1MRVJGCANWJZNAQ": {
+      "content": "Weft puts the design in your repository, renders it in the browser, and lets any coding agent read, edit, and build from it.",
+      "height": 72,
+      "id": "nd_01M5SGN1NJW1MRVJGCANWJZNAQ",
+      "name": "Body",
+      "style": {
+        "fills": [
+          {
+            "color": "{color.muted}",
+            "type": "solid"
+          }
+        ],
+        "font": {
+          "family": "Inter, system-ui, sans-serif",
+          "lineHeight": 1.55,
+          "size": 19
+        }
+      },
+      "type": "text",
+      "width": 640,
+      "x": 0,
+      "y": 0
+    },
+    "nd_01M5SGN1NJW1MRVJGCANWJZNAR": {
+      "children": [
+        "nd_01M5SGN1NJW1MRVJGCANWJZNAS"
+      ],
+      "height": 58,
+      "id": "nd_01M5SGN1NJW1MRVJGCANWJZNAR",
+      "layout": {
+        "align": "center",
+        "direction": "row",
+        "justify": "center",
+        "mode": "flex",
+        "padding": [
+          0,
+          28
+        ]
+      },
+      "name": "Button",
+      "style": {
+        "fills": [
+          {
+            "color": "{color.accent}",
+            "type": "solid"
+          }
+        ],
+        "radius": 999
+      },
+      "type": "frame",
+      "width": 216,
+      "x": 0,
+      "y": 0
+    },
+    "nd_01M5SGN1NJW1MRVJGCANWJZNAS": {
+      "content": "Open the canvas",
+      "height": 24,
+      "id": "nd_01M5SGN1NJW1MRVJGCANWJZNAS",
+      "name": "Button label",
+      "style": {
+        "fills": [
+          {
+            "color": "{color.accent-ink}",
+            "type": "solid"
+          }
+        ],
+        "font": {
+          "family": "Inter, system-ui, sans-serif",
+          "lineHeight": 1,
+          "size": 16,
+          "weight": 600
+        }
+      },
+      "type": "text",
+      "width": 160,
+      "x": 0,
+      "y": 0
+    },
+    "nd_01M5SGN1NJW1MRVJGCANWJZNAT": {
+      "children": [
+        "nd_01M5SGN1NJW1MRVJGCANWJZNAV",
+        "nd_01M5SGN1NJW1MRVJGCANWJZNAY"
+      ],
+      "height": 172,
+      "id": "nd_01M5SGN1NJW1MRVJGCANWJZNAT",
+      "layout": {
+        "align": "stretch",
+        "direction": "row",
+        "gap": 24,
+        "mode": "flex"
+      },
+      "name": "Feature row",
+      "type": "frame",
+      "width": 744,
+      "x": 0,
+      "y": 0
+    },
+    "nd_01M5SGN1NJW1MRVJGCANWJZNAV": {
+      "children": [
+        "nd_01M5SGN1NJW1MRVJGCANWJZNAW",
+        "nd_01M5SGN1NJW1MRVJGCANWJZNAX"
+      ],
+      "height": 172,
+      "id": "nd_01M5SGN1NJW1MRVJGCANWJZNAV",
+      "layout": {
+        "align": "start",
+        "direction": "column",
+        "gap": 10,
+        "mode": "flex",
+        "padding": 24
+      },
+      "name": "Extract card",
+      "style": {
+        "fills": [
+          {
+            "color": "{color.surface}",
+            "type": "solid"
+          }
+        ],
+        "radius": 18,
+        "strokeWidth": 1,
+        "strokes": [
+          {
+            "color": "{color.line}",
+            "type": "solid"
+          }
+        ]
+      },
+      "type": "frame",
+      "width": 360,
+      "x": 0,
+      "y": 0
+    },
+    "nd_01M5SGN1NJW1MRVJGCANWJZNAW": {
+      "content": "Extract",
+      "height": 28,
+      "id": "nd_01M5SGN1NJW1MRVJGCANWJZNAW",
+      "name": "Extract card title",
+      "style": {
+        "fills": [
+          {
+            "color": "{color.ink}",
+            "type": "solid"
+          }
+        ],
+        "font": {
+          "family": "Inter, system-ui, sans-serif",
+          "lineHeight": 1.3,
+          "size": 18,
+          "weight": 600
+        }
+      },
+      "type": "text",
+      "width": 312,
+      "x": 0,
+      "y": 0
+    },
+    "nd_01M5SGN1NJW1MRVJGCANWJZNAX": {
+      "content": "Capture a running page as real DOM, then annotate what should change.",
+      "height": 72,
+      "id": "nd_01M5SGN1NJW1MRVJGCANWJZNAX",
+      "name": "Extract card body",
+      "style": {
+        "fills": [
+          {
+            "color": "{color.muted}",
+            "type": "solid"
+          }
+        ],
+        "font": {
+          "family": "Inter, system-ui, sans-serif",
+          "lineHeight": 1.5,
+          "size": 15
+        }
+      },
+      "type": "text",
+      "width": 312,
+      "x": 0,
+      "y": 0
+    },
+    "nd_01M5SGN1NJW1MRVJGCANWJZNAY": {
+      "children": [
+        "nd_01M5SGN1NJW1MRVJGCANWJZNAZ",
+        "nd_01M5SGN1NJW1MRVJGCANWJZNB0"
+      ],
+      "height": 172,
+      "id": "nd_01M5SGN1NJW1MRVJGCANWJZNAY",
+      "layout": {
+        "align": "start",
+        "direction": "column",
+        "gap": 10,
+        "mode": "flex",
+        "padding": 24
+      },
+      "name": "Together card",
+      "style": {
+        "fills": [
+          {
+            "color": "{color.surface}",
+            "type": "solid"
+          }
+        ],
+        "radius": 18,
+        "strokeWidth": 1,
+        "strokes": [
+          {
+            "color": "{color.line}",
+            "type": "solid"
+          }
+        ]
+      },
+      "type": "frame",
+      "width": 360,
+      "x": 0,
+      "y": 0
+    },
+    "nd_01M5SGN1NJW1MRVJGCANWJZNAZ": {
+      "content": "Edit together",
+      "height": 28,
+      "id": "nd_01M5SGN1NJW1MRVJGCANWJZNAZ",
+      "name": "Together card title",
+      "style": {
+        "fills": [
+          {
+            "color": "{color.ink}",
+            "type": "solid"
+          }
+        ],
+        "font": {
+          "family": "Inter, system-ui, sans-serif",
+          "lineHeight": 1.3,
+          "size": 18,
+          "weight": 600
+        }
+      },
+      "type": "text",
+      "width": 312,
+      "x": 0,
+      "y": 0
+    },
+    "nd_01M5SGN1NJW1MRVJGCANWJZNB0": {
+      "content": "Designers and agents write to the same file, with every change attributed.",
+      "height": 72,
+      "id": "nd_01M5SGN1NJW1MRVJGCANWJZNB0",
+      "name": "Together card body",
+      "style": {
+        "fills": [
+          {
+            "color": "{color.muted}",
+            "type": "solid"
+          }
+        ],
+        "font": {
+          "family": "Inter, system-ui, sans-serif",
+          "lineHeight": 1.5,
+          "size": 15
+        }
+      },
+      "type": "text",
+      "width": 312,
+      "x": 0,
+      "y": 0
+    }
+  },
+  "version": 1
+}

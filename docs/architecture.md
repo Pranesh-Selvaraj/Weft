@@ -1,6 +1,6 @@
 # Architecture
 
-**Status:** Draft. The constraints and the document model are agreed (ADR 0002); choices marked *(proposed)* are placeholders until their own decision records land. Nothing here overrides an accepted ADR.
+**Status:** Draft. The constraints, the plain-text decision (ADR 0002) and the v1 document schema (ADR 0003) are agreed and implemented in `packages/core`. Choices marked *(proposed)* still need their own decision records; nothing here overrides an accepted ADR.
 
 ## 1. Constraints
 
@@ -60,10 +60,13 @@ flowchart TB
 
 ```text
 designs/marketing.weft/
-├── weft.json              # manifest: format version, id, name, pages, tokens, asset index
+├── weft.json              # manifest: format version, id, name, pages, tokens, assets, meta
 ├── pages/
-│   ├── landing.json       # one page = one tree of nodes
+│   ├── landing.json       # one page = one flat node map + ordered roots
 │   └── pricing.json
+├── snapshots/
+│   ├── nd_01JAV3...html   # captured, sanitized page payload
+│   └── nd_01JAV3...css    # optional scoped styles
 ├── assets/
 │   ├── 01JAV3...logo.svg
 │   └── 01JAV3...hero.avif
@@ -74,23 +77,20 @@ A directory rather than a single file: an agent asked to "fix the pricing card" 
 
 ### Node sketch
 
-*(proposed; to be specified in a dedicated ADR)*
+The page stores a flat map of nodes keyed by id (ADR 0003); this is one node from that map.
 
 ```json
 {
-  "id": "nd_01JAV3Q8ZK",
+  "id": "nd_01JAV3Q8ZK4M2TP9W6XH5NR7BE",
   "type": "frame",
   "name": "Hero",
-  "frame": { "x": 0, "y": 0, "width": 1440, "height": 800 },
+  "x": 0,
+  "y": 0,
+  "width": 1440,
+  "height": 800,
   "layout": { "mode": "flex", "direction": "column", "gap": 24, "padding": [64, 80] },
-  "style": { "fill": "{color.surface}", "radius": 0 },
-  "children": ["nd_01JAV4M2TP"],
-  "meta": {
-    "source": {
-      "url": "https://app.example.com/",
-      "selector": "main > section.hero"
-    }
-  }
+  "style": { "fills": [{ "type": "solid", "color": "{color.surface}" }], "radius": 0 },
+  "children": ["nd_01JAV3Q8ZK4M2TP9W6XH5NR7BF"]
 }
 ```
 
@@ -99,12 +99,12 @@ A directory rather than a single file: an agent asked to "fix the pricing card" 
 - Style values may reference tokens by name; tokens are part of the file and exportable.
 - Content is text, not outlines; images are assets by id, never base64 inside page JSON.
 - Unknown fields are preserved on read and write so a newer agent or editor cannot silently strip data.
-- The canonical serialization is deterministic (semantic key order, fixed float formatting) so an unchanged document produces an unchanged diff.
+- The canonical serialization is deterministic (sorted keys, fixed float formatting) so an unchanged document produces an unchanged diff.
 
 ### Two kinds of frames
 
 1. **Native frames** — authored in Weft; every node is editable, inspectable, and exportable.
-2. **Snapshot frames** — captured from a running product. A snapshot stores sanitized HTML, the styles needed to render it, asset references, and source metadata (URL, selector, viewport, commit, capture time). It renders inside a sandboxed iframe at a fixed size.
+2. **Snapshot frames** — captured from a running product. A snapshot stores sanitized HTML and the styles needed to render it as separate files beside the page, plus source metadata (URL, selector, viewport, commit, capture time). It renders inside a sandboxed iframe at a fixed size.
 
 Snapshot frames are not a dead end: designers annotate nodes inside them, and agents read annotations plus the underlying source metadata. Converting a captured region into native nodes is a later, explicit operation, never a silent approximation.
 
@@ -186,4 +186,4 @@ weft/
 
 ## 9. What gets specified next
 
-Each area becomes an ADR before implementation: document schema and operations (0003), editor stack and renderer (0004), bridge protocol and file reconciliation (0005), agent tool contract and adapters (0006), snapshot format and extractor (0007). The ADR index is the source of truth for the current status of each.
+The document schema and operations are settled in ADR 0003 and implemented in `packages/core`. Each remaining area becomes an ADR before implementation: editor stack and renderer (0004), bridge protocol and file reconciliation (0005), agent tool contract and adapters (0006), snapshot extractor (0007). The ADR index is the source of truth for the current status of each.

@@ -4,7 +4,7 @@ Shared libraries. The document model is the spine: every other package is a clie
 
 | Package | Responsibility | Status |
 | --- | --- | --- |
-| `core/` | Schema, node operations, validation, migrations, deterministic serialization. No DOM, no network. | Next to build. |
+| `core/` | Schema, node operations, validation, deterministic serialization. No DOM, no network, no runtime dependencies. | Implemented; 94 tests. Migrations arrive with the first breaking schema change. |
 | `render/` | Document-to-DOM renderer and exporter, shared by the canvas and export. | Planned. |
 | `bridge/` | Local daemon: file materialization, Yjs relay, external-write ingestion, agent sessions. | Planned. |
 | `cli/` | `weft init`, `dev`, `extract`, `export`, `agent`, `mcp`. | Planned. |
