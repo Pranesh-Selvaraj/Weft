@@ -5,9 +5,12 @@ import {
   createDesign,
   serialize,
   validateDesign,
+  validatePage,
   WeftValidationError,
+  type Asset,
   type DesignFile,
   type PageDocument,
+  type TokenTree,
 } from "@weft/core";
 import { WeftIoError } from "./errors.js";
 import { resolveDesignPath } from "./paths.js";
@@ -39,6 +42,11 @@ export interface InitDesignOptions {
 export interface InitDesignResult {
   directory: string;
   design: DesignFile;
+}
+
+export interface WritePageOptions {
+  tokens?: TokenTree;
+  assets?: Asset[];
 }
 
 async function writeFileAtomic(target: string, content: string): Promise<void> {
@@ -96,6 +104,28 @@ export async function writeDesign(
     directory: root,
     written: [MANIFEST_FILE, ...entries.map((entry) => entry.file)],
   };
+}
+
+/**
+ * Write one page file atomically, leaving the manifest and all other pages
+ * untouched. This is the bridge's write path for a live command.
+ */
+export async function writePageFile(
+  directory: string,
+  file: string,
+  page: PageDocument,
+  options: WritePageOptions = {},
+): Promise<{ directory: string; file: string }> {
+  const issues = validatePage(page, {
+    tokens: options.tokens,
+    assets: options.assets,
+  });
+  if (issues.length > 0) throw new WeftValidationError(issues);
+
+  const root = resolve(directory);
+  const target = resolveDesignPath(root, file);
+  await writeFileAtomic(target, serialize(page));
+  return { directory: root, file };
 }
 
 /**

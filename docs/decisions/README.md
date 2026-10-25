@@ -26,6 +26,7 @@ This directory is the project's long-form memory: **what we chose, why, what we 
 | [0007](0007-yjs-live-sessions.md) | Yjs live sessions with fractional order and conservative file-write merge | Accepted | Live document |
 | [0008](0008-editor-stack-dom-renderer.md) | Editor stack v1: Vite + React + a DOM-first renderer | Accepted | UI / rendering |
 | [0009](0009-local-bridge-live-preview.md) | Local bridge: watched files, HTTP, and Yjs over WebSocket | Accepted | Live transport |
+| [0010](0010-editor-interaction.md) | Editor interaction: selection, inspector, and commands over the bridge | Accepted | UI / editing |
 
 ## Decision map
 
@@ -39,9 +40,9 @@ graph TD
     F --> G["0007 · Yjs live session<br/>fractional order · file merge"]
     G --> H["0008 · Editor stack + DOM renderer<br/>Vite · React · read-only preview"]
     H --> I["0009 · Local bridge<br/>watcher · HTTP · WebSocket"]
-    I --> J["0010 · Editor interaction<br/>selection · inspector · commands<br/>(next)"]
-    I --> K["0011 · Agent tool contract<br/>(next)"]
-    I --> L["0012 · Snapshot extractor<br/>(next)"]
+    I --> J["0010 · Editor interaction<br/>selection · inspector · undo"]
+    J --> K["0011 · Agent tool contract<br/>(next)"]
+    J --> L["0012 · Snapshot extractor<br/>(next)"]
 ```
 
 ## Adding a record

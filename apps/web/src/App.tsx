@@ -1,5 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import { getPageBounds, PageView } from "@weft/render";
+import type { PageDocument } from "@weft/core";
+import { Inspector } from "./Inspector";
 import { useDesignSource } from "./live";
 
 function useFitScale(width: number, height: number) {
@@ -27,11 +30,69 @@ function useFitScale(width: number, height: number) {
   return { ref, scale };
 }
 
+interface SelectionBox {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+function SelectionOverlay({
+  page,
+  selectedId,
+  selectedName,
+  scale,
+}: {
+  page: PageDocument;
+  selectedId: string;
+  selectedName: string;
+  scale: number;
+}) {
+  const [box, setBox] = useState<SelectionBox | null>(null);
+
+  useLayoutEffect(() => {
+    const nodeElement = document.querySelector<HTMLElement>(
+      `[data-node-id="${CSS.escape(selectedId)}"]`,
+    );
+    const pageElement = document.querySelector<HTMLElement>(
+      `[data-page-id="${CSS.escape(page.id)}"]`,
+    );
+    if (!nodeElement || !pageElement) {
+      setBox(null);
+      return;
+    }
+    const nodeRect = nodeElement.getBoundingClientRect();
+    const pageRect = pageElement.getBoundingClientRect();
+    setBox({
+      left: (nodeRect.left - pageRect.left) / scale,
+      top: (nodeRect.top - pageRect.top) / scale,
+      width: nodeRect.width / scale,
+      height: nodeRect.height / scale,
+    });
+  }, [page, selectedId, scale]);
+
+  if (!box) return null;
+  return (
+    <div
+      className="selection-box"
+      style={{
+        left: box.left,
+        top: box.top,
+        width: box.width,
+        height: box.height,
+      }}
+    >
+      <span className="selection-label">{selectedName}</span>
+    </div>
+  );
+}
+
 export function App() {
   const source = useDesignSource();
   const [activePageId, setActivePageId] = useState<string | null>(
     source.pages[0]?.id ?? null,
   );
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
   useEffect(() => {
     if (activePageId && source.pages.some((page) => page.id === activePageId)) return;
@@ -41,6 +102,56 @@ export function App() {
   const page =
     source.pages.find((candidate) => candidate.id === activePageId) ??
     source.pages[0];
+  const selectedNode =
+    page && selectedNodeId ? page.nodes[selectedNodeId] : undefined;
+
+  useEffect(() => {
+    if (selectedNodeId && (!page || !page.nodes[selectedNodeId])) {
+      setSelectedNodeId(null);
+    }
+  }, [page, selectedNodeId]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("input, textarea, select, [contenteditable='true']")) return;
+      const mod = event.metaKey || event.ctrlKey;
+
+      if (mod && event.key.toLowerCase() === "z") {
+        event.preventDefault();
+        if (event.shiftKey) source.redo();
+        else source.undo();
+        return;
+      }
+      if (mod && event.key.toLowerCase() === "y") {
+        event.preventDefault();
+        source.redo();
+        return;
+      }
+      if (event.key === "Escape") {
+        setSelectedNodeId(null);
+        return;
+      }
+      if (
+        (event.key === "Delete" || event.key === "Backspace") &&
+        page &&
+        selectedNode &&
+        source.editable
+      ) {
+        event.preventDefault();
+        source.sendCommand(
+          page.id,
+          { type: "node.remove", nodeId: selectedNode.id },
+          "Remove layer",
+        );
+        setSelectedNodeId(null);
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [page, selectedNode, source]);
+
   const bounds = page ? getPageBounds(page) : { width: 800, height: 600 };
   const { ref, scale } = useFitScale(bounds.width, bounds.height);
   const tabs = source.manifest.pages.filter((ref) =>
@@ -67,12 +178,18 @@ export function App() {
 
   const hint =
     source.mode === "static"
-      ? "Static preview · run weft dev for live updates"
+      ? "Static preview · run weft dev for live editing"
       : source.status === "live"
-        ? `Live from the local bridge · revision ${source.revision ?? "—"}`
+        ? `Live · select a layer to inspect it · revision ${source.revision ?? "—"}`
         : source.status === "connecting"
           ? "Connecting to the local bridge…"
           : "Bridge offline · retrying…";
+
+  const handleStageClick = (event: ReactMouseEvent<HTMLDivElement>): void => {
+    const target = event.target as HTMLElement;
+    const nodeElement = target.closest<HTMLElement>("[data-node-id]");
+    setSelectedNodeId(nodeElement?.dataset.nodeId ?? null);
+  };
 
   return (
     <div className="app">
@@ -95,7 +212,10 @@ export function App() {
               key={ref.id}
               type="button"
               className={`page-tab${ref.id === page?.id ? " is-active" : ""}`}
-              onClick={() => setActivePageId(ref.id)}
+              onClick={() => {
+                setActivePageId(ref.id);
+                setSelectedNodeId(null);
+              }}
             >
               {ref.name}
             </button>
@@ -103,6 +223,26 @@ export function App() {
         </nav>
 
         <div className="topbar-right">
+          <div className="history-buttons">
+            <button
+              type="button"
+              className="button"
+              disabled={!source.canUndo}
+              onClick={source.undo}
+              title="Undo (Ctrl/Cmd+Z)"
+            >
+              Undo
+            </button>
+            <button
+              type="button"
+              className="button"
+              disabled={!source.canRedo}
+              onClick={source.redo}
+              title="Redo (Ctrl/Cmd+Shift+Z)"
+            >
+              Redo
+            </button>
+          </div>
           <span className={`badge ${statusClass}`} title={hint}>
             <span className="status-dot" aria-hidden="true" />
             {statusLabel}
@@ -118,35 +258,52 @@ export function App() {
         </div>
       </header>
 
-      <main className="canvas" ref={ref}>
-        {page ? (
-          <div className="stage-holder">
-            <div
-              className="stage"
-              style={{ width: bounds.width * scale, height: bounds.height * scale }}
-            >
+      <div className="workspace">
+        <main className="canvas" ref={ref}>
+          {page ? (
+            <div className="stage-holder">
               <div
-                className="stage-scale"
-                style={{
-                  width: bounds.width,
-                  height: bounds.height,
-                  transform: `scale(${scale})`,
-                }}
+                className="stage"
+                style={{ width: bounds.width * scale, height: bounds.height * scale }}
               >
-                <PageView page={page} manifest={source.manifest} />
+                <div
+                  className="stage-scale"
+                  style={{
+                    width: bounds.width,
+                    height: bounds.height,
+                    transform: `scale(${scale})`,
+                  }}
+                  onClick={handleStageClick}
+                >
+                  <PageView page={page} manifest={source.manifest} />
+                  {selectedNode && (
+                    <SelectionOverlay
+                      page={page}
+                      selectedId={selectedNode.id}
+                      selectedName={selectedNode.name}
+                      scale={scale}
+                    />
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        ) : (
-          <div className="canvas-empty">No page loaded.</div>
-        )}
-        {source.error && (
-          <div className="canvas-error" role="status">
-            {source.error}
-          </div>
-        )}
-        <div className="canvas-hint">{hint}</div>
-      </main>
+          ) : (
+            <div className="canvas-empty">No page loaded.</div>
+          )}
+          {source.error && (
+            <div className="canvas-error" role="status">
+              {source.error}
+            </div>
+          )}
+          <div className="canvas-hint">{hint}</div>
+        </main>
+        <Inspector
+          page={page}
+          source={source}
+          selectedId={selectedNode?.id ?? null}
+          onSelect={setSelectedNodeId}
+        />
+      </div>
     </div>
   );
 }

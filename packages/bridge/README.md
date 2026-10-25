@@ -1,8 +1,8 @@
 # @weft/bridge
 
-The local live bridge for Weft. It serves the built browser app, watches a design directory, keeps one Yjs `PageSession` per page, and streams file changes to connected browsers over WebSocket.
+The local live bridge for Weft. It serves the built browser app, watches a design directory, keeps one Yjs `PageSession` per page, streams file changes to connected browsers, and accepts browser commands. A valid command is applied to the session, written atomically to the changed page file, and broadcast to every client.
 
-It is **read-only** in this slice: it observes files and streams state. It does not accept browser edits or write canonical files yet.
+It is a **local editor bridge**: commands write page files, but manifest/token edits, auth, presence and the agent contract are still ahead.
 
 ## Run
 
@@ -50,14 +50,24 @@ Then it may send:
 { "type": "update", "revision": 2, "pageId": "pg_…", "update": "base64…" }
 { "type": "conflict", "revision": 2, "pageId": "pg_…", "conflicts": [] }
 { "type": "error", "revision": 2, "message": "…" }
+{ "type": "command", "revision": 2, "pageId": "pg_…", "commandId": "cm_…", "command": {}, "createdNodeIds": [], "actor": {} }
 ```
 
-Client messages accepted today:
+Client messages:
 
 ```json
 { "type": "ping" }
 { "type": "refresh" }
+{
+  "type": "command",
+  "requestId": "…",
+  "pageId": "pg_…",
+  "command": { "type": "node.update", "nodeId": "nd_…", "patch": { "x": 10 } },
+  "actor": { "id": "browser", "kind": "human", "name": "You" }
+}
 ```
+
+A command produces a `commandResult` for the initiating client containing `ok`, `inverse`, `createdNodeIds`, `commandId`, `revision` and `actor`. A failed command contains `ok: false` and an error code/message. A successful command also broadcasts a `command` message for attribution.
 
 ## Reload behavior
 
@@ -65,7 +75,7 @@ Client messages accepted today:
 - Page content changes are ingested into the page session; Yjs updates are broadcast.
 - Manifest changes (name, pages, tokens, assets) rebuild every session and broadcast a fresh `init`.
 - Invalid writes broadcast an `error` and keep the last good state.
-- The bridge never writes files.
+- A browser command writes only the changed page file, atomically. A write failure applies the command inverse to the live session and returns an error. The manifest is never rewritten by the bridge.
 
 ## App integration
 
@@ -80,11 +90,12 @@ Without a bridge, it falls back to the embedded Vite design and shows `read only
 
 ## Not here yet
 
-- Browser commands, selection or editing.
-- Writing canonical files.
+- Page-level commands (page name, background, tokens).
 - Presence/cursors, auth, remote bind.
 - Asset and snapshot payload serving.
-- Persisted Yjs state or an operation log.
+- Persisted Yjs state or a durable operation log.
+- Optimistic concurrency or serialization of simultaneous writers.
+- An agent tool contract; agents still use files and the CLI.
 
 ## Test
 
@@ -92,4 +103,4 @@ Without a bridge, it falls back to the embedded Vite design and shows `read only
 pnpm --filter @weft/bridge test
 ```
 
-The suite covers HTTP design/health, WebSocket init, a live Yjs update from a file write, invalid-write recovery, and the missing-web-build error.
+The suite covers HTTP design/health, WebSocket init, live Yjs updates from file writes, browser commands and undo writes, invalid-write recovery, and the missing-web-build error.

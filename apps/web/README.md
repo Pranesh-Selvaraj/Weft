@@ -1,29 +1,26 @@
 # @weft/web
 
-The Weft browser app. This slice is a **read-only design preview**: it loads a `.weft` directory through a Vite virtual module and renders the page with `@weft/render`. When served by `weft dev`, it switches to a live view fed by the local bridge.
+The Weft browser app. The static build is a **read-only preview**. Served by `weft dev`, it is a **live editor**: click a layer, edit it in the inspector, and undo or redo while the bridge writes the page file and streams updates.
 
 ## Run
 
-From the repository root:
+Static preview:
 
 ```bash
 pnpm install
 pnpm dev
+# http://127.0.0.1:5240
 ```
 
-Open `http://127.0.0.1:5240`. The default design is `examples/starter.weft`.
-
-Load a different design:
+Live editor:
 
 ```bash
-WEFT_DESIGN=/absolute/path/to/design.weft pnpm dev
+pnpm build
+pnpm weft dev examples/starter.weft
+# http://127.0.0.1:5250
 ```
 
-Build a static preview with the selected design embedded:
-
-```bash
-pnpm --filter @weft/web build
-```
+Load a different design into the static preview with `WEFT_DESIGN=/absolute/path/to/design.weft pnpm dev`. Build a static preview with `pnpm --filter @weft/web build`.
 
 ## How the design gets in
 
@@ -34,18 +31,21 @@ There are two paths:
 
 The static path remains the zero-process preview and the fallback.
 
-## What you see
+## What you can do
 
-- The design name, page tabs, node count and zoom in the top bar.
-- A dot-grid canvas and a fit-to-view page stage.
-- Real DOM frames, flex layout, text, tokens, fills, strokes, shadows and radii.
-- Placeholders for images and snapshots until the bridge/import pipeline supplies assets and payloads.
+- Click a layer to select it; the selection box follows the rendered DOM.
+- Edit name, position, size, opacity, fill and text content in the inspector. Changes commit on blur/Enter.
+- Delete a layer, undo with Cmd/Ctrl+Z, redo with Cmd/Ctrl+Shift+Z.
+- See live file changes from the CLI or an agent, and the last editor's attribution.
+- Switch pages; the inspector stays in sync with the active page.
+
+The static preview is read-only and has no bridge, inspector edits or history.
 
 ## Not here yet
 
-- Editing, selection, inspector, chat, drag/drop.
-- File watcher or HTTP/WebSocket bridge.
+- Layer tree, drag/resize, multi-select, components.
+- Presence/cursors, chat, page-level commands.
 - Asset serving, snapshot payload loading, zoom controls.
-- Shadow-DOM isolation and large-document culling.
+- Shadow-DOM isolation, large-document culling, mobile editing layout.
 
-See ADR 0008 for the stack and renderer decision.
+See ADR 0008 for the stack and renderer, ADR 0009 for the bridge, and ADR 0010 for selection, the inspector and undo.

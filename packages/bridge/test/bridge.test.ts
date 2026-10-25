@@ -15,6 +15,7 @@ import { PageSession } from "@weft/session";
 import {
   startBridge,
   type BridgeMessage,
+  type CommandResultMessage,
   type DesignPayload,
   type InitMessage,
   type UpdateMessage,
@@ -162,6 +163,77 @@ describe("local bridge", () => {
       }),
     ).rejects.toMatchObject({ code: "web.missing" });
   });
+
+  it("applies a browser command, writes the page, and undoes it", async () => {
+    const bridge = await startBridge({
+      designDir,
+      host: "127.0.0.1",
+      port: 0,
+      webDist: null,
+    });
+    const socket = new WebSocket(`${bridge.url.replace(/^http/, "ws")}/api/live`);
+    const initPromise = waitForMessage(
+      socket,
+      (message) => message.type === "init",
+    );
+
+    try {
+      const init = (await initPromise) as InitMessage;
+      const pageId = init.pages[0].pageId;
+      const actor = { id: "bridge-test", kind: "human" as const, name: "Bridge test" };
+
+      const resultPromise = waitForMessage(
+        socket,
+        (message) =>
+          message.type === "commandResult" && message.requestId === "cmd-1",
+      );
+      socket.send(
+        JSON.stringify({
+          type: "command",
+          requestId: "cmd-1",
+          pageId,
+          actor,
+          command: {
+            type: "node.update",
+            nodeId: headingId,
+            patch: { content: "From the browser" },
+          },
+        }),
+      );
+      const result = (await resultPromise) as CommandResultMessage;
+      expect(result.ok).toBe(true);
+      expect(result.inverse).toBeDefined();
+      expect(result.actor?.name).toBe("Bridge test");
+
+      const changed = await readDesign(designDir, { requireFiles: false });
+      expect((changed.pages[0].nodes[headingId] as TextNode).content).toBe(
+        "From the browser",
+      );
+
+      const undoPromise = waitForMessage(
+        socket,
+        (message) =>
+          message.type === "commandResult" && message.requestId === "cmd-2",
+      );
+      socket.send(
+        JSON.stringify({
+          type: "command",
+          requestId: "cmd-2",
+          pageId,
+          actor,
+          command: result.inverse,
+        }),
+      );
+      const undone = (await undoPromise) as CommandResultMessage;
+      expect(undone.ok).toBe(true);
+
+      const restored = await readDesign(designDir, { requireFiles: false });
+      expect((restored.pages[0].nodes[headingId] as TextNode).content).toBe("Hello");
+    } finally {
+      socket.close();
+      await bridge.close();
+    }
+  }, 15000);
 
   it("keeps the last good state when a file write is invalid", async () => {
     const bridge = await startBridge({

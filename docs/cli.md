@@ -2,7 +2,7 @@
 
 The CLI is the first executable client of the Weft document contract. It reads and writes a `.weft` directory on disk, validates it, canonicalizes it, reads pages and nodes, and applies serializable commands with an inverse for undo.
 
-It is intentionally small: no server, no database, no network, no watch mode. The file format remains the primary interface; the CLI is a safety net and an agent surface over it.
+It is intentionally small: no database and no cloud service. `weft dev` starts a local live server; the other commands are one-shot. The file format remains the primary interface; the CLI is a safety net and an agent surface over it.
 
 ## Build and run
 
@@ -29,7 +29,7 @@ packages/cli/dist/main.js --version
 | `weft get <dir>` | Print a page or node as JSON: `--page <id\|name>` or `--node <id>`. |
 | `weft apply <dir>` | Apply one JSON command. Options: `--command <path>`, `--dry-run`. |
 | `weft id` | Generate Weft ids. Options: `--prefix`, `--count`, `--json`. |
-| `weft dev <dir>` | Serve the built app and stream live file changes over WebSocket. Options: `--port`, `--host`. |
+| `weft dev <dir>` | Serve the built app, stream file changes, and accept browser edits. Options: `--port`, `--host`. |
 | `weft help [command]` | Show help. |
 
 Exit codes are stable:
@@ -40,7 +40,7 @@ Exit codes are stable:
 
 `validate`, `fmt`, `inspect`, `init` and `id` support `--json`. `get` and `apply` always print JSON because their output is meant to be consumed by another process. `weft dev` is a long-running server; it prints a human-readable URL and watches the design directory until interrupted.
 
-`weft dev` requires the built web app (`pnpm build` once). It serves `apps/web/dist`, keeps a Yjs page session in memory, and streams updates to the browser as files change. It is read-only: it does not accept browser edits or write canonical files yet. `pnpm dev` is the separate static Vite preview without the bridge.
+`weft dev` requires the built web app (`pnpm build` once). It serves `apps/web/dist`, keeps a Yjs page session in memory, streams file changes, and accepts browser commands. A browser edit is applied to the session, written atomically to the changed page file, and broadcast to every client. `pnpm dev` is the separate static Vite preview without the bridge.
 
 ## Create, validate, format, inspect
 
@@ -50,10 +50,10 @@ pnpm weft validate designs/marketing
 pnpm weft fmt designs/marketing --check
 pnpm weft inspect designs/marketing --json
 
-# Live preview over the built web app.
+# Live editor over the built web app.
 pnpm build
 pnpm weft dev designs/marketing
-# http://127.0.0.1:5250
+# http://127.0.0.1:5250 — select a layer and edit it in the inspector.
 ```
 
 The starter design is a valid fixture:
@@ -274,8 +274,9 @@ The published JSON Schema lives in [`@weft/contract`](../packages/contract/schem
 ## Limitations
 
 - There are no page-level commands yet (page name, background, tokens). Those remain file edits.
-- There is no optimistic concurrency or revision check. `weft apply` is a read-modify-write; `weft dev` ingests file changes but does not accept browser edits or write canonical files yet.
-- The command log and undo stack are not persisted in the design file. The CLI returns inverses; the editor and bridge will own their histories.
+- There is no optimistic concurrency or multi-writer serialization. `weft apply` is a read-modify-write; `weft dev` accepts browser commands and writes page files, so concurrent writers rely on the Yjs session for the live state and the last page write for disk.
+- Browser undo history is per tab and in memory. It clears on reconnect and does not include external CLI or agent file edits. The bridge does not persist a command log yet.
+- `weft dev` is localhost-only and has no authentication, presence or remote bind.
 - `apply` accepts commands for one page at a time.
 
 ## Safety properties

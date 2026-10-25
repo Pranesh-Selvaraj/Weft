@@ -10,6 +10,7 @@ import {
   serialize,
   WeftValidationError,
   type DesignFile,
+  type TextNode,
 } from "@weft/core";
 import {
   formatDesign,
@@ -20,6 +21,7 @@ import {
   resolveDesignPath,
   summarizeDesign,
   writeDesign,
+  writePageFile,
   WeftIoError,
 } from "../src/index.js";
 
@@ -281,5 +283,32 @@ describe("summary and paths", () => {
     expect(resolveDesignPath(designDir, "pages/landing.json")).toBe(
       join(designDir, "pages/landing.json"),
     );
+  });
+});
+
+describe("writePageFile", () => {
+  it("writes one page without touching the manifest", async () => {
+    const design = buildDesign();
+    await writeDesign(designDir, design);
+    const manifestBefore = await readFile(join(designDir, MANIFEST_FILE), "utf8");
+
+    const page = structuredClone(design.pages[0]);
+    const text = Object.values(page.nodes).find((node) => node.type === "text") as TextNode;
+    text.content = "Single page update";
+    await writePageFile(designDir, design.manifest.pages[0].file, page);
+
+    const loaded = await readDesign(designDir);
+    expect((loaded.pages[0].nodes[text.id] as TextNode).content).toBe("Single page update");
+    expect(await readFile(join(designDir, MANIFEST_FILE), "utf8")).toBe(manifestBefore);
+  });
+
+  it("refuses an invalid page", async () => {
+    const design = buildDesign();
+    await writeDesign(designDir, design);
+    const page = structuredClone(design.pages[0]);
+    page.nodes[page.children[0]].width = -1;
+    await expect(
+      writePageFile(designDir, design.manifest.pages[0].file, page),
+    ).rejects.toBeInstanceOf(WeftValidationError);
   });
 });

@@ -9,7 +9,7 @@ Start here, then follow the decision records for the reasoning.
 | [CLI](cli.md) | Commands, JSON output, exit codes, and how agents should use the headless client. |
 | [Structural contract](../packages/contract/README.md) | The published JSON Schema, conformance fixtures, and the structural/semantic boundary. |
 | [Live session](../packages/session/README.md) | The Yjs page model, command application, sync, and file-write merge policy. |
-| [Browser preview](../apps/web/README.md) | The read-only Vite/React app and `WEFT_DESIGN`. |
+| [Browser editor](../apps/web/README.md) | The Vite/React app, live editing, and `WEFT_DESIGN`. |
 | [Renderer](../packages/render/README.md) | The DOM renderer API, supported styles, and limits. |
 | [Local bridge](../packages/bridge/README.md) | `weft dev`, the HTTP/WebSocket protocol, and live reload semantics. |
 | [Decision records](decisions/README.md) | What we chose, why, what we rejected, and what it costs. |
@@ -28,7 +28,8 @@ Start here, then follow the decision records for the reasoning.
 8. [ADR 0007](decisions/0007-yjs-live-sessions.md) for the live session and file-write merge.
 9. [ADR 0008](decisions/0008-editor-stack-dom-renderer.md) for the stack and DOM renderer.
 10. [ADR 0009](decisions/0009-local-bridge-live-preview.md) for the local live bridge.
-11. [Architecture](architecture.md) for the draft implementation shape.
-12. [CLI](cli.md) to run, inspect and edit a design.
-13. [Browser preview](../apps/web/README.md) to open the starter design.
-14. [ADR index](decisions/README.md) to see which decisions are settled and which are still open.
+11. [ADR 0010](decisions/0010-editor-interaction.md) for selection, the inspector and undo.
+12. [Architecture](architecture.md) for the draft implementation shape.
+13. [CLI](cli.md) to run, inspect and edit a design.
+14. [Browser editor](../apps/web/README.md) to open and edit the starter design.
+15. [ADR index](decisions/README.md) to see which decisions are settled and which are still open.

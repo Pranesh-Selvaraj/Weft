@@ -47,7 +47,7 @@ The **bridge** is a small local process. It serves the editor, owns file materia
 
 Pre-alpha, foundation-and-preview phase. The founding decisions are recorded in [`docs/decisions/`](docs/decisions/); the working system design is in [`docs/architecture.md`](docs/architecture.md).
 
-The core document model is implemented in [`@weft/core`](packages/core): the schema, pure node operations, a deterministic JSON writer, and a dependency-free validator. The filesystem layer and the `weft` CLI are implemented in [`@weft/design-io`](packages/design-io) and [`@weft/cli`](packages/cli). Together they are covered by 173 tests and a readable [starter design](examples/starter.weft/). The CLI can validate, format, inspect, read pages and nodes, and apply attributed commands with an inverse for undo. A published JSON Schema and conformance fixtures make the structural contract available to non-TypeScript clients. A Yjs-backed session applies the same commands live and merges whole-page file writes without silently dropping live edits. A read-only browser preview renders the starter design as real DOM, and `weft dev` serves it live: file changes flow through a Yjs session into the open browser. Browser editing and the agent contract are next.
+The core document model is implemented in [`@weft/core`](packages/core): the schema, pure node operations, a deterministic JSON writer, and a dependency-free validator. The filesystem layer and the `weft` CLI are implemented in [`@weft/design-io`](packages/design-io) and [`@weft/cli`](packages/cli). Together they are covered by 176 tests and a readable [starter design](examples/starter.weft/). The CLI can validate, format, inspect, read pages and nodes, and apply attributed commands with an inverse for undo. A published JSON Schema and conformance fixtures make the structural contract available to non-TypeScript clients. A Yjs-backed session applies the same commands live and merges whole-page file writes without silently dropping live edits. The browser preview renders the starter design as real DOM. Served by `weft dev`, it becomes an editor: select a layer, change its properties, write the page to disk, and undo or redo through command inverses. The agent contract and extraction are next.
 
 The first milestone is deliberately small: open a file in the browser, edit it, have an external agent change it live, and extract one real page into it. See the [MVP exit criteria](docs/product.md#mvp-exit-criteria).
 
@@ -61,9 +61,10 @@ pnpm build
 pnpm dev
 # http://127.0.0.1:5240
 
-# Live preview over the watched design (one terminal).
+# Live editor over the watched design (one terminal).
 pnpm weft dev examples/starter.weft
 # http://127.0.0.1:5250
+# Click a layer, edit it in the inspector, then use Undo/Redo.
 
 # CLI commands, from another terminal.
 pnpm weft validate examples/starter.weft
@@ -88,7 +89,7 @@ weft/
 └── examples/      # sample design files and host integrations
 ```
 
-The layout is the intended shape; packages are added as decisions land. Founding records: [ADR 0001](docs/decisions/0001-project-name.md) (the name), [ADR 0002](docs/decisions/0002-design-files-as-plain-text.md) (design files as plain text), [ADR 0003](docs/decisions/0003-document-schema-v1.md) (the schema), [ADR 0004](docs/decisions/0004-headless-cli-and-design-io.md) (headless-first tooling), [ADR 0005](docs/decisions/0005-command-protocol.md) (the command protocol), [ADR 0006](docs/decisions/0006-published-json-schema.md) (the published schema), [ADR 0007](docs/decisions/0007-yjs-live-sessions.md) (the live session and file-write merge), [ADR 0008](docs/decisions/0008-editor-stack-dom-renderer.md) (the editor stack and DOM renderer), and [ADR 0009](docs/decisions/0009-local-bridge-live-preview.md) (the local live bridge).
+The layout is the intended shape; packages are added as decisions land. Founding records: [ADR 0001](docs/decisions/0001-project-name.md) (the name), [ADR 0002](docs/decisions/0002-design-files-as-plain-text.md) (design files as plain text), [ADR 0003](docs/decisions/0003-document-schema-v1.md) (the schema), [ADR 0004](docs/decisions/0004-headless-cli-and-design-io.md) (headless-first tooling), [ADR 0005](docs/decisions/0005-command-protocol.md) (the command protocol), [ADR 0006](docs/decisions/0006-published-json-schema.md) (the published schema), [ADR 0007](docs/decisions/0007-yjs-live-sessions.md) (the live session and file-write merge), [ADR 0008](docs/decisions/0008-editor-stack-dom-renderer.md) (the editor stack and DOM renderer), [ADR 0009](docs/decisions/0009-local-bridge-live-preview.md) (the local live bridge), and [ADR 0010](docs/decisions/0010-editor-interaction.md) (the editor interaction model).
 
 ## Documentation
 
@@ -97,7 +98,7 @@ The layout is the intended shape; packages are added as decisions land. Founding
 - [CLI](docs/cli.md) — commands, JSON output, exit codes, and agent recipes.
 - [Structural contract](packages/contract/README.md) — the JSON Schema, conformance fixtures, and the structural/semantic boundary.
 - [Live session](packages/session/README.md) — the Yjs page model, command application, sync, and file-write merge policy.
-- [Browser preview](apps/web/README.md) — the read-only Vite/React app and `WEFT_DESIGN`.
+- [Browser editor](apps/web/README.md) — the Vite/React app, live editing, and `WEFT_DESIGN`.
 - [Renderer](packages/render/README.md) — the DOM renderer API, supported styles, and limits.
 - [Local bridge](packages/bridge/README.md) — `weft dev`, the HTTP/WebSocket protocol, and live reload semantics.
 - [Decision records](docs/decisions/README.md) — why the system is shaped this way.

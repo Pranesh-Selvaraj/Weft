@@ -1,4 +1,4 @@
-import type { DesignManifest } from "@weft/core";
+import type { CommandActor, DesignManifest, PageCommand } from "@weft/core";
 import type { MergeConflict } from "@weft/session";
 
 export interface WirePage {
@@ -41,16 +41,49 @@ export interface PongMessage {
   type: "pong";
 }
 
+export interface CommandRequestMessage {
+  type: "command";
+  requestId: string;
+  pageId: string;
+  command: PageCommand;
+  actor?: CommandActor;
+}
+
+export interface CommandResultMessage {
+  type: "commandResult";
+  requestId: string;
+  ok: boolean;
+  pageId: string;
+  revision?: number;
+  commandId?: string;
+  inverse?: PageCommand;
+  createdNodeIds?: string[];
+  actor?: CommandActor;
+  error?: { code: string; message: string };
+}
+
+export interface CommandBroadcastMessage {
+  type: "command";
+  revision: number;
+  pageId: string;
+  commandId: string;
+  command: PageCommand;
+  createdNodeIds: string[];
+  actor?: CommandActor;
+}
+
 export type BridgeMessage =
   | InitMessage
   | UpdateMessage
   | ConflictMessage
   | ErrorMessage
-  | PongMessage;
+  | PongMessage
+  | CommandResultMessage
+  | CommandBroadcastMessage;
 
-export interface ClientMessage {
-  type: "ping" | "refresh";
-}
+export type ClientMessage =
+  | { type: "ping" | "refresh" }
+  | CommandRequestMessage;
 
 /** Encode a Yjs update for the JSON transport used by the local bridge. */
 export function encodeUpdate(update: Uint8Array): string {

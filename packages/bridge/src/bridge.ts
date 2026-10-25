@@ -4,13 +4,22 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { watch, type FSWatcher } from "chokidar";
 import WebSocket, { WebSocketServer } from "ws";
-import { serialize, type DesignFile, type DesignManifest } from "@weft/core";
-import { readDesign } from "@weft/design-io";
+import {
+  createCommandEnvelope,
+  readPageCommand,
+  serialize,
+  WeftCommandError,
+  WeftOperationError,
+  type CommandActor,
+  type DesignFile,
+  type DesignManifest,
+} from "@weft/core";
+import { readDesign, writePageFile, WeftIoError } from "@weft/design-io";
 import { PageSession } from "@weft/session";
 import {
   encodeUpdate,
   type BridgeMessage,
-  type ClientMessage,
+  type CommandRequestMessage,
   type DesignPayload,
   type InitMessage,
   type WirePage,
@@ -55,6 +64,41 @@ function errorMessage(error: unknown): string {
 
 function sameManifest(left: DesignManifest, right: DesignManifest): boolean {
   return serialize(left) === serialize(right);
+}
+
+function errorCode(error: unknown): string {
+  if (
+    error instanceof WeftCommandError ||
+    error instanceof WeftOperationError ||
+    error instanceof WeftIoError
+  ) {
+    return error.code;
+  }
+  return "command.error";
+}
+
+function readActor(value: unknown): CommandActor | undefined {
+  if (value === undefined) return undefined;
+  if (!isRecord(value)) {
+    throw new WeftCommandError("command.actor", "actor must be a JSON object.");
+  }
+  if (typeof value.id !== "string" || value.id.length === 0) {
+    throw new WeftCommandError("command.actor", "actor.id must be a non-empty string.");
+  }
+  if (value.kind !== "human" && value.kind !== "agent" && value.kind !== "system") {
+    throw new WeftCommandError(
+      "command.actor",
+      'actor.kind must be "human", "agent" or "system".',
+    );
+  }
+  if (value.name !== undefined && typeof value.name !== "string") {
+    throw new WeftCommandError("command.actor", "actor.name must be a string when present.");
+  }
+  return {
+    id: value.id,
+    kind: value.kind,
+    ...(typeof value.name === "string" ? { name: value.name } : {}),
+  };
 }
 
 /**
@@ -417,19 +461,122 @@ export class WeftBridge {
   }
 
   private handleClientMessage(ws: WebSocket, data: WebSocket.RawData): void {
-    let message: ClientMessage;
+    let parsed: Record<string, unknown>;
     try {
-      const parsed = JSON.parse(String(data)) as unknown;
-      if (!isRecord(parsed) || typeof parsed.type !== "string") return;
-      message = parsed as unknown as ClientMessage;
+      const value = JSON.parse(String(data)) as unknown;
+      if (!isRecord(value) || typeof value.type !== "string") return;
+      parsed = value;
     } catch {
       return;
     }
 
-    if (message.type === "ping") {
+    if (parsed.type === "ping") {
       this.send(ws, { type: "pong" });
-    } else if (message.type === "refresh") {
+      return;
+    }
+    if (parsed.type === "refresh") {
       this.scheduleReload();
+      return;
+    }
+    if (parsed.type !== "command") return;
+
+    const requestId = typeof parsed.requestId === "string" ? parsed.requestId : "";
+    const pageId = typeof parsed.pageId === "string" ? parsed.pageId : "";
+    try {
+      const command = readPageCommand(parsed.command);
+      const actor = readActor(parsed.actor);
+      void this.handleCommand(ws, {
+        type: "command",
+        requestId,
+        pageId,
+        command,
+        actor,
+      });
+    } catch (error) {
+      this.send(ws, {
+        type: "commandResult",
+        requestId,
+        pageId,
+        ok: false,
+        error: { code: errorCode(error), message: errorMessage(error) },
+      });
+    }
+  }
+
+  private async handleCommand(
+    ws: WebSocket,
+    message: CommandRequestMessage,
+  ): Promise<void> {
+    const manifest = this.manifest;
+    const session = this.sessions.get(message.pageId);
+    const pageRef = manifest?.pages.find((ref) => ref.id === message.pageId);
+    if (!manifest || !session || !pageRef) {
+      this.send(ws, {
+        type: "commandResult",
+        requestId: message.requestId,
+        pageId: message.pageId,
+        ok: false,
+        error: {
+          code: "page.missing",
+          message: `Page ${message.pageId} is not open in the bridge.`,
+        },
+      });
+      return;
+    }
+
+    const envelope = createCommandEnvelope({
+      pageId: message.pageId,
+      command: message.command,
+      actor: message.actor,
+    });
+    this.revision += 1;
+
+    let applied: ReturnType<PageSession["applyCommand"]> | undefined;
+    try {
+      applied = session.applyCommand(message.command);
+      await writePageFile(this.designDir, pageRef.file, applied.page, {
+        tokens: manifest.tokens,
+        assets: manifest.assets,
+      });
+      session.markMaterialized(applied.page);
+
+      this.send(ws, {
+        type: "commandResult",
+        requestId: message.requestId,
+        pageId: message.pageId,
+        ok: true,
+        revision: this.revision,
+        commandId: envelope.id,
+        inverse: applied.inverse,
+        createdNodeIds: applied.createdNodeIds,
+        actor: message.actor,
+      });
+      this.broadcast({
+        type: "command",
+        revision: this.revision,
+        pageId: message.pageId,
+        commandId: envelope.id,
+        command: message.command,
+        createdNodeIds: applied.createdNodeIds,
+        actor: message.actor,
+      });
+    } catch (error) {
+      if (applied) {
+        try {
+          session.applyCommand(applied.inverse);
+        } catch {
+          // The inverse may fail if a concurrent change has already been applied.
+        }
+      }
+      this.send(ws, {
+        type: "commandResult",
+        requestId: message.requestId,
+        pageId: message.pageId,
+        ok: false,
+        revision: this.revision,
+        error: { code: errorCode(error), message: errorMessage(error) },
+        actor: message.actor,
+      });
     }
   }
 
