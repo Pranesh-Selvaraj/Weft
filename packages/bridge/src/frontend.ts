@@ -94,6 +94,8 @@ export async function probeFrontend(url: string): Promise<FrontendProbeResult> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
   try {
+    // codeql[js/request-forgery] The target is re-normalized above and limited
+    // to a loopback literal. Redirects are manual and the body is cancelled.
     const response = await fetch(parsed, {
       method: "GET",
       redirect: "manual",
