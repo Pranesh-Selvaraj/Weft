@@ -238,7 +238,7 @@ function SelectionOverlay({
   }, [page, selectedId, scale]);
 
   if (!box) return null;
-  const handleSize = Math.max(6, 8 / scale);
+  const handleSize = 8 / Math.max(scale, 0.01);
   return (
     <div
       className="selection-box"
@@ -319,7 +319,7 @@ function MultiSelectionOverlay({
     Number.NEGATIVE_INFINITY,
   );
   const hasBounds = boxes.length > 0 && Number.isFinite(left) && Number.isFinite(top);
-  const handleSize = Math.max(6, 8 / scale);
+  const handleSize = 8 / Math.max(scale, 0.01);
 
   return (
     <>
@@ -372,6 +372,7 @@ export function App() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [serverOpen, setServerOpen] = useState(false);
   const [tool, setTool] = useState<Tool>("select");
+  const [zoom, setZoom] = useState(1);
   const [drag, setDrag] = useState<DragState | null>(null);
   const [pendingSelectId, setPendingSelectId] = useState<string | null>(null);
   const [pendingPageId, setPendingPageId] = useState<string | null>(null);
@@ -424,7 +425,7 @@ export function App() {
 
   const removeSelection = (): void => {
     if (!page || !source.editable || selectedIds.size === 0) return;
-    const roots = selectionRoots();
+    const roots = selectionRoots().filter((node) => node.locked !== true);
     if (roots.length === 0) return;
     source.sendCommand(
       page.id,
@@ -435,6 +436,48 @@ export function App() {
       roots.length === 1 ? "Remove layer" : "Remove layers",
     );
     clearSelection();
+  };
+
+  const duplicateSelection = (): void => {
+    if (!page || !source.editable) return;
+    const roots = selectionRoots().filter((node) => node.locked !== true);
+    if (roots.length === 0) return;
+    source.sendCommand(
+      page.id,
+      {
+        type: "batch",
+        commands: roots.map((node) => ({ type: "node.duplicate", nodeId: node.id })),
+      },
+      roots.length === 1 ? "Duplicate layer" : "Duplicate layers",
+    );
+  };
+
+  const toggleNodeVisible = (nodeId: string): void => {
+    const node = page?.nodes[nodeId];
+    if (!page || !source.editable || !node) return;
+    source.sendCommand(
+      page.id,
+      {
+        type: "node.update",
+        nodeId,
+        patch: { visible: node.visible === false },
+      },
+      node.visible === false ? "Show layer" : "Hide layer",
+    );
+  };
+
+  const toggleNodeLocked = (nodeId: string): void => {
+    const node = page?.nodes[nodeId];
+    if (!page || !source.editable || !node) return;
+    source.sendCommand(
+      page.id,
+      {
+        type: "node.update",
+        nodeId,
+        patch: { locked: node.locked !== true },
+      },
+      node.locked === true ? "Unlock layer" : "Lock layer",
+    );
   };
 
   const nudgeSelection = (dx: number, dy: number): void => {
@@ -457,7 +500,7 @@ export function App() {
 
   const alignSelection = (mode: AlignMode): void => {
     if (!page || !source.editable) return;
-    const roots = selectionRoots();
+    const roots = selectionRoots().filter((node) => node.locked !== true);
     if (roots.length < 2) return;
     const boxes = roots.map((node) => ({
       node,
@@ -542,6 +585,35 @@ export function App() {
         source.redo();
         return;
       }
+      if (mod && event.key === "0") {
+        event.preventDefault();
+        setZoom(1);
+        return;
+      }
+      if (mod && (event.key === "+" || event.key === "=")) {
+        event.preventDefault();
+        setZoom((current) => Math.min(4, current * 1.2));
+        return;
+      }
+      if (mod && event.key === "-") {
+        event.preventDefault();
+        setZoom((current) => Math.max(0.1, current / 1.2));
+        return;
+      }
+      if (mod && event.key.toLowerCase() === "d") {
+        event.preventDefault();
+        duplicateSelection();
+        return;
+      }
+      if (mod && event.key.toLowerCase() === "a") {
+        event.preventDefault();
+        if (page && source.editable) {
+          const ids = Object.keys(page.nodes);
+          setSelectedIds(new Set(ids));
+          setSelectedNodeId(ids[0] ?? null);
+        }
+        return;
+      }
       if (!mod && source.editable) {
         const shortcut = event.key.toLowerCase();
         const nextTool: Tool | undefined =
@@ -605,7 +677,26 @@ export function App() {
     width: Math.max(800, pageBounds.width),
     height: Math.max(600, pageBounds.height),
   };
-  const { ref, scale } = useFitScale(bounds.width, bounds.height);
+  const { ref, scale: fitScale } = useFitScale(bounds.width, bounds.height);
+  const scale = fitScale * zoom;
+  const zoomBy = (factor: number): void => {
+    setZoom((current) => Math.min(4, Math.max(0.1, current * factor)));
+  };
+  const fitView = (): void => setZoom(1);
+  const actualSize = (): void =>
+    setZoom(fitScale > 0 ? Math.min(4, 1 / fitScale) : 1);
+  useEffect(() => {
+    const canvas = ref.current;
+    if (!canvas) return;
+    const onWheel = (event: WheelEvent): void => {
+      if (!event.ctrlKey && !event.metaKey) return;
+      event.preventDefault();
+      zoomBy(event.deltaY < 0 ? 1.1 : 1 / 1.1);
+    };
+    canvas.addEventListener("wheel", onWheel, { passive: false });
+    return () => canvas.removeEventListener("wheel", onWheel);
+  }, [ref]);
+
   const tabs = source.manifest.pages.filter((ref) =>
     source.pages.some((candidate) => candidate.id === ref.id),
   );
@@ -1432,7 +1523,14 @@ export function App() {
           )}
           {source.revision !== null && <span className="meta">rev {source.revision}</span>}
           <span className="meta">{nodeCount} nodes</span>
-          <span className="meta">{Math.round(scale * 100)}%</span>
+          <div className="zoom-controls" aria-label="Canvas zoom">
+            <button type="button" onClick={() => zoomBy(1 / 1.2)} title="Zoom out" aria-label="Zoom out">−</button>
+            <button type="button" className="zoom-value" onClick={actualSize} title="Actual size">
+              {Math.round(scale * 100)}%
+            </button>
+            <button type="button" onClick={() => zoomBy(1.2)} title="Zoom in" aria-label="Zoom in">+</button>
+            <button type="button" className="zoom-fit" onClick={fitView} title="Fit to view">Fit</button>
+          </div>
         </div>
       </header>
 
@@ -1479,11 +1577,14 @@ export function App() {
               page={page}
               selectedId={selectedNode?.id ?? null}
               selectedIds={selectedIds}
+              editable={source.editable}
               onSelect={(id, additive) => {
                 if (additive) toggleSelection(id);
                 else selectSingle(id);
                 setTool("select");
               }}
+              onToggleVisible={toggleNodeVisible}
+              onToggleLocked={toggleNodeLocked}
             />
           )}
           <div className="page-actions">

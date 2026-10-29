@@ -171,7 +171,7 @@ function LayerEditor({
   };
 
   const remove = (): void => {
-    if (!editable) return;
+    if (!editable || node.locked === true) return;
     source.sendCommand(page.id, { type: "node.remove", nodeId: node.id }, "Remove layer");
     onSelect(null);
   };
@@ -298,7 +298,13 @@ function LayerEditor({
         <button type="button" className="button" disabled={!source.canRedo} onClick={source.redo}>
           Redo
         </button>
-        <button type="button" className="button is-danger" disabled={!editable} onClick={remove}>
+        <button
+          type="button"
+          className="button is-danger"
+          disabled={!editable || node.locked === true}
+          onClick={remove}
+          title={node.locked === true ? "Unlock the layer before deleting it" : "Delete layer"}
+        >
           Delete
         </button>
       </div>

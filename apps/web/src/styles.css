@@ -613,6 +613,97 @@ body,
   white-space: nowrap;
 }
 
+.zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.zoom-controls button {
+  height: 25px;
+  min-width: 25px;
+  padding: 0 5px;
+  border: 0;
+  border-right: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.zoom-controls button:last-child {
+  border-right: 0;
+}
+
+.zoom-controls button:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.zoom-controls button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+.zoom-controls .zoom-value {
+  min-width: 44px;
+  color: var(--ink-soft);
+}
+
+.zoom-controls .zoom-fit {
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.layer-actions {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  margin-left: auto;
+  opacity: 0.45;
+}
+
+.layer-row:hover .layer-actions,
+.layer-row.is-selected .layer-actions {
+  opacity: 1;
+}
+
+.layer-action {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted-2);
+  cursor: pointer;
+}
+
+.layer-action:hover:not(:disabled) {
+  color: var(--ink);
+}
+
+.layer-action.is-active {
+  color: var(--accent);
+}
+
+.layer-action:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
+.layer-name.is-hidden {
+  color: var(--muted-2);
+  text-decoration: line-through;
+  text-decoration-color: var(--muted-2);
+}
+
 .button {
   border: 1px solid var(--line-strong);
   background: transparent;
@@ -920,10 +1011,10 @@ body,
   min-width: 0;
   min-height: 0;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: safe center;
+  justify-content: safe center;
   padding: 48px;
-  overflow: hidden;
+  overflow: auto;
   background-color: var(--canvas);
   background-image: radial-gradient(
     circle at 1px 1px,
@@ -935,16 +1026,18 @@ body,
 
 .stage-holder {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  height: 100%;
-  min-width: 0;
-  min-height: 0;
+  width: max-content;
+  height: max-content;
+  min-width: 100%;
+  min-height: 100%;
 }
 
 .stage {
   position: relative;
+  flex: 0 0 auto;
   overflow: hidden;
   border-radius: 7px;
   background: #ffffff;
