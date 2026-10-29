@@ -1448,3 +1448,39 @@ body,
   font-size: 8px;
   text-transform: uppercase;
 }
+
+.align-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 3px;
+  margin: 14px 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.align-button {
+  display: grid;
+  place-items: center;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.align-button:hover:not(:disabled) {
+  border-color: var(--focus);
+  color: var(--ink);
+}
+
+.align-button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.align-button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}

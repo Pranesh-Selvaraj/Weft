@@ -35,7 +35,8 @@ The static path remains the zero-process preview and the fallback.
 
 - Click a layer to select it; the selection box follows the rendered DOM.
 - Use the left tool panel to create frames, text, rectangles and ellipses (`V`, `F`, `T`, `R`, `O`). Drag for a custom size or click for a default size; creation inside a selected frame becomes a child of that frame.
-- Move a selected layer by dragging its rendered DOM; resize it with the eight selection handles. Shift/Cmd/Ctrl-click adds layers to the selection; dragging any selected layer moves the group, and Delete removes it, each as one batch command with an inverse. The inspector switches to a multi-layer summary when more than one layer is selected.
+- Move a selected layer by dragging its rendered DOM; resize it with the eight selection handles. Shift/Cmd/Ctrl-click adds layers to the selection; dragging any selected layer moves the group, and Delete removes it, each as one batch command with an inverse. Arrow keys nudge the selection (Shift: 10 px).
+- The multi-layer inspector can align selected layers left/center/right/top/middle/bottom and shows a flex-child warning when the parent layout may override x/y. The inspector switches to a multi-layer summary when more than one layer is selected.
 - Browse the nested layer tree, expand/collapse containers, and select any layer. The tree auto-expands to the selected node.
 - Create a blank page with **+ Page**, rename it with **Rename** or by double-clicking its tab, drag tabs to reorder, and delete the active page with **Delete** (confirmation, last page protected). Page commands share the same undo/redo history as node commands.
 - Empty pages show an in-artboard hint explaining that the visible area is a blank page and pointing to the creation tools.
@@ -51,10 +52,10 @@ The static preview is read-only and has no bridge, inspector edits or history.
 
 ## Not here yet
 
-- Page duplicate and cross-design drag; multi-resize, marquee/range selection, snapping/guides, rotation and aspect-ratio locks, layer reordering and visibility/lock controls, components.
+- Page duplicate and cross-design drag; multi-resize, distribute/match-size/align-to-page, marquee/range selection, snapping/guides, rotation and aspect-ratio locks, layer reordering and visibility/lock controls, components.
 - A browser Extract button; extraction currently starts from the CLI.
 - Presence/cursors, chat, page rename/background/token commands.
 - Asset serving for image nodes and zoom controls.
 - Shadow-DOM isolation, large-document culling, mobile editing layout.
 
-See ADR 0008 for the stack and renderer, ADR 0009 for the bridge, ADR 0010 for selection/the inspector/undo, ADR 0012 for declared dev servers, ADR 0013 for snapshot extraction, and ADR 0014 for creation tools and the layer tree, and ADR 0015 for page-level document commands, and ADR 0017 for direct layout manipulation, and ADR 0018 for page organization, and ADR 0019 for multi-selection and batch commands.
+See ADR 0008 for the stack and renderer, ADR 0009 for the bridge, ADR 0010 for selection/the inspector/undo, ADR 0012 for declared dev servers, ADR 0013 for snapshot extraction, and ADR 0014 for creation tools and the layer tree, and ADR 0015 for page-level document commands, and ADR 0017 for direct layout manipulation, and ADR 0018 for page organization, and ADR 0019 for multi-selection and batch commands, and ADR 0020 for alignment/nudge.

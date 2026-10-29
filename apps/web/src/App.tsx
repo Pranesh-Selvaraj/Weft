@@ -12,7 +12,7 @@ import {
 } from "@weft/core";
 import { Inspector } from "./Inspector";
 import { LayerTree } from "./LayerTree";
-import { MultiInspector } from "./MultiInspector";
+import { MultiInspector, type AlignMode } from "./MultiInspector";
 import { ServerPanel } from "./ServerPanel";
 import {
   CursorIcon,
@@ -370,22 +370,84 @@ export function App() {
     setSelectedNodeId(next.has(id) ? id : (next.values().next().value ?? null));
   };
 
+  const selectionRoots = (): Node[] => {
+    if (!page) return [];
+    const selected = new Set(selectedIds);
+    return [...selected]
+      .filter((id) => !getAncestorIds(page, id).some((ancestor) => selected.has(ancestor)))
+      .map((id) => page.nodes[id])
+      .filter((node): node is Node => Boolean(node));
+  };
+
   const removeSelection = (): void => {
     if (!page || !source.editable || selectedIds.size === 0) return;
-    const selected = new Set(selectedIds);
-    const roots = [...selected].filter(
-      (id) => !getAncestorIds(page, id).some((ancestor) => selected.has(ancestor)),
-    );
+    const roots = selectionRoots();
     if (roots.length === 0) return;
     source.sendCommand(
       page.id,
       {
         type: "batch",
-        commands: roots.map((nodeId) => ({ type: "node.remove", nodeId })),
+        commands: roots.map((node) => ({ type: "node.remove", nodeId: node.id })),
       },
       roots.length === 1 ? "Remove layer" : "Remove layers",
     );
     clearSelection();
+  };
+
+  const nudgeSelection = (dx: number, dy: number): void => {
+    if (!page || !source.editable) return;
+    const roots = selectionRoots().filter((node) => node.locked !== true);
+    if (roots.length === 0) return;
+    source.sendCommand(
+      page.id,
+      {
+        type: "batch",
+        commands: roots.map((node) => ({
+          type: "node.update",
+          nodeId: node.id,
+          patch: { x: node.x + dx, y: node.y + dy },
+        })),
+      },
+      roots.length === 1 ? "Nudge layer" : "Nudge layers",
+    );
+  };
+
+  const alignSelection = (mode: AlignMode): void => {
+    if (!page || !source.editable) return;
+    const roots = selectionRoots();
+    if (roots.length < 2) return;
+    const boxes = roots.map((node) => ({
+      node,
+      origin: absoluteOrigin(page, node.id),
+    }));
+    const left = Math.min(...boxes.map(({ node, origin }) => origin.x + node.x));
+    const right = Math.max(...boxes.map(({ node, origin }) => origin.x + node.x + node.width));
+    const top = Math.min(...boxes.map(({ node, origin }) => origin.y + node.y));
+    const bottom = Math.max(...boxes.map(({ node, origin }) => origin.y + node.y + node.height));
+    const commands = boxes.map(({ node, origin }) => {
+      let pageX = origin.x + node.x;
+      let pageY = origin.y + node.y;
+      if (mode === "left") pageX = left;
+      else if (mode === "center") pageX = left + (right - left - node.width) / 2;
+      else if (mode === "right") pageX = right - node.width;
+      else if (mode === "top") pageY = top;
+      else if (mode === "middle") pageY = top + (bottom - top - node.height) / 2;
+      else if (mode === "bottom") pageY = bottom - node.height;
+      return {
+        type: "node.update" as const,
+        nodeId: node.id,
+        patch: { x: Math.round(pageX - origin.x), y: Math.round(pageY - origin.y) },
+      };
+    });
+    const labels: Record<AlignMode, string> = {
+      left: "Align left",
+      center: "Align centers",
+      right: "Align right",
+      top: "Align top",
+      middle: "Align middles",
+      bottom: "Align bottom",
+    };
+    source.sendCommand(page.id, { type: "batch", commands }, labels[mode]);
   };
 
   useEffect(() => {
@@ -455,6 +517,22 @@ export function App() {
           setTool(nextTool);
           return;
         }
+      }
+      if (
+        !mod &&
+        source.editable &&
+        selectedIds.size > 0 &&
+        (event.key === "ArrowLeft" ||
+          event.key === "ArrowRight" ||
+          event.key === "ArrowUp" ||
+          event.key === "ArrowDown")
+      ) {
+        event.preventDefault();
+        const amount = event.shiftKey ? 10 : 1;
+        const dx = event.key === "ArrowLeft" ? -amount : event.key === "ArrowRight" ? amount : 0;
+        const dy = event.key === "ArrowUp" ? -amount : event.key === "ArrowDown" ? amount : 0;
+        nudgeSelection(dx, dy);
+        return;
       }
       if (event.key === "Escape") {
         if (tool !== "select") {
@@ -1321,6 +1399,7 @@ export function App() {
             page={page}
             source={source}
             ids={selectedIds}
+            onAlign={alignSelection}
             onDelete={removeSelection}
             onClear={clearSelection}
           />

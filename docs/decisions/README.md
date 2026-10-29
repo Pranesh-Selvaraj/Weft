@@ -36,6 +36,7 @@ This directory is the project's long-form memory: **what we chose, why, what we 
 | [0017](0017-direct-manipulation.md) | Direct layout manipulation | Accepted | UI / editing |
 | [0018](0018-page-organization.md) | Page organization | Accepted | Contract / UI |
 | [0019](0019-multi-selection.md) | Multi-selection and batch commands | Accepted | Contract / UI |
+| [0020](0020-alignment-and-nudge.md) | Batch alignment and keyboard nudge | Accepted | UI / editing |
 
 ## Decision map
 
@@ -59,7 +60,8 @@ graph TD
     P --> Q["0017 · Direct manipulation<br/>move · resize · one command"]
     Q --> R["0018 · Page organization<br/>rename · reorder"]
     R --> S["0019 · Multi-selection<br/>batch commands"]
-    S --> T["0020 · Export + handoff<br/>(next)"]
+    S --> T["0020 · Alignment + nudge<br/>batch transforms"]
+    T --> U["0021 · Export + handoff<br/>(next)"]
 ```
 
 ## Adding a record
