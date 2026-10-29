@@ -332,7 +332,13 @@ export function SessionPanel({
               <button
                 type="button"
                 className="button"
-                onClick={() => window.open(frontend.url ?? "", "_blank", "noopener,noreferrer")}
+                onClick={() =>
+                  window.open(
+                    "/api/frontend/preview",
+                    "_blank",
+                    "noopener,noreferrer",
+                  )
+                }
                 disabled={!frontend.url}
               >
                 Open
@@ -357,8 +363,9 @@ export function SessionPanel({
             {previewOpen && (
               <div className="frontend-preview">
                 <iframe
+                  key={frontend.url ?? "none"}
                   title="Local frontend preview"
-                  src={frontend.url}
+                  src="/api/frontend/preview"
                   sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"
                   referrerPolicy="no-referrer"
                 />

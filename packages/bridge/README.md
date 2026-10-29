@@ -44,6 +44,7 @@ The built web app must exist at `apps/web/dist`; `pnpm build` produces it. Set `
 - `GET /api/frontend` → `{ ok, frontend }` returns the attached target state. Requires the session cookie.
 - `POST /api/frontend` → `{ url }` validates and probes a loopback frontend, records reachable/error state, and broadcasts it. Requires the session cookie and Origin check.
 - `DELETE /api/frontend` detaches the target. Requires the session cookie.
+- `GET /api/frontend/preview` redirects (302) to the attached URL for the preview iframe/Open button. Requires the session cookie and only exposes the already-attached loopback target; it is frameable by Weft (`frame-ancestors 'self'`).
 - `POST /api/frontend/capture` → `{ pageId, selector?, viewport?, name? }` re-probes the attached target and captures it through `@weft/extract` into the active page. Requires the session cookie and Origin check. The exact attached origin is the explicit allowlist for this action; no URL is accepted from the request body.
 - `POST /api/open` → `{ designPath }` opens another registered design. Requires the session cookie; paths outside the workspace are rejected. All connected clients receive a fresh `init` with the newly active design.
 - `GET /api/dev` → `{ ok, servers }` returns snapshots for every registered project. Requires the session cookie.

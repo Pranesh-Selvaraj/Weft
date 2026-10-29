@@ -317,6 +317,19 @@ describe("local bridge", () => {
       expect(attachedPayload.frontend.origin).toBe(`http://127.0.0.1:${frontendPort}`);
       expect(attachedPayload.frontend.httpStatus).toBe(200);
 
+      const preview = await fetch(`${bridge.url}/api/frontend/preview`, {
+        headers: { cookie: sessionCookie(bridge) },
+        redirect: "manual",
+      });
+      expect(preview.status).toBe(302);
+      expect(preview.headers.get("location")).toBe(
+        `http://127.0.0.1:${frontendPort}/preview?mode=design`,
+      );
+      expect(preview.headers.get("x-frame-options")).toBe("SAMEORIGIN");
+      expect(preview.headers.get("content-security-policy")).toContain(
+        "frame-ancestors 'self'",
+      );
+
       const captured = await fetch(`${bridge.url}/api/frontend/capture`, {
         method: "POST",
         headers,

@@ -851,6 +851,38 @@ export class WeftBridge {
         return;
       }
 
+      if (url.pathname === "/api/frontend/preview") {
+        if (request.method !== "GET") {
+          this.sendJson(response, 405, { ok: false, error: { code: "method.not-allowed" } });
+          return;
+        }
+        if (!this.isAuthorized(request)) {
+          this.sendJson(response, 401, { ok: false, error: { code: "session.unauthorized" } });
+          return;
+        }
+        if (!this.frontend.url) {
+          this.sendJson(response, 404, { ok: false, error: { code: "frontend.not-attached" } });
+          return;
+        }
+        const previewTarget = normalizeFrontendUrl(this.frontend.url);
+        // This response is a redirect inside the Weft preview iframe, so it
+        // must be frameable by this origin while the target keeps its own
+        // framing policy. It contains no app content.
+        response.removeHeader("X-Frame-Options");
+        response.removeHeader("Content-Security-Policy");
+        response.setHeader("X-Frame-Options", "SAMEORIGIN");
+        response.setHeader(
+          "Content-Security-Policy",
+          "frame-ancestors 'self'; object-src 'none'; base-uri 'none'",
+        );
+        response.writeHead(302, {
+          location: previewTarget.url,
+          "cache-control": "no-store",
+        });
+        response.end();
+        return;
+      }
+
       if (url.pathname === "/api/frontend" || url.pathname === "/api/frontend/capture") {
         if (url.pathname === "/api/frontend/capture" && request.method !== "POST") {
           this.sendJson(response, 405, { ok: false, error: { code: "method.not-allowed" } });

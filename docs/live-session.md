@@ -63,6 +63,7 @@ All routes require the bridge session cookie. `POST`/`DELETE` also pass the brid
 GET    /api/frontend             current frontend snapshot
 POST   /api/frontend             { "url": "http://127.0.0.1:3000/" }
 DELETE /api/frontend             detach and return to idle
+GET    /api/frontend/preview     cookie-authenticated 302 to the attached URL
 POST   /api/frontend/capture     { pageId, selector?, viewport?, name? }
 ```
 

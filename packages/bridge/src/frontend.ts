@@ -87,10 +87,14 @@ export interface FrontendProbeResult {
  * considered reachable because the app may sit behind auth or use a router.
  */
 export async function probeFrontend(url: string): Promise<FrontendProbeResult> {
+  // Re-validate at the network boundary, not only in the route. This keeps a
+  // direct caller of the probe on the same loopback-only allowlist.
+  const target = normalizeFrontendUrl(url);
+  const parsed = new URL(target.url);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
   try {
-    const response = await fetch(url, {
+    const response = await fetch(parsed, {
       method: "GET",
       redirect: "manual",
       signal: controller.signal,
