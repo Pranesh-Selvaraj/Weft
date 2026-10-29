@@ -1339,12 +1339,23 @@ body,
 .stage {
   position: relative;
   flex: 0 0 auto;
-  overflow: hidden;
-  border-radius: 7px;
-  background: #ffffff;
+  overflow: visible;
+  border: 0;
+  background: transparent;
   box-shadow:
+    0 0 0 1px var(--line-strong),
     0 2px 6px var(--shadow-1),
     0 28px 80px var(--shadow-2);
+}
+
+.canvas.is-space,
+.canvas.is-space * {
+  cursor: grab !important;
+}
+
+.canvas.is-panning,
+.canvas.is-panning * {
+  cursor: grabbing !important;
 }
 
 .stage-scale {
@@ -1481,8 +1492,11 @@ body,
   color: var(--muted);
   padding: 6px 11px;
   font-family: var(--font-mono);
+  max-width: calc(100% - 24px);
+  overflow: hidden;
   font-size: 9px;
   letter-spacing: 0.08em;
+  text-overflow: ellipsis;
   text-transform: uppercase;
   white-space: nowrap;
   pointer-events: none;
@@ -1728,6 +1742,77 @@ body,
   color: var(--muted-2);
   letter-spacing: 0.02em;
   text-transform: none;
+}
+
+.frame-label {
+  position: absolute;
+  z-index: 7;
+  display: block;
+  overflow: hidden;
+  border: 1px solid transparent;
+  background: var(--chrome-strong);
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.35;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: 0 2px 7px var(--shadow-1);
+}
+
+.frame-label::before {
+  content: "";
+  display: inline-block;
+  width: 0.48em;
+  height: 0.48em;
+  margin-right: 0.42em;
+  border: 1px solid currentColor;
+  vertical-align: 0.02em;
+}
+
+.frame-label:hover,
+.frame-label.is-hovered {
+  border-color: var(--line-strong);
+  background: var(--chrome-strong);
+  color: var(--ink-soft);
+}
+
+.frame-label.is-selected {
+  border-color: var(--selection);
+  background: var(--selection);
+  color: var(--selection-ink);
+}
+
+.frame-label:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.hover-box {
+  position: absolute;
+  z-index: 4;
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--selection) 65%, transparent);
+  pointer-events: none;
+}
+
+.hover-label {
+  position: absolute;
+  left: -1px;
+  max-width: 240px;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  background: var(--chrome-strong);
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
+  letter-spacing: 0.01em;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .selection-box {

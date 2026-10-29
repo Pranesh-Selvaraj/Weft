@@ -276,7 +276,8 @@ function SelectionOverlay({
   }, [page, selectedId, scale]);
 
   if (!box) return null;
-  const handleSize = 8 / Math.max(scale, 0.01);
+  const inverse = 1 / Math.max(scale, 0.01);
+  const handleSize = 8 * inverse;
   return (
     <div
       className="selection-box"
@@ -285,9 +286,21 @@ function SelectionOverlay({
         top: box.top,
         width: box.width,
         height: box.height,
+        borderWidth: inverse,
       }}
     >
-      <span className="selection-label">{selectedName}</span>
+      <span
+        className="selection-label"
+        style={{
+          top: -19 * inverse,
+          maxWidth: 220 * inverse,
+          padding: `${2 * inverse}px ${5 * inverse}px`,
+          borderRadius: 3 * inverse,
+          fontSize: 10 * inverse,
+        }}
+      >
+        {selectedName}
+      </span>
       {editable &&
         RESIZE_HANDLES.map((handle) => (
           <span
@@ -298,6 +311,75 @@ function SelectionOverlay({
             onPointerDown={(event) => onResizeStart(handle, event)}
           />
         ))}
+    </div>
+  );
+}
+
+function HoverOverlay({
+  page,
+  nodeId,
+  scale,
+}: {
+  page: PageDocument;
+  nodeId: string;
+  scale: number;
+}) {
+  const [box, setBox] = useState<SelectionBox | null>(null);
+
+  useLayoutEffect(() => {
+    const nodeElement = document.querySelector<HTMLElement>(
+      `[data-node-id="${CSS.escape(nodeId)}"]`,
+    );
+    const pageElement = document.querySelector<HTMLElement>(
+      `[data-page-id="${CSS.escape(page.id)}"]`,
+    );
+    if (!nodeElement || !pageElement) {
+      setBox(null);
+      return;
+    }
+    const nodeRect = nodeElement.getBoundingClientRect();
+    const pageRect = pageElement.getBoundingClientRect();
+    setBox({
+      left: (nodeRect.left - pageRect.left) / scale,
+      top: (nodeRect.top - pageRect.top) / scale,
+      width: nodeRect.width / scale,
+      height: nodeRect.height / scale,
+    });
+  }, [nodeId, page, scale]);
+
+  if (!box) return null;
+  const node = page.nodes[nodeId];
+  if (!node) return null;
+  const inverse = 1 / Math.max(scale, 0.01);
+  const topLevelFrame =
+    (node.type === "frame" || node.type === "group") &&
+    getParentId(page, nodeId) === null;
+  const label = topLevelFrame ? null : node.name;
+  return (
+    <div
+      className="hover-box"
+      style={{
+        left: box.left,
+        top: box.top,
+        width: box.width,
+        height: box.height,
+        borderWidth: inverse,
+      }}
+    >
+      {label && (
+        <span
+          className="hover-label"
+          style={{
+            top: -18 * inverse,
+            maxWidth: 240 * inverse,
+            padding: `${2 * inverse}px ${5 * inverse}px`,
+            borderRadius: 3 * inverse,
+            fontSize: 10 * inverse,
+          }}
+        >
+          {label}
+        </span>
+      )}
     </div>
   );
 }
@@ -357,7 +439,8 @@ function MultiSelectionOverlay({
     Number.NEGATIVE_INFINITY,
   );
   const hasBounds = boxes.length > 0 && Number.isFinite(left) && Number.isFinite(top);
-  const handleSize = 8 / Math.max(scale, 0.01);
+  const inverse = 1 / Math.max(scale, 0.01);
+  const handleSize = 8 * inverse;
 
   return (
     <>
@@ -381,9 +464,20 @@ function MultiSelectionOverlay({
             top,
             width: right - left,
             height: bottom - top,
+            borderWidth: inverse,
           }}
         >
-          <span className="selection-label">{ids.size} layers</span>
+          <span
+            className="selection-label"
+            style={{
+              top: -19 * inverse,
+              padding: `${2 * inverse}px ${5 * inverse}px`,
+              borderRadius: 3 * inverse,
+              fontSize: 10 * inverse,
+            }}
+          >
+            {ids.size} layers
+          </span>
           {resizable &&
             RESIZE_HANDLES.map((handle) => (
               <span
@@ -412,6 +506,9 @@ export function App() {
   const [tool, setTool] = useState<Tool>("select");
   const [zoom, setZoom] = useState(1);
   const [scopeId, setScopeId] = useState<string | null>(null);
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  const [spaceHeld, setSpaceHeld] = useState(false);
+  const [panning, setPanning] = useState(false);
   const [marquee, setMarquee] = useState<DragState | null>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
   const [pendingSelectId, setPendingSelectId] = useState<string | null>(null);
@@ -424,6 +521,13 @@ export function App() {
   const renameDoneRef = useRef(false);
   const stageScaleRef = useRef<HTMLDivElement>(null);
   const suppressClickRef = useRef(false);
+  const canvasHoverRef = useRef(false);
+  const zoomFocusRef = useRef<{
+    pageX: number;
+    pageY: number;
+    clientX: number;
+    clientY: number;
+  } | null>(null);
 
   useEffect(() => {
     if (activePageId && source.pages.some((page) => page.id === activePageId)) return;
@@ -613,6 +717,10 @@ export function App() {
   }, [page, scopeId]);
 
   useEffect(() => {
+    setHoveredNodeId(null);
+  }, [page?.id, scopeId, tool]);
+
+  useEffect(() => {
     if (pendingSelectId && page?.nodes[pendingSelectId]) {
       setSelectedIds(new Set([pendingSelectId]));
       setSelectedNodeId(pendingSelectId);
@@ -631,6 +739,15 @@ export function App() {
     const onKeyDown = (event: KeyboardEvent): void => {
       const target = event.target as HTMLElement | null;
       if (target?.closest("input, textarea, select, [contenteditable='true']")) return;
+      if (
+        event.code === "Space" &&
+        canvasHoverRef.current &&
+        !target?.closest("button, a")
+      ) {
+        event.preventDefault();
+        setSpaceHeld(true);
+        return;
+      }
       const mod = event.metaKey || event.ctrlKey;
 
       if (mod && event.key.toLowerCase() === "z") {
@@ -743,6 +860,23 @@ export function App() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [page, scopeId, selectedIds, source, tool]);
 
+  useEffect(() => {
+    const releaseSpace = (event?: KeyboardEvent): void => {
+      if (event && event.code !== "Space") return;
+      setSpaceHeld(false);
+    };
+    const onBlur = (): void => {
+      releaseSpace();
+      setPanning(false);
+    };
+    window.addEventListener("keyup", releaseSpace);
+    window.addEventListener("blur", onBlur);
+    return () => {
+      window.removeEventListener("keyup", releaseSpace);
+      window.removeEventListener("blur", onBlur);
+    };
+  }, []);
+
   const pageBounds = page ? getPageBounds(page) : { width: 0, height: 0 };
   const selectedFrame =
     selectedNode?.type === "frame" &&
@@ -764,18 +898,62 @@ export function App() {
       Math.min(20_000, Math.round(captureFrame?.height ?? pageBounds.height ?? 900)),
     ),
   };
-  const bounds = {
-    width: Math.max(800, pageBounds.width),
-    height: Math.max(600, pageBounds.height),
-  };
+  const bounds =
+    page && page.children.length === 0
+      ? { width: 800, height: 600 }
+      : {
+          width: Math.max(1, pageBounds.width),
+          height: Math.max(1, pageBounds.height),
+        };
   const { ref, scale: fitScale } = useFitScale(bounds.width, bounds.height);
   const scale = fitScale * zoom;
   const zoomBy = (factor: number): void => {
+    zoomFocusRef.current = null;
     setZoom((current) => Math.min(4, Math.max(0.1, current * factor)));
   };
-  const fitView = (): void => setZoom(1);
-  const actualSize = (): void =>
+  const zoomAt = (factor: number, clientX: number, clientY: number): void => {
+    const next = Math.min(4, Math.max(0.1, zoom * factor));
+    if (next === zoom) {
+      zoomFocusRef.current = null;
+      return;
+    }
+    const stage = stageScaleRef.current;
+    if (!stage) {
+      zoomBy(factor);
+      return;
+    }
+    const rect = stage.getBoundingClientRect();
+    zoomFocusRef.current = {
+      pageX: (clientX - rect.left) / Math.max(scale, 0.01),
+      pageY: (clientY - rect.top) / Math.max(scale, 0.01),
+      clientX,
+      clientY,
+    };
+    setZoom((current) => Math.min(4, Math.max(0.1, current * factor)));
+  };
+  useLayoutEffect(() => {
+    const focus = zoomFocusRef.current;
+    const stage = stageScaleRef.current;
+    const canvas = ref.current;
+    if (!focus || !stage || !canvas) return;
+    const rect = stage.getBoundingClientRect();
+    canvas.scrollLeft += rect.left + focus.pageX * scale - focus.clientX;
+    canvas.scrollTop += rect.top + focus.pageY * scale - focus.clientY;
+    zoomFocusRef.current = null;
+  }, [ref, scale, zoom]);
+  const fitView = (): void => {
+    zoomFocusRef.current = null;
+    setZoom(1);
+    const canvas = ref.current;
+    if (canvas) {
+      canvas.scrollLeft = 0;
+      canvas.scrollTop = 0;
+    }
+  };
+  const actualSize = (): void => {
+    zoomFocusRef.current = null;
     setZoom(fitScale > 0 ? Math.min(4, 1 / fitScale) : 1);
+  };
   const captureFrontend = async (
     request: CaptureFrontendRequest,
   ): Promise<CaptureFrontendOutcome> => {
@@ -793,15 +971,30 @@ export function App() {
     const onWheel = (event: WheelEvent): void => {
       if (!event.ctrlKey && !event.metaKey) return;
       event.preventDefault();
-      zoomBy(event.deltaY < 0 ? 1.1 : 1 / 1.1);
+      zoomAt(event.deltaY < 0 ? 1.1 : 1 / 1.1, event.clientX, event.clientY);
     };
     canvas.addEventListener("wheel", onWheel, { passive: false });
     return () => canvas.removeEventListener("wheel", onWheel);
-  }, [ref]);
+  }, [ref, scale, zoom]);
 
   const tabs = source.manifest.pages.filter((ref) =>
     source.pages.some((candidate) => candidate.id === ref.id),
   );
+  const hoveredNode =
+    page && hoveredNodeId ? page.nodes[hoveredNodeId] : undefined;
+  const frameLabels =
+    page?.children.flatMap((id) => {
+      const node = page.nodes[id];
+      if (
+        !node ||
+        node.visible === false ||
+        (node.type !== "frame" && node.type !== "group")
+      ) {
+        return [];
+      }
+      return [{ node, origin: absoluteOrigin(page, id) }];
+    }) ?? [];
+  const inverseScale = 1 / Math.max(scale, 0.01);
   const nodeCount = page ? Object.keys(page.nodes).length : 0;
   const activeProject = source.workspace?.projects.find((project) =>
     project.designs.some((design) => design.path === source.workspace?.activeDesignPath),
@@ -829,13 +1022,13 @@ export function App() {
 
   const hint =
     source.mode === "static"
-      ? "Static preview · run weft dev for live editing"
+      ? "Static preview · Space-drag pans · run weft dev for live editing"
       : source.status === "live"
         ? scopeNode
-          ? `Inside ${scopeNode.name} · Esc to exit · select a layer or press V/F/T/R/O · revision ${source.revision ?? "—"}`
+          ? `Inside ${scopeNode.name} · Esc to exit · double-click a layer · Space-drag pans · revision ${source.revision ?? "—"}`
           : selectedIds.size > 1
-            ? `${selectedIds.size} layers selected · drag to move · Delete to remove · revision ${source.revision ?? "—"}`
-            : `Live · select a layer, or press V/F/T/R/O to create · revision ${source.revision ?? "—"}`
+            ? `${selectedIds.size} layers selected · drag to move · Delete to remove · Space-drag pans · revision ${source.revision ?? "—"}`
+            : `Live · click to select · double-click enters · Space-drag pans · revision ${source.revision ?? "—"}`
 
         : source.status === "connecting"
           ? "Connecting to the local bridge…"
@@ -1422,6 +1615,58 @@ export function App() {
     window.addEventListener("pointercancel", cancel);
   };
 
+  const handleCanvasPointerDown = (event: ReactPointerEvent<HTMLElement>): void => {
+    if (!spaceHeld && event.button !== 1) return;
+    const canvas = ref.current;
+    if (!canvas) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const startLeft = canvas.scrollLeft;
+    const startTop = canvas.scrollTop;
+    setHoveredNodeId(null);
+    setPanning(true);
+    const move = (moveEvent: PointerEvent): void => {
+      canvas.scrollLeft = startLeft - (moveEvent.clientX - startX);
+      canvas.scrollTop = startTop - (moveEvent.clientY - startY);
+    };
+    const finish = (): void => {
+      setPanning(false);
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", finish);
+      window.removeEventListener("pointercancel", finish);
+      window.removeEventListener("blur", finish);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", finish);
+    window.addEventListener("pointercancel", finish);
+    window.addEventListener("blur", finish);
+  };
+
+  const handleStagePointerMove = (event: ReactPointerEvent<HTMLDivElement>): void => {
+    if (
+      tool !== "select" ||
+      drag ||
+      marquee ||
+      transformPreview ||
+      panning ||
+      spaceHeld
+    ) {
+      setHoveredNodeId(null);
+      return;
+    }
+    const target = event.target as HTMLElement;
+    if (target.closest(".frame-label")) return;
+    const rawId = target.closest<HTMLElement>("[data-node-id]")?.dataset.nodeId;
+    if (!rawId) {
+      setHoveredNodeId(null);
+      return;
+    }
+    const hit = resolveScopedHit(rawId);
+    setHoveredNodeId(hit.id);
+  };
+
   const handleStagePointerDown = (event: ReactPointerEvent<HTMLDivElement>): void => {
     if (!page || !source.editable) return;
     if (tool === "select") {
@@ -1894,7 +2139,21 @@ export function App() {
             </button>
           </div>
         </aside>
-        <main className="canvas" ref={ref}>
+        <main
+          className={`canvas${spaceHeld ? " is-space" : ""}${panning ? " is-panning" : ""}`}
+          ref={ref}
+          onPointerDownCapture={handleCanvasPointerDown}
+          onPointerMoveCapture={() => {
+            canvasHoverRef.current = true;
+          }}
+          onPointerEnter={() => {
+            canvasHoverRef.current = true;
+          }}
+          onPointerLeave={() => {
+            canvasHoverRef.current = false;
+            setHoveredNodeId(null);
+          }}
+        >
           {page && scopeId && (
             <div className="canvas-breadcrumb" aria-label="Selection scope">
               <button
@@ -1937,6 +2196,8 @@ export function App() {
                     transform: `scale(${scale})`,
                   }}
                   onPointerDown={handleStagePointerDown}
+                  onPointerMove={handleStagePointerMove}
+                  onPointerLeave={() => setHoveredNodeId(null)}
                   onClick={handleStageClick}
                   onDoubleClick={handleStageDoubleClick}
                 >
@@ -1948,6 +2209,43 @@ export function App() {
                     snapshotPayloads={source.snapshots}
                     assetUrl={source.assetUrl}
                   />
+                  {frameLabels.map(({ node, origin }) => (
+                    <button
+                      key={node.id}
+                      type="button"
+                      className={`frame-label${
+                        selectedIds.has(node.id) ? " is-selected" : ""
+                      }${hoveredNodeId === node.id ? " is-hovered" : ""}`}
+                      style={{
+                        left: origin.x,
+                        top: origin.y - 19 * inverseScale,
+                        maxWidth: 180 * inverseScale,
+                        padding: `${2 * inverseScale}px ${6 * inverseScale}px`,
+                        borderWidth: inverseScale,
+                        borderRadius: 3 * inverseScale,
+                        fontSize: 11 * inverseScale,
+                      }}
+                      title={`${node.name} · ${Math.round(node.width)}×${Math.round(node.height)}`}
+                      onPointerDown={(event) => event.stopPropagation()}
+                      onPointerEnter={() => setHoveredNodeId(node.id)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setTool("select");
+                        selectSingle(node.id);
+                        setScopeId(event.detail >= 2 ? node.id : null);
+                      }}
+                      onDoubleClick={(event) => event.stopPropagation()}
+                    >
+                      {node.name}
+                    </button>
+                  ))}
+                  {hoveredNode && !selectedIds.has(hoveredNode.id) && !drag && !marquee && (
+                    <HoverOverlay
+                      page={page}
+                      nodeId={hoveredNode.id}
+                      scale={scale}
+                    />
+                  )}
                   {!transformPreview && selectedIds.size > 1 && (
                     <MultiSelectionOverlay
                       page={page}
@@ -1988,7 +2286,16 @@ export function App() {
                         height: Math.max(1, dragBox.height),
                       }}
                     >
-                      <span>{TOOL_META[tool].label}</span>
+                      <span
+                        style={{
+                          top: -19 * inverseScale,
+                          padding: `${2 * inverseScale}px ${5 * inverseScale}px`,
+                          borderRadius: 3 * inverseScale,
+                          fontSize: 10 * inverseScale,
+                        }}
+                      >
+                        {TOOL_META[tool].label}
+                      </span>
                     </div>
                   )}
                   {transformPreview && (
@@ -2001,7 +2308,16 @@ export function App() {
                         height: Math.max(1, transformPreview.height),
                       }}
                     >
-                      <span>{transformPreview.label}</span>
+                      <span
+                        style={{
+                          top: -19 * inverseScale,
+                          padding: `${2 * inverseScale}px ${5 * inverseScale}px`,
+                          borderRadius: 3 * inverseScale,
+                          fontSize: 10 * inverseScale,
+                        }}
+                      >
+                        {transformPreview.label}
+                      </span>
                     </div>
                   )}
                 </div>

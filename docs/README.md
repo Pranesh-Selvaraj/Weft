@@ -10,6 +10,7 @@ Start here, then follow the decision records for the reasoning.
 | [Structural contract](../packages/contract/README.md) | The published JSON Schema, conformance fixtures, and the structural/semantic boundary. |
 | [Session engine](../packages/session/README.md) | The Yjs page model, command application, sync, and file-write merge policy. |
 | [Browser editor](../apps/web/README.md) | The Vite/React app, live editing, and `WEFT_DESIGN`. |
+| [Canvas workspace](canvas.md) | Frame labels, hover feedback, panning, cursor-anchored zoom and stage bounds. |
 | [Renderer](../packages/render/README.md) | The DOM renderer API, supported styles, and limits. |
 | [Local bridge](../packages/bridge/README.md) | `weft dev`, the HTTP/WebSocket protocol, and live reload semantics. |
 | [Live session and frontend capture](live-session.md) | Current endpoints, attaching a running local frontend, preview, capture, and persistence. |
@@ -54,15 +55,16 @@ Start here, then follow the decision records for the reasoning.
 26. [ADR 0025](decisions/0025-canvas-navigation-layer-controls.md) for zoom, scrolling and layer controls.
 27. [ADR 0026](decisions/0026-selection-scope-marquee.md) for hierarchical selection and marquee.
 28. [ADR 0027](decisions/0027-live-endpoints-frontend-capture.md) for the live endpoint panel and frontend capture.
-29. [Architecture](architecture.md) for the implementation shape.
-30. [Security model](security.md) for the trust boundaries and hardening.
-31. [Local workspace](local-workspace.md) for the project registry, picker and dev-server model.
-32. [Live session](live-session.md) for endpoints, frontend attach, preview and capture.
-33. [Declared dev servers](dev-server.md) to declare and run a project server.
-34. [Snapshot extraction](extraction.md) to capture a running page.
-35. [MCP server](mcp.md) to connect a coding agent.
-36. [Static export](export.md) to hand off a design as HTML and assets.
-37. [Assets](assets.md) for manifest asset rendering and serving.
-38. [CLI](cli.md) to run, inspect, edit, extract and export designs.
-39. [Browser editor](../apps/web/README.md) to open and edit the starter design.
-40. [ADR index](decisions/README.md) to see which decisions are settled and which are still open.
+29. [ADR 0028](decisions/0028-canvas-workspace-rework.md) for frame labels, panning and cursor-anchored zoom.
+30. [Architecture](architecture.md) for the implementation shape.
+31. [Security model](security.md) for the trust boundaries and hardening.
+32. [Local workspace](local-workspace.md) for the project registry, picker and dev-server model.
+33. [Live session](live-session.md) for endpoints, frontend attach, preview and capture.
+34. [Declared dev servers](dev-server.md) to declare and run a project server.
+35. [Snapshot extraction](extraction.md) to capture a running page.
+36. [MCP server](mcp.md) to connect a coding agent.
+37. [Static export](export.md) to hand off a design as HTML and assets.
+38. [Assets](assets.md) for manifest asset rendering and serving.
+39. [CLI](cli.md) to run, inspect, edit, extract and export designs.
+40. [Browser editor](../apps/web/README.md) to open and edit the starter design.
+41. [ADR index](decisions/README.md) to see which decisions are settled and which are still open.
