@@ -52,3 +52,7 @@ The page background is a real document property and must remain visible; the pro
 - An explicit page-background inspector with a toggle for the full-bleed preview.
 - A page-boundary guide that can be shown temporarily.
 - Zoom-aware backdrop behavior for image paints.
+
+## Update (ADR 0030)
+
+Full-bleed page paint is now the **Page** view; the editor defaults to **Canvas**, which shows the dotted workspace and hides the page background. The bounded-sheet removal, full-bleed paint resolution and empty-page placeholder decisions remain. See [ADR 0030](0030-canvas-page-view-modes.md).
