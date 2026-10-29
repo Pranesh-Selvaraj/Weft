@@ -44,12 +44,13 @@ Start here, then follow the decision records for the reasoning.
 19. [ADR 0018](decisions/0018-page-organization.md) for page rename and reorder.
 20. [ADR 0019](decisions/0019-multi-selection.md) for multi-selection and batch commands.
 21. [ADR 0020](decisions/0020-alignment-and-nudge.md) for batch alignment and keyboard nudge.
-22. [Architecture](architecture.md) for the implementation shape.
-23. [Security model](security.md) for the trust boundaries and hardening.
-24. [Local workspace](local-workspace.md) for the project registry, picker and dev-server model.
-25. [Declared dev servers](dev-server.md) to declare and run a project server.
-26. [Snapshot extraction](extraction.md) to capture a running page.
-27. [MCP server](mcp.md) to connect a coding agent.
-28. [CLI](cli.md) to run, inspect, edit and extract designs.
-29. [Browser editor](../apps/web/README.md) to open and edit the starter design.
-30. [ADR index](decisions/README.md) to see which decisions are settled and which are still open.
+22. [ADR 0021](decisions/0021-multi-resize.md) for combined multi-selection resize.
+23. [Architecture](architecture.md) for the implementation shape.
+24. [Security model](security.md) for the trust boundaries and hardening.
+25. [Local workspace](local-workspace.md) for the project registry, picker and dev-server model.
+26. [Declared dev servers](dev-server.md) to declare and run a project server.
+27. [Snapshot extraction](extraction.md) to capture a running page.
+28. [MCP server](mcp.md) to connect a coding agent.
+29. [CLI](cli.md) to run, inspect, edit and extract designs.
+30. [Browser editor](../apps/web/README.md) to open and edit the starter design.
+31. [ADR index](decisions/README.md) to see which decisions are settled and which are still open.
