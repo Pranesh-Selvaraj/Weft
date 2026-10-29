@@ -81,14 +81,14 @@ export function MultiInspector({
         </ul>
         <p className="inspector-hint">
           Drag any selected layer to move the group. Shift/Cmd-click adds or removes
-          layers. Arrow keys nudge by 1 px (Shift: 10 px). Resize handles are available
-          for a single layer.
+          layers. Arrow keys nudge by 1 px (Shift: 10 px). The combined box shows
+          resize handles when every selected root uses absolute layout.
         </p>
         {flexBound > 0 && (
           <div className="inspector-banner">
             {flexBound === 1 ? "One selected layer is" : `${flexBound} selected layers are`}{" "}
-            a flex child. Alignment and nudge update x/y, but the flex layout may
-            override them.
+            a flex child. Alignment, nudge and group resize update x/y/width, but the
+            flex layout may override them.
           </div>
         )}
         <div className="align-grid" role="group" aria-label="Align selection">

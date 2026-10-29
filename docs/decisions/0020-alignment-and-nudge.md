@@ -4,6 +4,7 @@
 - **Date:** 2026-10-25
 - **Area:** UI / editing
 - **Extends:** ADR 0019
+- **Extended by:** [0021](0021-multi-resize.md) (combined multi-selection resize)
 
 ## Context
 

@@ -268,10 +268,17 @@ function MultiSelectionOverlay({
   page,
   ids,
   scale,
+  resizable,
+  onResizeStart,
 }: {
   page: PageDocument;
   ids: ReadonlySet<string>;
   scale: number;
+  resizable: boolean;
+  onResizeStart(
+    handle: ResizeHandle,
+    event: ReactPointerEvent<HTMLSpanElement>,
+  ): void;
 }) {
   const [boxes, setBoxes] = useState<SelectionBox[]>([]);
 
@@ -301,6 +308,19 @@ function MultiSelectionOverlay({
     setBoxes(next);
   }, [ids, page, scale]);
 
+  const left = boxes.reduce((value, box) => Math.min(value, box.left), Number.POSITIVE_INFINITY);
+  const top = boxes.reduce((value, box) => Math.min(value, box.top), Number.POSITIVE_INFINITY);
+  const right = boxes.reduce(
+    (value, box) => Math.max(value, box.left + box.width),
+    Number.NEGATIVE_INFINITY,
+  );
+  const bottom = boxes.reduce(
+    (value, box) => Math.max(value, box.top + box.height),
+    Number.NEGATIVE_INFINITY,
+  );
+  const hasBounds = boxes.length > 0 && Number.isFinite(left) && Number.isFinite(top);
+  const handleSize = Math.max(6, 8 / scale);
+
   return (
     <>
       {boxes.map((box, index) => (
@@ -315,6 +335,29 @@ function MultiSelectionOverlay({
           }}
         />
       ))}
+      {hasBounds && (
+        <div
+          className="selection-box is-multi-group"
+          style={{
+            left,
+            top,
+            width: right - left,
+            height: bottom - top,
+          }}
+        >
+          <span className="selection-label">{ids.size} layers</span>
+          {resizable &&
+            RESIZE_HANDLES.map((handle) => (
+              <span
+                key={handle}
+                className={`resize-handle is-${handle}`}
+                data-resize-handle={handle}
+                style={{ width: handleSize, height: handleSize }}
+                onPointerDown={(event) => onResizeStart(handle, event)}
+              />
+            ))}
+        </div>
+      )}
     </>
   );
 }
@@ -901,6 +944,172 @@ export function App() {
     window.addEventListener("pointercancel", cancel);
   };
 
+  const startMultiResize = (
+    handle: ResizeHandle,
+    startClientX: number,
+    startClientY: number,
+  ): void => {
+    if (!page || !source.editable) return;
+    const roots = selectionRoots();
+    if (roots.length < 2) return;
+    const start = toPagePoint(startClientX, startClientY);
+    const stage = stageScaleRef.current;
+    if (!start || !stage) return;
+    const targets = roots.map((node) => {
+      const element = stage.querySelector<HTMLElement>(
+        `[data-node-id="${CSS.escape(node.id)}"]`,
+      );
+      return {
+        node,
+        origin: absoluteOrigin(page, node.id),
+        element,
+        original: element
+          ? {
+              translate: element.style.translate,
+              width: element.style.width,
+              height: element.style.height,
+            }
+          : null,
+        next: {
+          x: node.x,
+          y: node.y,
+          width: node.width,
+          height: node.height,
+        },
+      };
+    });
+    const baseLeft = Math.min(...targets.map((target) => target.origin.x + target.node.x));
+    const baseTop = Math.min(...targets.map((target) => target.origin.y + target.node.y));
+    const baseRight = Math.max(
+      ...targets.map((target) => target.origin.x + target.node.x + target.node.width),
+    );
+    const baseBottom = Math.max(
+      ...targets.map((target) => target.origin.y + target.node.y + target.node.height),
+    );
+    const baseWidth = Math.max(1, baseRight - baseLeft);
+    const baseHeight = Math.max(1, baseBottom - baseTop);
+    let moved = false;
+    let currentBox = {
+      left: baseLeft,
+      top: baseTop,
+      width: baseWidth,
+      height: baseHeight,
+    };
+
+    const showPreview = (): void => {
+      setTransformPreview({
+        left: currentBox.left,
+        top: currentBox.top,
+        width: currentBox.width,
+        height: currentBox.height,
+        label: `${Math.round(currentBox.width)} × ${Math.round(currentBox.height)}`,
+      });
+    };
+    showPreview();
+
+    const move = (event: PointerEvent): void => {
+      const point = toPagePoint(event.clientX, event.clientY);
+      if (!point) return;
+      const dx = point.x - start.x;
+      const dy = point.y - start.y;
+      if (!moved && Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+      moved = true;
+
+      let left = baseLeft;
+      let top = baseTop;
+      let width = baseWidth;
+      let height = baseHeight;
+      if (handle.includes("e")) width = Math.max(1, baseWidth + dx);
+      if (handle.includes("w")) {
+        width = Math.max(1, baseWidth - dx);
+        left = baseLeft + (baseWidth - width);
+      }
+      if (handle.includes("s")) height = Math.max(1, baseHeight + dy);
+      if (handle.includes("n")) {
+        height = Math.max(1, baseHeight - dy);
+        top = baseTop + (baseHeight - height);
+      }
+      currentBox = { left, top, width, height };
+      const scaleX = baseWidth === 0 ? 1 : width / baseWidth;
+      const scaleY = baseHeight === 0 ? 1 : height / baseHeight;
+
+      for (const target of targets) {
+        const absX = left + (target.origin.x + target.node.x - baseLeft) * scaleX;
+        const absY = top + (target.origin.y + target.node.y - baseTop) * scaleY;
+        target.next = {
+          x: Math.round(absX - target.origin.x),
+          y: Math.round(absY - target.origin.y),
+          width: Math.max(1, Math.round(target.node.width * scaleX)),
+          height: Math.max(1, Math.round(target.node.height * scaleY)),
+        };
+        if (target.element) {
+          target.element.style.translate = `${target.next.x - target.node.x}px ${
+            target.next.y - target.node.y
+          }px`;
+          target.element.style.width = `${target.next.width}px`;
+          target.element.style.height = `${target.next.height}px`;
+        }
+      }
+      showPreview();
+    };
+
+    const restore = (): void => {
+      for (const target of targets) {
+        if (!target.element || !target.original) continue;
+        target.element.style.translate = target.original.translate;
+        target.element.style.width = target.original.width;
+        target.element.style.height = target.original.height;
+      }
+    };
+
+    const cleanup = (): void => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", finish);
+      window.removeEventListener("pointercancel", cancel);
+      setTransformPreview(null);
+    };
+
+    const finish = (): void => {
+      cleanup();
+      restore();
+      if (!moved) return;
+      suppressClickRef.current = true;
+      window.setTimeout(() => {
+        suppressClickRef.current = false;
+      }, 0);
+      source.sendCommand(
+        page.id,
+        {
+          type: "batch",
+          commands: targets.map((target) => ({
+            type: "node.update" as const,
+            nodeId: target.node.id,
+            patch: target.next,
+          })),
+        },
+        "Resize layers",
+      );
+    };
+
+    const cancel = (): void => {
+      cleanup();
+      restore();
+    };
+
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", finish);
+    window.addEventListener("pointercancel", cancel);
+  };
+
+  const handleMultiResizeStart = (
+    handle: ResizeHandle,
+    event: ReactPointerEvent<HTMLSpanElement>,
+  ): void => {
+    event.preventDefault();
+    event.stopPropagation();
+    startMultiResize(handle, event.clientX, event.clientY);
+  };
+
   const handleResizeStart = (
     handle: ResizeHandle,
     event: ReactPointerEvent<HTMLSpanElement>,
@@ -1004,6 +1213,17 @@ export function App() {
         height: Math.abs(drag.current.y - drag.start.y),
       }
     : null;
+
+  const multiResizeRoots = selectionRoots();
+  const multiResizable =
+    selectedIds.size > 1 &&
+    multiResizeRoots.length > 0 &&
+    multiResizeRoots.every((node) => {
+      if (node.locked === true) return false;
+      const parentId = page ? getParentId(page, node.id) : null;
+      const parent = parentId && page ? page.nodes[parentId] : undefined;
+      return !(parent && isContainerNode(parent) && parent.layout?.mode === "flex");
+    });
 
   const beginPageRename = (target: { id: string; name: string }): void => {
     if (!source.editable) return;
@@ -1333,6 +1553,8 @@ export function App() {
                       page={page}
                       ids={selectedIds}
                       scale={scale}
+                      resizable={multiResizable}
+                      onResizeStart={handleMultiResizeStart}
                     />
                   )}
                   {selectedNode && selectedIds.size <= 1 && !transformPreview && (

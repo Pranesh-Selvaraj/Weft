@@ -1484,3 +1484,18 @@ body,
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
+
+.selection-box.is-multi-group {
+  border-style: dashed;
+  box-shadow: none;
+}
+
+.selection-box.is-multi-group .selection-label {
+  background: var(--selection);
+  color: var(--selection-ink);
+  border-radius: 3px;
+  padding: 2px 5px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  top: -20px;
+}
