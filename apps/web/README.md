@@ -44,6 +44,9 @@ The static path remains the zero-process preview and the fallback.
 - Delete a layer, undo with Cmd/Ctrl+Z, redo with Cmd/Ctrl+Shift+Z. Every creation is a normal command with an inverse.
 - See live file changes from the CLI or an agent, and the last editor's attribution.
 - Switch pages; the inspector stays in sync with the active page.
+- Zoom with the toolbar controls (fit/actual/±), Cmd/Ctrl+0/=/−, or Ctrl/Cmd+wheel; the canvas scrolls when the stage exceeds the viewport.
+- Show/hide or lock layers from the layer-row actions; locked layers are excluded from structural edits.
+- Cmd/Ctrl+A selects all layers; Cmd/Ctrl+D duplicates unlocked selection roots.
 - Toggle the UI between light and dark from the toolbar. The choice follows the system preference by default and persists locally; design content keeps its own colors.
 - When served by `weft workspace dev`, use the design selector in the top bar to switch between projects and designs registered in the workspace, and the Server panel to start, attach to and stop a project's declared dev server.
 - Image nodes and image paints resolve manifest assets in live mode through the authenticated asset route, and in the static preview through embedded data URLs.
@@ -53,7 +56,7 @@ The static preview is read-only and has no bridge, inspector edits or history.
 
 ## Not here yet
 
-- Page duplicate and cross-design drag; flex-aware resize, distribute/match-size/align-to-page, marquee/range selection, snapping/guides, rotation and aspect-ratio locks, layer reordering and visibility/lock controls, components.
+- Page duplicate and cross-design drag; flex-aware resize, distribute/match-size/align-to-page, marquee/range selection, snapping/guides, rotation and aspect-ratio locks, layer reordering, bulk visibility/lock, components.
 - A browser Extract button; extraction currently starts from the CLI.
 - Presence/cursors, chat, page rename/background/token commands.
 - Asset serving for image nodes and zoom controls.

@@ -141,3 +141,38 @@ export function LayersIcon() {
     </svg>
   );
 }
+
+export function EyeIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 10s3-5.5 8-5.5S18 10 18 10s-3 5.5-8 5.5S2 10 2 10Z" />
+      <circle cx="10" cy="10" r="2.5" />
+    </svg>
+  );
+}
+
+export function EyeOffIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m3 3 14 14M8.2 5.7A9 9 0 0 1 10 5.5c5 0 8 4.5 8 4.5a13 13 0 0 1-2.2 2.7M6.1 6.6C3.5 8.2 2 10 2 10s3 5.5 8 5.5c1 0 1.9-.2 2.7-.6" />
+    </svg>
+  );
+}
+
+export function LockIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="4.5" y="8.5" width="11" height="8" rx="1.5" />
+      <path d="M7 8.5V6a3 3 0 0 1 6 0v2.5" />
+    </svg>
+  );
+}
+
+export function UnlockIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="4.5" y="8.5" width="11" height="8" rx="1.5" />
+      <path d="M7 8.5V6a3 3 0 0 1 5.7-1.3" />
+    </svg>
+  );
+}

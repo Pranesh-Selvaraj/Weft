@@ -8,19 +8,26 @@ import {
 import {
   ChevronIcon,
   EllipseIcon,
+  EyeIcon,
+  EyeOffIcon,
   FrameIcon,
   ImageIcon,
   LayersIcon,
+  LockIcon,
   RectIcon,
   SnapshotIcon,
   TextIcon,
+  UnlockIcon,
 } from "./icons";
 
 interface LayerTreeProps {
   page: PageDocument;
   selectedId: string | null;
   selectedIds: ReadonlySet<string>;
+  editable: boolean;
   onSelect(id: string, additive: boolean): void;
+  onToggleVisible(id: string): void;
+  onToggleLocked(id: string): void;
 }
 
 function NodeIcon({ node }: { node: Node }) {
@@ -49,13 +56,18 @@ function LayerRow({
   depth,
   selectedId,
   selectedIds,
+  editable,
   onSelect,
+  onToggleVisible,
+  onToggleLocked,
 }: LayerTreeProps & { id: string; depth: number }) {
   const node = page.nodes[id];
   const [expanded, setExpanded] = useState(true);
   const rowRef = useRef<HTMLDivElement>(null);
   const container = node ? isContainerNode(node) : false;
   const selected = selectedIds.has(id);
+  const hidden = node?.visible === false;
+  const locked = node?.locked === true;
   const containsSelection = [...selectedIds].some(
     (candidate) =>
       candidate === id || getAncestorIds(page, candidate).includes(id),
@@ -107,8 +119,35 @@ function LayerRow({
         <span className={`layer-icon is-${node.type}`} aria-hidden="true">
           <NodeIcon node={node} />
         </span>
-        <span className="layer-name">{node.name}</span>
-        {node.visible === false && <span className="layer-hidden">hidden</span>}
+        <span className={`layer-name${hidden ? " is-hidden" : ""}`}>{node.name}</span>
+        <span className="layer-actions">
+          <button
+            type="button"
+            className={`layer-action${hidden ? " is-active" : ""}`}
+            disabled={!editable}
+            title={hidden ? "Show layer" : "Hide layer"}
+            aria-label={hidden ? `Show ${node.name}` : `Hide ${node.name}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggleVisible(id);
+            }}
+          >
+            {hidden ? <EyeOffIcon /> : <EyeIcon />}
+          </button>
+          <button
+            type="button"
+            className={`layer-action${locked ? " is-active" : ""}`}
+            disabled={!editable}
+            title={locked ? "Unlock layer" : "Lock layer"}
+            aria-label={locked ? `Unlock ${node.name}` : `Lock ${node.name}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggleLocked(id);
+            }}
+          >
+            {locked ? <LockIcon /> : <UnlockIcon />}
+          </button>
+        </span>
       </div>
       {isContainerNode(node) && expanded && node.children.length > 0 && (
         <div className="layer-children" role="group">
@@ -120,7 +159,10 @@ function LayerRow({
               depth={depth + 1}
               selectedId={selectedId}
               selectedIds={selectedIds}
+              editable={editable}
               onSelect={onSelect}
+              onToggleVisible={onToggleVisible}
+              onToggleLocked={onToggleLocked}
             />
           ))}
         </div>
@@ -133,7 +175,10 @@ export function LayerTree({
   page,
   selectedId,
   selectedIds,
+  editable,
   onSelect,
+  onToggleVisible,
+  onToggleLocked,
 }: LayerTreeProps) {
   return (
     <section className="layers" aria-label="Layers">
@@ -156,7 +201,10 @@ export function LayerTree({
               depth={0}
               selectedId={selectedId}
               selectedIds={selectedIds}
+              editable={editable}
               onSelect={onSelect}
+              onToggleVisible={onToggleVisible}
+              onToggleLocked={onToggleLocked}
             />
           ))
         )}
