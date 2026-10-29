@@ -189,6 +189,13 @@ describe("published schema", () => {
       { type: "node.move", nodeId, parentId: null, index: 0 },
       { type: "node.remove", nodeId },
       { type: "node.duplicate", nodeId, parentId: null, index: 0 },
+      {
+        type: "batch",
+        commands: [
+          { type: "node.update", nodeId, patch: { x: 10 } },
+          { type: "node.update", nodeId, patch: { y: 10 } },
+        ],
+      },
     ];
     for (const command of commands) {
       const result = schemaResult({ pageId, command });

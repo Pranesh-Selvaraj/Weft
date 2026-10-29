@@ -4,7 +4,7 @@ Shared libraries. The document model is the spine: every other package is a clie
 
 | Package | Responsibility | Status |
 | --- | --- | --- |
-| `core/` | Schema, node operations, page/document commands (create/remove/rename/move) and inverses, validation, deterministic serialization. No DOM, no network, no runtime dependencies. | Implemented; 115 tests. Migrations arrive with the first breaking schema change. |
+| `core/` | Schema, node operations, batch/page/document commands (create/remove/rename/move) and inverses, validation, deterministic serialization. No DOM, no network, no runtime dependencies. | Implemented; 117 tests. Migrations arrive with the first breaking schema change. |
 | `design-io/` | Design directory access: safe paths, atomic writes, single-page/manifest writes, document-command file transactions (including rename rollback), file removal, snapshot payloads, inspect/validate, canonical formatting, init, summary. Node only. | Implemented; 24 tests. |
 | `workspace/` | Explicit local project registry, canonical paths, design discovery and missing-root reporting. Node only. | Implemented; 9 tests. |
 | `dev-server/` | Declared project dev servers: config validation, attach mode, readiness, bounded logs and process-group stop. Node only. | Implemented; 12 tests. |

@@ -3,6 +3,7 @@ import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent }
 import { getPageBounds, PageView } from "@weft/render";
 import {
   createNode,
+  getAncestorIds,
   getParentId,
   isContainerNode,
   newId,
@@ -11,6 +12,7 @@ import {
 } from "@weft/core";
 import { Inspector } from "./Inspector";
 import { LayerTree } from "./LayerTree";
+import { MultiInspector } from "./MultiInspector";
 import { ServerPanel } from "./ServerPanel";
 import {
   CursorIcon,
@@ -262,6 +264,61 @@ function SelectionOverlay({
   );
 }
 
+function MultiSelectionOverlay({
+  page,
+  ids,
+  scale,
+}: {
+  page: PageDocument;
+  ids: ReadonlySet<string>;
+  scale: number;
+}) {
+  const [boxes, setBoxes] = useState<SelectionBox[]>([]);
+
+  useLayoutEffect(() => {
+    const pageElement = document.querySelector<HTMLElement>(
+      `[data-page-id="${CSS.escape(page.id)}"]`,
+    );
+    if (!pageElement) {
+      setBoxes([]);
+      return;
+    }
+    const pageRect = pageElement.getBoundingClientRect();
+    const next: SelectionBox[] = [];
+    for (const id of ids) {
+      const nodeElement = document.querySelector<HTMLElement>(
+        `[data-node-id="${CSS.escape(id)}"]`,
+      );
+      if (!nodeElement) continue;
+      const nodeRect = nodeElement.getBoundingClientRect();
+      next.push({
+        left: (nodeRect.left - pageRect.left) / scale,
+        top: (nodeRect.top - pageRect.top) / scale,
+        width: nodeRect.width / scale,
+        height: nodeRect.height / scale,
+      });
+    }
+    setBoxes(next);
+  }, [ids, page, scale]);
+
+  return (
+    <>
+      {boxes.map((box, index) => (
+        <div
+          key={`${box.left}-${box.top}-${index}`}
+          className="selection-box is-multi"
+          style={{
+            left: box.left,
+            top: box.top,
+            width: box.width,
+            height: box.height,
+          }}
+        />
+      ))}
+    </>
+  );
+}
+
 export function App() {
   const source = useDesignSource();
   const { theme, toggle: toggleTheme } = useTheme();
@@ -269,6 +326,7 @@ export function App() {
     source.pages[0]?.id ?? null,
   );
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [serverOpen, setServerOpen] = useState(false);
   const [tool, setTool] = useState<Tool>("select");
   const [drag, setDrag] = useState<DragState | null>(null);
@@ -294,14 +352,62 @@ export function App() {
   const selectedNode =
     page && selectedNodeId ? page.nodes[selectedNodeId] : undefined;
 
+  const clearSelection = (): void => {
+    setSelectedIds(new Set());
+    setSelectedNodeId(null);
+  };
+
+  const selectSingle = (id: string): void => {
+    setSelectedIds(new Set([id]));
+    setSelectedNodeId(id);
+  };
+
+  const toggleSelection = (id: string): void => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
+    setSelectedNodeId(next.has(id) ? id : (next.values().next().value ?? null));
+  };
+
+  const removeSelection = (): void => {
+    if (!page || !source.editable || selectedIds.size === 0) return;
+    const selected = new Set(selectedIds);
+    const roots = [...selected].filter(
+      (id) => !getAncestorIds(page, id).some((ancestor) => selected.has(ancestor)),
+    );
+    if (roots.length === 0) return;
+    source.sendCommand(
+      page.id,
+      {
+        type: "batch",
+        commands: roots.map((nodeId) => ({ type: "node.remove", nodeId })),
+      },
+      roots.length === 1 ? "Remove layer" : "Remove layers",
+    );
+    clearSelection();
+  };
+
   useEffect(() => {
-    if (selectedNodeId && (!page || !page.nodes[selectedNodeId])) {
-      setSelectedNodeId(null);
+    if (!page) {
+      if (selectedIds.size > 0) setSelectedIds(new Set());
+      if (selectedNodeId) setSelectedNodeId(null);
+      return;
     }
-  }, [page, selectedNodeId]);
+    const valid = [...selectedIds].filter((id) => Boolean(page.nodes[id]));
+    if (valid.length !== selectedIds.size) {
+      setSelectedIds(new Set(valid));
+    }
+    if (selectedNodeId && !page.nodes[selectedNodeId]) {
+      setSelectedNodeId(valid[0] ?? null);
+    } else if (!selectedNodeId && valid.length > 0) {
+      setSelectedNodeId(valid[0]);
+    }
+  }, [page, selectedIds, selectedNodeId]);
 
   useEffect(() => {
     if (pendingSelectId && page?.nodes[pendingSelectId]) {
+      setSelectedIds(new Set([pendingSelectId]));
       setSelectedNodeId(pendingSelectId);
       setPendingSelectId(null);
     }
@@ -355,28 +461,23 @@ export function App() {
           setTool("select");
           return;
         }
-        setSelectedNodeId(null);
+        clearSelection();
         return;
       }
       if (
         (event.key === "Delete" || event.key === "Backspace") &&
         page &&
-        selectedNode &&
+        selectedIds.size > 0 &&
         source.editable
       ) {
         event.preventDefault();
-        source.sendCommand(
-          page.id,
-          { type: "node.remove", nodeId: selectedNode.id },
-          "Remove layer",
-        );
-        setSelectedNodeId(null);
+        removeSelection();
       }
     };
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [page, selectedNode, source, tool]);
+  }, [page, selectedIds, source, tool]);
 
   const pageBounds = page ? getPageBounds(page) : { width: 0, height: 0 };
   const bounds = {
@@ -416,7 +517,10 @@ export function App() {
     source.mode === "static"
       ? "Static preview · run weft dev for live editing"
       : source.status === "live"
-        ? `Live · select a layer, or press V/F/T/R/O to create · revision ${source.revision ?? "—"}`
+        ? selectedIds.size > 1
+          ? `${selectedIds.size} layers selected · drag to move · Delete to remove · revision ${source.revision ?? "—"}`
+          : `Live · select a layer, or press V/F/T/R/O to create · revision ${source.revision ?? "—"}`
+
         : source.status === "connecting"
           ? "Connecting to the local bridge…"
           : "Bridge offline · retrying…";
@@ -599,6 +703,126 @@ export function App() {
     window.addEventListener("pointercancel", cancel);
   };
 
+  const startMove = (
+    ids: readonly string[],
+    startClientX: number,
+    startClientY: number,
+  ): void => {
+    if (!page || !source.editable) return;
+    const start = toPagePoint(startClientX, startClientY);
+    const stage = stageScaleRef.current;
+    if (!start || !stage) return;
+    const selected = new Set(ids);
+    const roots = ids.filter(
+      (id) => !getAncestorIds(page, id).some((ancestor) => selected.has(ancestor)),
+    );
+    const targets = roots
+      .map((id) => page.nodes[id])
+      .filter((node): node is Node => Boolean(node) && node.locked !== true)
+      .map((node) => {
+        const element = stage.querySelector<HTMLElement>(
+          `[data-node-id="${CSS.escape(node.id)}"]`,
+        );
+        return {
+          node,
+          origin: absoluteOrigin(page, node.id),
+          element,
+          translate: element?.style.translate ?? "",
+        };
+      });
+    if (targets.length === 0) return;
+
+    let dx = 0;
+    let dy = 0;
+    let moved = false;
+
+    const bounds = (): { left: number; top: number; width: number; height: number } => {
+      let left = Number.POSITIVE_INFINITY;
+      let top = Number.POSITIVE_INFINITY;
+      let right = Number.NEGATIVE_INFINITY;
+      let bottom = Number.NEGATIVE_INFINITY;
+      for (const target of targets) {
+        const x = target.origin.x + target.node.x + dx;
+        const y = target.origin.y + target.node.y + dy;
+        left = Math.min(left, x);
+        top = Math.min(top, y);
+        right = Math.max(right, x + target.node.width);
+        bottom = Math.max(bottom, y + target.node.height);
+      }
+      return { left, top, width: right - left, height: bottom - top };
+    };
+
+    const showPreview = (): void => {
+      const box = bounds();
+      setTransformPreview({
+        ...box,
+        label:
+          targets.length > 1
+            ? `${targets.length} layers`
+            : `${Math.round(box.width)} × ${Math.round(box.height)}`,
+      });
+    };
+    showPreview();
+
+    const move = (event: PointerEvent): void => {
+      const point = toPagePoint(event.clientX, event.clientY);
+      if (!point) return;
+      dx = point.x - start.x;
+      dy = point.y - start.y;
+      if (!moved && Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+      moved = true;
+      for (const target of targets) {
+        if (target.element) target.element.style.translate = `${dx}px ${dy}px`;
+      }
+      showPreview();
+    };
+
+    const restore = (): void => {
+      for (const target of targets) {
+        if (target.element) target.element.style.translate = target.translate;
+      }
+    };
+
+    const cleanup = (): void => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", finish);
+      window.removeEventListener("pointercancel", cancel);
+      setTransformPreview(null);
+    };
+
+    const finish = (): void => {
+      cleanup();
+      restore();
+      if (!moved) return;
+      suppressClickRef.current = true;
+      window.setTimeout(() => {
+        suppressClickRef.current = false;
+      }, 0);
+      const commands = targets.map((target) => ({
+        type: "node.update" as const,
+        nodeId: target.node.id,
+        patch: {
+          x: Math.round(target.node.x + dx),
+          y: Math.round(target.node.y + dy),
+        },
+      }));
+      source.sendCommand(
+        page.id,
+        { type: "batch", commands },
+        targets.length > 1 ? "Move layers" : "Move layer",
+      );
+    };
+
+    const cancel = (): void => {
+      cleanup();
+      restore();
+    };
+
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", finish);
+    window.addEventListener("pointercancel", cancel);
+  };
+
   const handleResizeStart = (
     handle: ResizeHandle,
     event: ReactPointerEvent<HTMLSpanElement>,
@@ -614,13 +838,19 @@ export function App() {
     if (tool === "select") {
       const target = event.target as HTMLElement;
       if (target.closest("[data-resize-handle]")) return;
+      if (event.shiftKey || event.metaKey || event.ctrlKey) return;
       const nodeElement = target.closest<HTMLElement>("[data-node-id]");
       const nodeId = nodeElement?.dataset.nodeId;
       const node = nodeId ? page.nodes[nodeId] : undefined;
       if (!node || node.locked) return;
+      let moveIds = selectedIds;
+      if (!selectedIds.has(node.id)) {
+        moveIds = new Set([node.id]);
+        setSelectedIds(moveIds);
+      }
       setSelectedNodeId(node.id);
       event.preventDefault();
-      startTransform("move", node, event.clientX, event.clientY);
+      startMove([...moveIds], event.clientX, event.clientY);
       return;
     }
     const start = toPagePoint(event.clientX, event.clientY);
@@ -674,7 +904,18 @@ export function App() {
     if (tool !== "select") return;
     const target = event.target as HTMLElement;
     const nodeElement = target.closest<HTMLElement>("[data-node-id]");
-    setSelectedNodeId(nodeElement?.dataset.nodeId ?? null);
+    const nodeId = nodeElement?.dataset.nodeId;
+    const additive = event.shiftKey || event.metaKey || event.ctrlKey;
+    if (!nodeId) {
+      if (!additive) clearSelection();
+      return;
+    }
+    if (additive) {
+      toggleSelection(nodeId);
+      return;
+    }
+    if (selectedIds.size > 1 && selectedIds.has(nodeId)) return;
+    selectSingle(nodeId);
   };
 
   const dragBox = drag
@@ -796,7 +1037,7 @@ export function App() {
                 title="Double-click to rename; drag to reorder"
                 onClick={() => {
                   setActivePageId(ref.id);
-                  setSelectedNodeId(null);
+                  clearSelection();
                   setPendingSelectId(null);
                   setDrag(null);
                   setTool("select");
@@ -939,8 +1180,10 @@ export function App() {
             <LayerTree
               page={page}
               selectedId={selectedNode?.id ?? null}
-              onSelect={(id) => {
-                setSelectedNodeId(id);
+              selectedIds={selectedIds}
+              onSelect={(id, additive) => {
+                if (additive) toggleSelection(id);
+                else selectSingle(id);
                 setTool("select");
               }}
             />
@@ -1007,7 +1250,14 @@ export function App() {
                     height={bounds.height}
                     snapshotPayloads={source.snapshots}
                   />
-                  {selectedNode && !transformPreview && (
+                  {!transformPreview && selectedIds.size > 1 && (
+                    <MultiSelectionOverlay
+                      page={page}
+                      ids={selectedIds}
+                      scale={scale}
+                    />
+                  )}
+                  {selectedNode && selectedIds.size <= 1 && !transformPreview && (
                     <SelectionOverlay
                       page={page}
                       selectedId={selectedNode.id}
@@ -1066,12 +1316,25 @@ export function App() {
           )}
           <div className="canvas-hint">{hint}</div>
         </main>
-        <Inspector
-          page={page}
-          source={source}
-          selectedId={selectedNode?.id ?? null}
-          onSelect={setSelectedNodeId}
-        />
+        {page && selectedIds.size > 1 ? (
+          <MultiInspector
+            page={page}
+            source={source}
+            ids={selectedIds}
+            onDelete={removeSelection}
+            onClear={clearSelection}
+          />
+        ) : (
+          <Inspector
+            page={page}
+            source={source}
+            selectedId={selectedNode?.id ?? null}
+            onSelect={(id) => {
+              if (id) selectSingle(id);
+              else clearSelection();
+            }}
+          />
+        )}
       </div>
     </div>
   );
