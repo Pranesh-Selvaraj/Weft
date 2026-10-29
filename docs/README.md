@@ -56,15 +56,16 @@ Start here, then follow the decision records for the reasoning.
 27. [ADR 0026](decisions/0026-selection-scope-marquee.md) for hierarchical selection and marquee.
 28. [ADR 0027](decisions/0027-live-endpoints-frontend-capture.md) for the live endpoint panel and frontend capture.
 29. [ADR 0028](decisions/0028-canvas-workspace-rework.md) for frame labels, panning and cursor-anchored zoom.
-30. [Architecture](architecture.md) for the implementation shape.
-31. [Security model](security.md) for the trust boundaries and hardening.
-32. [Local workspace](local-workspace.md) for the project registry, picker and dev-server model.
-33. [Live session](live-session.md) for endpoints, frontend attach, preview and capture.
-34. [Declared dev servers](dev-server.md) to declare and run a project server.
-35. [Snapshot extraction](extraction.md) to capture a running page.
-36. [MCP server](mcp.md) to connect a coding agent.
-37. [Static export](export.md) to hand off a design as HTML and assets.
-38. [Assets](assets.md) for manifest asset rendering and serving.
-39. [CLI](cli.md) to run, inspect, edit, extract and export designs.
-40. [Browser editor](../apps/web/README.md) to open and edit the starter design.
-41. [ADR index](decisions/README.md) to see which decisions are settled and which are still open.
+30. [ADR 0029](decisions/0029-full-bleed-page-background.md) for the full-bleed page background.
+31. [Architecture](architecture.md) for the implementation shape.
+32. [Security model](security.md) for the trust boundaries and hardening.
+33. [Local workspace](local-workspace.md) for the project registry, picker and dev-server model.
+34. [Live session](live-session.md) for endpoints, frontend attach, preview and capture.
+35. [Declared dev servers](dev-server.md) to declare and run a project server.
+36. [Snapshot extraction](extraction.md) to capture a running page.
+37. [MCP server](mcp.md) to connect a coding agent.
+38. [Static export](export.md) to hand off a design as HTML and assets.
+39. [Assets](assets.md) for manifest asset rendering and serving.
+40. [CLI](cli.md) to run, inspect, edit, extract and export designs.
+41. [Browser editor](../apps/web/README.md) to open and edit the starter design.
+42. [ADR index](decisions/README.md) to see which decisions are settled and which are still open.

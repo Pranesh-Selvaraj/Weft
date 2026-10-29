@@ -9,7 +9,7 @@ Read-only DOM renderer for Weft pages. It turns the canonical schema into real b
 - Solid, linear-gradient and image paints; strokes, radius, opacity, shadows and blur.
 - Text fonts, weights, line heights, letter spacing, alignment, decoration, transform and token colors.
 - Token resolution for colors and font families.
-- Page background and computed page bounds.
+- Page background (or an opt-out for callers that paint it separately) and computed page bounds.
 - Sandboxed snapshot iframes with a restrictive CSP when a payload is supplied; placeholders otherwise. Captured scripts, forms, frames and external fetches are blocked, and images must be `data:` URLs.
 - Asset URL resolver for images.
 
@@ -32,7 +32,7 @@ const bounds = getPageBounds(page);
 />;
 ```
 
-`PageView` renders the page at its canonical size. Scaling and the editor stage belong to the app; `apps/web` fits the page to the viewport.
+`PageView` renders the page at its canonical size. Scaling and the editor stage belong to the app; `apps/web` fits the page to the viewport. Pass `showBackground={false}` when the caller paints the page background as its own workspace backdrop, as the editor does; export and static rendering keep the default background.
 
 ## Deliberate limits
 

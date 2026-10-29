@@ -1336,16 +1336,25 @@ body,
   min-height: 100%;
 }
 
+.canvas-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
 .stage {
   position: relative;
+  z-index: 1;
   flex: 0 0 auto;
   overflow: visible;
-  border: 0;
   background: transparent;
-  box-shadow:
-    0 0 0 1px var(--line-strong),
-    0 2px 6px var(--shadow-1),
-    0 28px 80px var(--shadow-2);
+}
+
+.stage.is-empty {
+  border: 1px dashed var(--line-strong);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--chrome-strong) 24%, transparent);
 }
 
 .canvas.is-space,
