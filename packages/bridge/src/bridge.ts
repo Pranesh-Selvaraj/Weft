@@ -22,6 +22,7 @@ import {
 } from "@weft/core";
 import { DevServerError, DevServerManager, type DevServerSnapshot } from "@weft/dev-server";
 import {
+  readAssetFile,
   readDesign,
   readSnapshotPayloads,
   writeDocumentCommand,
@@ -756,6 +757,55 @@ export class WeftBridge {
               message: errorMessage(error),
             },
           });
+        }
+        return;
+      }
+
+      if (url.pathname.startsWith("/api/asset/")) {
+        if (request.method !== "GET" && request.method !== "HEAD") {
+          this.sendJson(response, 405, { ok: false, error: { code: "method.not-allowed" } });
+          return;
+        }
+        if (!this.isAuthorized(request)) {
+          this.sendJson(response, 401, { ok: false, error: { code: "session.unauthorized" } });
+          return;
+        }
+        if (!this.isAllowedOrigin(request)) {
+          this.sendJson(response, 403, { ok: false, error: { code: "origin.forbidden" } });
+          return;
+        }
+        let assetId: string;
+        try {
+          assetId = decodeURIComponent(url.pathname.slice("/api/asset/".length));
+        } catch {
+          this.sendJson(response, 400, { ok: false, error: { code: "asset.invalid" } });
+          return;
+        }
+        const asset = this.manifest?.assets?.find((candidate) => candidate.id === assetId);
+        if (!asset) {
+          this.sendJson(response, 404, { ok: false, error: { code: "asset.missing" } });
+          return;
+        }
+        try {
+          const payload = await readAssetFile(this.designDir, asset);
+          if (!/^(image|font|video|audio)\//i.test(payload.mime)) {
+            this.sendJson(response, 415, { ok: false, error: { code: "asset.type" } });
+            return;
+          }
+          response.setHeader(
+            "Content-Security-Policy",
+            "default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:; script-src 'none'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'; sandbox",
+          );
+          response.setHeader("Cross-Origin-Resource-Policy", "same-origin");
+          response.writeHead(200, {
+            "content-type": payload.mime,
+            "content-length": payload.bytes.byteLength,
+            "cache-control": "no-store",
+          });
+          if (request.method === "HEAD") response.end();
+          else response.end(Buffer.from(payload.bytes));
+        } catch {
+          this.sendJson(response, 404, { ok: false, error: { code: "asset.missing" } });
         }
         return;
       }

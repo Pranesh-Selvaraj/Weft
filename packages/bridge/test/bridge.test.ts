@@ -525,6 +525,46 @@ describe("local bridge", () => {
     }
   }, 15000);
 
+  it("serves only manifest assets after cookie authorization", async () => {
+    const assetId = newId("as");
+    const bytes = Buffer.from([137, 80, 78, 71, 1, 2, 3]);
+    await mkdir(join(designDir, "assets"), { recursive: true });
+    await writeFile(join(designDir, "assets/hero.png"), bytes);
+    await writeDesign(designDir, {
+      ...design,
+      manifest: {
+        ...design.manifest,
+        assets: [{ id: assetId, file: "assets/hero.png", mime: "image/png" }],
+      },
+    });
+
+    const bridge = await startBridge({
+      designDir,
+      host: "127.0.0.1",
+      port: 0,
+      webDist: null,
+    });
+    try {
+      const unauthorized = await fetch(`${bridge.url}/api/asset/${assetId}`);
+      expect(unauthorized.status).toBe(401);
+
+      const served = await fetch(`${bridge.url}/api/asset/${assetId}`, {
+        headers: { cookie: sessionCookie(bridge) },
+      });
+      expect(served.status).toBe(200);
+      expect(served.headers.get("content-type")).toBe("image/png");
+      expect(served.headers.get("content-security-policy")).toContain("script-src 'none'");
+      expect(Buffer.from(await served.arrayBuffer())).toEqual(bytes);
+
+      const missing = await fetch(`${bridge.url}/api/asset/${newId("as")}`, {
+        headers: { cookie: sessionCookie(bridge) },
+      });
+      expect(missing.status).toBe(404);
+    } finally {
+      await bridge.close();
+    }
+  });
+
   it("serves snapshot payloads with the design", async () => {
     const nodeId = newId("nd");
     const files = await writeSnapshotFiles(designDir, nodeId, {

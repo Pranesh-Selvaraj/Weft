@@ -220,6 +220,7 @@ export interface DesignSource {
   canRedo: boolean;
   lastActor: CommandActor | null;
   snapshots: Record<string, SnapshotPayload>;
+  assetUrl(assetId: string): string | undefined;
   workspace: WorkspacePayload | null;
   switching: boolean;
   devError: string | null;
@@ -279,6 +280,9 @@ export function useDesignSource(): DesignSource {
   const [pages, setPages] = useState<PageDocument[]>(staticDesign.pages);
   const [snapshots, setSnapshots] = useState<Record<string, SnapshotPayload>>(
     staticDesign.snapshots ?? {},
+  );
+  const [staticAssetUrls] = useState<Record<string, string>>(
+    staticDesign.assetUrls ?? {},
   );
   const [mode, setMode] = useState<DesignMode>("static");
   const [status, setStatus] = useState<DesignStatus>("static");
@@ -434,6 +438,16 @@ export function useDesignSource(): DesignSource {
       dispatchDesign({ type: "page.move", pageId, index }, "normal", "Move page");
     },
     [dispatchDesign, mode, status],
+  );
+
+  const assetUrl = useCallback(
+    (assetId: string): string | undefined => {
+      if (mode === "live" && manifest.assets?.some((asset) => asset.id === assetId)) {
+        return `/api/asset/${encodeURIComponent(assetId)}?v=${revision ?? 0}`;
+      }
+      return staticAssetUrls[assetId];
+    },
+    [manifest.assets, mode, revision, staticAssetUrls],
   );
 
   const openDesign = useCallback((designPath: string): void => {
@@ -815,6 +829,7 @@ export function useDesignSource(): DesignSource {
     canRedo: editable && pending === 0 && redoStack.length > 0,
     lastActor,
     snapshots,
+    assetUrl,
     workspace,
     switching,
     devError,

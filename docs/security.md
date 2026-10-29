@@ -40,6 +40,7 @@ Captured HTML / assets                    Project directories
 - snapshot payloads render in `sandbox=""` iframes with a CSP that allows only inline styles and `data:` images;
 - the MCP server is stdio-only, accepts only designs in its startup workspace/single-design allowlist, can run with `--read-only`, reuses the same command validation/atomic writes, and attributes writes to the fixed MCP actor;
 - static export adds no scripts, keeps snapshot payloads in sandboxed iframes, validates referenced files, copies only manifest assets into `assets/`, and preserves unrelated files in a non-empty output directory;
+- live assets are served only for manifest ids, after cookie auth, with safe-path/symlink/10 MiB checks, a media MIME allowlist, `no-store`, same-origin policy and a script-free sandboxed CSP; static preview uses embedded data URLs;
 - dev-server URLs are loopback HTTP(S) only, cwd is checked lexically and through `realpath`, the config file is a capped regular file that rejects symlinks, and managed children are stopped as a process group;
 - `/api/dev/start` and `/api/dev/stop` require the session cookie and Origin check;
 - Host and Origin checks against the loopback host and port;
@@ -67,7 +68,7 @@ These are deliberately tracked before Weft is used on real projects:
 - capture requires a local Chromium/Chrome binary and executes the allowlisted app's own scripts during capture;
 - no bridge/UI Extract action or git-commit metadata yet;
 - page removal has no filesystem journal: a crash between manifest write and file unlink can leave an orphan page file; the page content needed for undo lives in the command inverse and in git history, not a durable transaction log;
-- no asset server for image nodes and thumbnails; snapshot payloads are served inline;
+- no asset upload/import, thumbnails, content hashing or font-family mapping; assets are served only from the manifest;
 - MCP has no per-project/tool permissions, durable audit log, rate limits or remote auth; a writable server can edit every design in its allowlist;
 - no published, signed release artifacts or published CLI binary.
 

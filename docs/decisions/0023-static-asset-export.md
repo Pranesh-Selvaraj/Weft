@@ -4,6 +4,7 @@
 - **Date:** 2026-10-25
 - **Area:** Export
 - **Extends:** ADR 0022
+- **Extended by:** [0024](0024-local-asset-serving.md) (local asset serving)
 
 ## Context
 

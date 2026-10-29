@@ -46,6 +46,7 @@ The static path remains the zero-process preview and the fallback.
 - Switch pages; the inspector stays in sync with the active page.
 - Toggle the UI between light and dark from the toolbar. The choice follows the system preference by default and persists locally; design content keeps its own colors.
 - When served by `weft workspace dev`, use the design selector in the top bar to switch between projects and designs registered in the workspace, and the Server panel to start, attach to and stop a project's declared dev server.
+- Image nodes and image paints resolve manifest assets in live mode through the authenticated asset route, and in the static preview through embedded data URLs.
 - Snapshot nodes render their sanitized HTML/CSS in a sandboxed, CSP-restricted iframe. Run `weft extract` to create one; the bridge and static preview both load the payload files.
 
 The static preview is read-only and has no bridge, inspector edits or history.

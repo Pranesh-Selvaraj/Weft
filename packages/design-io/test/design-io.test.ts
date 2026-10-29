@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -12,6 +12,7 @@ import {
   nextPageFile,
   serialize,
   WeftValidationError,
+  type Asset,
   type DesignFile,
   type SnapshotNode,
   type TextNode,
@@ -21,6 +22,8 @@ import {
   initDesign,
   inspectDesign,
   MANIFEST_FILE,
+  readAssetDataUrls,
+  readAssetFile,
   readDesign,
   readSnapshotPayloads,
   removeDesignFile,
@@ -455,5 +458,34 @@ describe("writeDocumentCommand", () => {
     const afterRemove = await readDesign(designDir, { requireFiles: false });
     expect(afterRemove.manifest.pages).toHaveLength(1);
     await expect(readFile(join(designDir, create.file))).rejects.toThrow();
+  });
+});
+
+describe("asset files", () => {
+  it("reads manifest assets with MIME and data URLs, and rejects symlinks", async () => {
+    await mkdir(join(designDir, "assets"), { recursive: true });
+    const bytes = Buffer.from([1, 2, 3, 4]);
+    await writeFile(join(designDir, "assets/hero.png"), bytes);
+    const asset: Asset = {
+      id: newId("as"),
+      file: "assets/hero.png",
+      mime: "image/png",
+      name: "Hero",
+    };
+    const loaded = await readAssetFile(designDir, asset);
+    expect(Buffer.from(loaded.bytes)).toEqual(bytes);
+    expect(loaded.mime).toBe("image/png");
+    const dataUrls = await readAssetDataUrls(designDir, [asset]);
+    expect(dataUrls[asset.id]).toBe("data:image/png;base64,AQIDBA==");
+
+    if (process.platform !== "win32") {
+      const outside = join(root, "outside.png");
+      await writeFile(outside, bytes);
+      const linked: Asset = { id: newId("as"), file: "assets/link.png", mime: "image/png" };
+      await symlink(outside, join(designDir, "assets/link.png"));
+      await expect(readAssetFile(designDir, linked)).rejects.toMatchObject({
+        code: "asset.symlink",
+      });
+    }
   });
 });
