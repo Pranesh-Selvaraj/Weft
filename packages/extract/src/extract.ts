@@ -90,12 +90,14 @@ export async function extractSnapshot(options: ExtractOptions): Promise<ExtractR
   try {
     config = await loadProjectConfig(options.projectRoot);
   } catch (error) {
-    throw new ExtractError(
-      "extract.config",
-      `Could not load the project config: ${error instanceof Error ? error.message : String(error)}`,
-    );
+    if (!options.allowedOrigins) {
+      throw new ExtractError(
+        "extract.config",
+        `Could not load the project config: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
-  const origins = config?.extract?.origins ?? [];
+  const origins = options.allowedOrigins ?? config?.extract?.origins ?? [];
   if (origins.length === 0) {
     throw new ExtractError(
       "extract.not-configured",

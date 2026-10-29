@@ -72,3 +72,7 @@ Captured text can contain instructions aimed at an agent. Weft removes executabl
 - Record source commit and a trust marker in snapshot metadata.
 - Add allowlisted font capture and a deterministic asset manifest for larger pages.
 - Add a capture report to `weft inspect` and a test that verifies the written payload contains no network-capable URLs.
+
+## Update (ADR 0027)
+
+The follow-up bridge/UI Extract action is now implemented as **Capture page** in the live-session panel. It uses the exact explicitly attached loopback origin as the capture allowlist for that action, then runs the same extractor, sanitizer and verifier described here. The CLI still requires `extract.origins` in project config. See [ADR 0027](0027-live-endpoints-frontend-capture.md).

@@ -30,7 +30,8 @@
     "@weft/session": "workspace:*",
     "@weft/workspace": "workspace:*",
     "chokidar": "^6.0.0",
-    "ws": "^8.22.0"
+    "ws": "^8.22.0",
+    "@weft/extract": "workspace:*"
   },
   "devDependencies": {
     "@types/ws": "^8.18.2"

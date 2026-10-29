@@ -21,6 +21,7 @@ import {
   type DesignManifest,
 } from "@weft/core";
 import { DevServerError, DevServerManager, type DevServerSnapshot } from "@weft/dev-server";
+import { ExtractError, extractSnapshot, type CapturePage } from "@weft/extract";
 import {
   readAssetFile,
   readDesign,
@@ -34,6 +35,7 @@ import { PageSession } from "@weft/session";
 import { listProjects, readWorkspace } from "@weft/workspace";
 import {
   encodeUpdate,
+  type BridgeInfo,
   type BridgeMessage,
   type CommandRequestMessage,
   type DesignPayload,
@@ -42,6 +44,13 @@ import {
   type WorkspacePayload,
   type WirePage,
 } from "./protocol.js";
+import {
+  FrontendError,
+  idleFrontend,
+  normalizeFrontendUrl,
+  probeFrontend,
+  type FrontendSnapshot,
+} from "./frontend.js";
 import { serveStatic } from "./static.js";
 
 const DEFAULT_WEB_DIST = fileURLToPath(
@@ -68,6 +77,8 @@ export interface BridgeOptions {
    * allowing the browser to open another registered design.
    */
   workspaceFile?: string;
+  /** Test seam for the capture pipeline; production discovers Chromium. */
+  capture?: CapturePage;
 }
 
 export class WeftBridgeError extends Error {
@@ -96,7 +107,9 @@ function errorMessage(error: unknown): string {
     error instanceof WeftCommandError ||
     error instanceof WeftOperationError ||
     error instanceof WeftValidationError ||
-    error instanceof WeftIoError
+    error instanceof WeftIoError ||
+    error instanceof ExtractError ||
+    error instanceof FrontendError
   ) {
     return error.message;
   }
@@ -181,6 +194,7 @@ export class WeftBridge {
   private readonly requestedPort: number;
   private readonly webDist: string | null;
   private readonly watchEnabled: boolean;
+  private readonly capturePage: CapturePage | undefined;
   private readonly server: Server;
   private readonly wss: WebSocketServer;
   private readonly clients = new Set<WebSocket>();
@@ -191,6 +205,8 @@ export class WeftBridge {
   private snapshots: Record<string, SnapshotPayload> = {};
   private revision = 0;
   private port = 0;
+  private frontend: FrontendSnapshot = idleFrontend();
+  private captureInFlight = false;
   private watcher?: FSWatcher;
   private reloadTimer?: NodeJS.Timeout;
   private reloading = false;
@@ -213,6 +229,7 @@ export class WeftBridge {
     this.sessionToken = randomBytes(32).toString("base64url");
     this.requestedPort = options.port ?? DEFAULT_PORT;
     this.watchEnabled = options.watch !== false;
+    this.capturePage = options.capture;
     const webDist = options.webDist === undefined ? DEFAULT_WEB_DIST : options.webDist;
     this.webDist = webDist === null ? null : resolve(webDist);
 
@@ -622,6 +639,160 @@ export class WeftBridge {
     socket.destroy();
   }
 
+  private async attachFrontend(value: unknown): Promise<FrontendSnapshot> {
+    const target = normalizeFrontendUrl(value);
+    if (target.origin === new URL(this.url).origin) {
+      throw new FrontendError(
+        "frontend.same-origin",
+        "Choose the frontend application, not this Weft editor.",
+      );
+    }
+    const checking: FrontendSnapshot = {
+      url: target.url,
+      origin: target.origin,
+      status: "checking",
+      httpStatus: null,
+      checkedAt: null,
+      error: null,
+    };
+    this.setFrontend(checking);
+    const probe = await probeFrontend(target.url);
+    const next: FrontendSnapshot = {
+      ...checking,
+      status: probe.ok ? "reachable" : "error",
+      httpStatus: probe.httpStatus,
+      checkedAt: new Date().toISOString(),
+      error: probe.error,
+    };
+    this.setFrontend(next);
+    return next;
+  }
+
+  private async captureFrontendSnapshot(body: unknown): Promise<{
+    nodeId: string;
+    pageId: string;
+    pageFile: string;
+    warnings: string[];
+  }> {
+    if (!this.manifest) {
+      throw new WeftBridgeError("bridge.not-ready", "The bridge has no loaded design.");
+    }
+    const pageId =
+      isRecord(body) && typeof body.pageId === "string" ? body.pageId.trim() : "";
+    if (!pageId) {
+      throw new FrontendError("frontend.page", "Choose a page to capture into.");
+    }
+    if (!this.manifest.pages.some((ref) => ref.id === pageId)) {
+      throw new FrontendError("frontend.page", "The selected page no longer exists.");
+    }
+    let selector: string | undefined;
+    if (isRecord(body) && body.selector !== undefined) {
+      if (typeof body.selector !== "string" || body.selector.length > 1_000) {
+        throw new FrontendError("frontend.selector", "Selector must be a string under 1000 characters.");
+      }
+      const trimmed = body.selector.trim();
+      if (trimmed.includes("\u0000")) {
+        throw new FrontendError("frontend.selector", "Selector must not contain NUL bytes.");
+      }
+      selector = trimmed || undefined;
+    }
+    let name: string | undefined;
+    if (isRecord(body) && body.name !== undefined) {
+      if (typeof body.name !== "string" || body.name.length > 120) {
+        throw new FrontendError("frontend.name", "Name must be a string under 120 characters.");
+      }
+      const trimmed = body.name.trim();
+      if (trimmed) name = trimmed;
+    }
+    let viewport = { width: 1440, height: 900 };
+    if (isRecord(body) && body.viewport !== undefined) {
+      const candidate = body.viewport;
+      if (
+        !isRecord(candidate) ||
+        !Number.isInteger(candidate.width) ||
+        !Number.isInteger(candidate.height) ||
+        (candidate.width as number) < 1 ||
+        (candidate.height as number) < 1 ||
+        (candidate.width as number) > 20_000 ||
+        (candidate.height as number) > 20_000
+      ) {
+        throw new FrontendError(
+          "frontend.viewport",
+          "Viewport width and height must be integers between 1 and 20000.",
+        );
+      }
+      viewport = { width: candidate.width as number, height: candidate.height as number };
+    }
+    if (this.captureInFlight) {
+      throw new FrontendError(
+        "frontend.capture-busy",
+        "A capture is already running. Wait for it to finish.",
+      );
+    }
+    const frontend = this.frontend;
+    if (!frontend.url || !frontend.origin) {
+      throw new FrontendError(
+        "frontend.not-attached",
+        "Attach a local frontend URL before capturing.",
+      );
+    }
+
+    this.captureInFlight = true;
+    try {
+      this.setFrontend({
+        ...frontend,
+        status: "checking",
+        httpStatus: null,
+        checkedAt: null,
+        error: null,
+      });
+      const probe = await probeFrontend(frontend.url);
+      if (!probe.ok) {
+        const failed: FrontendSnapshot = {
+          ...frontend,
+          status: "error",
+          httpStatus: probe.httpStatus,
+          checkedAt: new Date().toISOString(),
+          error: probe.error,
+        };
+        this.setFrontend(failed);
+        throw new FrontendError(
+          probe.error?.code ?? "frontend.unreachable",
+          probe.error?.message ?? "The frontend is not reachable.",
+        );
+      }
+      this.setFrontend({
+        ...frontend,
+        status: "reachable",
+        httpStatus: probe.httpStatus,
+        checkedAt: new Date().toISOString(),
+        error: null,
+      });
+      const result = await extractSnapshot({
+        projectRoot: this.activeProject()?.path ?? this.designDir,
+        designDir: this.designDir,
+        url: frontend.url,
+        page: pageId,
+        viewport,
+        allowedOrigins: [frontend.origin],
+        ...(selector ? { selector } : {}),
+        ...(name ? { name } : {}),
+        ...(this.capturePage ? { capture: this.capturePage } : {}),
+      });
+      // The extraction writes the page directly, so rebuild the bridge view
+      // before returning. Clients receive the new snapshot and can select it.
+      await this.reload();
+      return {
+        nodeId: result.node.id,
+        pageId: result.pageId,
+        pageFile: result.pageFile,
+        warnings: result.warnings,
+      };
+    } finally {
+      this.captureInFlight = false;
+    }
+  }
+
   private async handleRequest(
     request: IncomingMessage,
     response: ServerResponse,
@@ -675,6 +846,120 @@ export class WeftBridge {
           this.sendJson(response, status, {
             ok: false,
             error: { code: errorCode(error), message: errorMessage(error) },
+          });
+        }
+        return;
+      }
+
+      if (url.pathname === "/api/frontend/preview") {
+        if (request.method !== "GET") {
+          this.sendJson(response, 405, { ok: false, error: { code: "method.not-allowed" } });
+          return;
+        }
+        if (!this.isAuthorized(request)) {
+          this.sendJson(response, 401, { ok: false, error: { code: "session.unauthorized" } });
+          return;
+        }
+        if (!this.frontend.url) {
+          this.sendJson(response, 404, { ok: false, error: { code: "frontend.not-attached" } });
+          return;
+        }
+        const previewTarget = normalizeFrontendUrl(this.frontend.url);
+        // This response is a redirect inside the Weft preview iframe, so it
+        // must be frameable by this origin while the target keeps its own
+        // framing policy. It contains no app content.
+        response.removeHeader("X-Frame-Options");
+        response.removeHeader("Content-Security-Policy");
+        response.setHeader("X-Frame-Options", "SAMEORIGIN");
+        response.setHeader(
+          "Content-Security-Policy",
+          "frame-ancestors 'self'; object-src 'none'; base-uri 'none'",
+        );
+        response.writeHead(302, {
+          location: previewTarget.url,
+          "cache-control": "no-store",
+        });
+        response.end();
+        return;
+      }
+
+      if (url.pathname === "/api/frontend" || url.pathname === "/api/frontend/capture") {
+        if (url.pathname === "/api/frontend/capture" && request.method !== "POST") {
+          this.sendJson(response, 405, { ok: false, error: { code: "method.not-allowed" } });
+          return;
+        }
+        if (url.pathname === "/api/frontend" && request.method !== "GET" && request.method !== "POST" && request.method !== "DELETE") {
+          this.sendJson(response, 405, { ok: false, error: { code: "method.not-allowed" } });
+          return;
+        }
+        if (!this.isAuthorized(request)) {
+          this.sendJson(response, 401, { ok: false, error: { code: "session.unauthorized" } });
+          return;
+        }
+        if (!this.isAllowedOrigin(request)) {
+          this.sendJson(response, 403, { ok: false, error: { code: "origin.forbidden" } });
+          return;
+        }
+        try {
+          if (url.pathname === "/api/frontend" && request.method === "GET") {
+            this.sendJson(response, 200, { ok: true, frontend: this.frontend });
+            return;
+          }
+          if (url.pathname === "/api/frontend" && request.method === "DELETE") {
+            this.setFrontend(idleFrontend());
+            this.sendJson(response, 200, { ok: true, frontend: this.frontend });
+            return;
+          }
+          const body = await this.readJsonBody(request);
+          if (url.pathname === "/api/frontend") {
+            if (!isRecord(body) || typeof body.url !== "string") {
+              this.sendJson(response, 400, {
+                ok: false,
+                error: { code: "request.invalid", message: "url is required." },
+              });
+              return;
+            }
+            const frontend = await this.attachFrontend(body.url);
+            this.sendJson(response, 200, { ok: true, frontend });
+            return;
+          }
+          const capture = await this.captureFrontendSnapshot(body);
+          this.sendJson(response, 200, { ok: true, capture });
+        } catch (error) {
+          const status =
+            error instanceof FrontendError
+              ? error.code === "frontend.capture-busy"
+                ? 409
+                : error.code === "frontend.unreachable" ||
+                    error.code === "frontend.timeout" ||
+                    error.code === "frontend.unhealthy"
+                  ? 502
+                  : 400
+              : error instanceof ExtractError
+                ? error.code === "extract.origin" ||
+                    error.code === "extract.url" ||
+                    error.code === "extract.viewport" ||
+                    error.code === "extract.page"
+                  ? 400
+                  : 502
+                : error instanceof WeftBridgeError
+                  ? error.code === "bridge.not-ready"
+                    ? 503
+                    : error.code === "request.too-large"
+                      ? 413
+                      : 400
+                  : 500;
+          this.sendJson(response, status, {
+            ok: false,
+            error: {
+              code:
+                error instanceof FrontendError ||
+                error instanceof ExtractError ||
+                error instanceof WeftBridgeError
+                  ? error.code
+                  : "frontend.error",
+              message: errorMessage(error),
+            },
           });
         }
         return;
@@ -858,6 +1143,39 @@ export class WeftBridge {
     }
   }
 
+  private activeProject(): WorkspacePayload["projects"][number] | null {
+    if (!this.workspace) return null;
+    const active = resolve(this.designDir);
+    return (
+      this.workspace.projects.find((project) =>
+        project.designs.some((design) => resolve(design.path) === active),
+      ) ?? null
+    );
+  }
+
+  private bridgeInfo(): BridgeInfo {
+    if (!this.manifest) {
+      throw new WeftBridgeError("bridge.not-ready", "The bridge has no loaded design.");
+    }
+    const project = this.activeProject();
+    return {
+      url: this.url,
+      host: this.host,
+      port: this.port,
+      designPath: this.designDir,
+      designName: this.manifest.name,
+      projectPath: project?.path ?? null,
+      projectName: project?.name ?? null,
+      workspaceFile: this.workspaceFile,
+      mode: this.workspace ? "workspace" : "single",
+    };
+  }
+
+  private setFrontend(frontend: FrontendSnapshot): void {
+    this.frontend = frontend;
+    this.broadcast({ type: "frontend", frontend });
+  }
+
   private designPayload(): DesignPayload {
     if (!this.manifest) {
       throw new WeftBridgeError("bridge.not-ready", "The bridge has no loaded design.");
@@ -876,6 +1194,8 @@ export class WeftBridge {
       manifest: this.manifest,
       pages,
       snapshots: this.snapshots,
+      bridge: this.bridgeInfo(),
+      frontend: this.frontend,
       ...(this.workspace ? { workspace: this.workspace } : {}),
     };
   }

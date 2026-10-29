@@ -48,18 +48,20 @@ The static path remains the zero-process preview and the fallback.
 - Show/hide or lock layers from the layer-row actions; locked layers are excluded from structural edits.
 - Cmd/Ctrl+A selects all layers; Cmd/Ctrl+D duplicates unlocked selection roots.
 - Toggle the UI between light and dark from the toolbar. The choice follows the system preference by default and persists locally; design content keeps its own colors.
-- When served by `weft workspace dev`, use the design selector in the top bar to switch between projects and designs registered in the workspace, and the Server panel to start, attach to and stop a project's declared dev server.
+- Use the top-bar **Live** button (or **Preview** on a static build) to open the live-session panel. It lists the actual editor, API, health, WebSocket, design, workspace and project-root endpoints, and controls a workspace project's declared dev server.
+- Enter a running loopback frontend URL in the live panel to probe and preview it, then **Capture page** to insert a sanitized snapshot into the active page. The URL is saved in this browser and reattached after reload. Capture uses the selected/first root frame viewport and supports an optional CSS selector.
+- When served by `weft workspace dev`, use the design selector in the top bar to switch between projects and designs registered in the workspace.
 - Image nodes and image paints resolve manifest assets in live mode through the authenticated asset route, and in the static preview through embedded data URLs.
-- Snapshot nodes render their sanitized HTML/CSS in a sandboxed, CSP-restricted iframe. Run `weft extract` to create one; the bridge and static preview both load the payload files.
+- Snapshot nodes render their sanitized HTML/CSS in a sandboxed, CSP-restricted iframe. Create one with the live panel's **Capture page** or `weft extract`; the bridge and static preview both load the payload files.
 
 The static preview is read-only and has no bridge, inspector edits or history.
 
 ## Not here yet
 
 - Page duplicate and cross-design drag; flex-aware resize, distribute/match-size/align-to-page, true isolation, autoscroll/lasso selection, snapping/guides, rotation and aspect-ratio locks, layer reordering, bulk visibility/lock, components.
-- A browser Extract button; extraction currently starts from the CLI.
-- Presence/cursors, chat, page rename/background/token commands.
-- Asset serving for image nodes and zoom controls.
+- Presence/cursors, chat, page background/token commands.
+- True live-DOM capture; snapshots are static and re-captured.
+- Undoable capture commands and an audit log.
 - Shadow-DOM isolation, large-document culling, mobile editing layout.
 
-See ADR 0008 for the stack and renderer, ADR 0009 for the bridge, ADR 0010 for selection/the inspector/undo, ADR 0012 for declared dev servers, ADR 0013 for snapshot extraction, and ADR 0014 for creation tools and the layer tree, and ADR 0015 for page-level document commands, and ADR 0017 for direct layout manipulation, and ADR 0018 for page organization, and ADR 0019 for multi-selection and batch commands, and ADR 0020 for alignment/nudge, and ADR 0021 for combined multi-resize.
+See ADR 0008 for the stack and renderer, ADR 0009 for the bridge, ADR 0010 for selection/the inspector/undo, ADR 0012 for declared dev servers, ADR 0013 for snapshot extraction, and ADR 0014 for creation tools and the layer tree, and ADR 0015 for page-level document commands, and ADR 0017 for direct layout manipulation, and ADR 0018 for page organization, and ADR 0019 for multi-selection and batch commands, and ADR 0020 for alignment/nudge, ADR 0021 for combined multi-resize, ADR 0026 for selection scopes, and ADR 0027 for the live endpoints/frontend capture panel.

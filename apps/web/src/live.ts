@@ -20,6 +20,58 @@ interface WirePage {
   update: string;
 }
 
+export interface BridgeInfo {
+  url: string;
+  host: string;
+  port: number;
+  designPath: string;
+  designName: string;
+  projectPath: string | null;
+  projectName: string | null;
+  workspaceFile: string | null;
+  mode: "single" | "workspace";
+}
+
+export type FrontendStatus = "idle" | "checking" | "reachable" | "error";
+
+export interface FrontendSnapshot {
+  url: string | null;
+  origin: string | null;
+  status: FrontendStatus;
+  httpStatus: number | null;
+  checkedAt: string | null;
+  error: { code: string; message: string } | null;
+}
+
+export interface CaptureFrontendRequest {
+  pageId: string;
+  selector?: string;
+  viewport?: { width: number; height: number };
+  name?: string;
+}
+
+export interface CaptureFrontendResult {
+  nodeId: string;
+  pageId: string;
+  pageFile: string;
+  warnings: string[];
+}
+
+export type CaptureFrontendOutcome =
+  | { ok: true; capture: CaptureFrontendResult }
+  | { ok: false; error: string };
+
+const EMPTY_FRONTEND: FrontendSnapshot = {
+  url: null,
+  origin: null,
+  status: "idle",
+  httpStatus: null,
+  checkedAt: null,
+  error: null,
+};
+
+const FRONTEND_STORAGE_KEY = "weft.frontend.url";
+
 export interface WorkspaceDesignInfo {
   path: string;
   name: string;
@@ -78,6 +130,8 @@ interface DesignPayload {
   pages: WirePage[];
   snapshots: Record<string, SnapshotPayload>;
   workspace?: WorkspacePayload;
+  bridge?: BridgeInfo;
+  frontend?: FrontendSnapshot;
 }
 
 interface InitMessage extends DesignPayload {
@@ -171,12 +225,18 @@ interface DevServerMessage {
   server: DevServerSnapshot;
 }
 
+interface FrontendMessage {
+  type: "frontend";
+  frontend: FrontendSnapshot;
+}
+
 type ServerMessage =
   | InitMessage
   | UpdateMessage
   | ConflictMessage
   | ErrorMessage
   | DevServerMessage
+  | FrontendMessage
   | CommandResultMessage
   | CommandBroadcastMessage
   | DocumentCommandResultMessage
@@ -222,6 +282,11 @@ export interface DesignSource {
   snapshots: Record<string, SnapshotPayload>;
   assetUrl(assetId: string): string | undefined;
   workspace: WorkspacePayload | null;
+  bridge: BridgeInfo | null;
+  frontend: FrontendSnapshot;
+  frontendBusy: boolean;
+  frontendError: string | null;
+  captureBusy: boolean;
   switching: boolean;
   devError: string | null;
   serverBusy: string | null;
@@ -235,6 +300,10 @@ export interface DesignSource {
   movePage(pageId: string, index: number): void;
   startServer(projectPath: string): void;
   stopServer(projectPath: string): void;
+  attachFrontend(url: string): void;
+  detachFrontend(): void;
+  refreshFrontend(): void;
+  captureFrontend(request: CaptureFrontendRequest): Promise<CaptureFrontendOutcome>;
 }
 
 const LOCAL_ACTOR: CommandActor = { id: "browser", kind: "human", name: "You" };
@@ -291,6 +360,11 @@ export function useDesignSource(): DesignSource {
   const [error, setError] = useState<string | null>(null);
   const [lastActor, setLastActor] = useState<CommandActor | null>(null);
   const [workspace, setWorkspace] = useState<WorkspacePayload | null>(null);
+  const [bridge, setBridge] = useState<BridgeInfo | null>(null);
+  const [frontend, setFrontend] = useState<FrontendSnapshot>(EMPTY_FRONTEND);
+  const [frontendBusy, setFrontendBusy] = useState(false);
+  const [frontendError, setFrontendError] = useState<string | null>(null);
+  const [captureBusy, setCaptureBusy] = useState(false);
   const [switching, setSwitching] = useState(false);
   const [devError, setDevError] = useState<string | null>(null);
   const [serverBusy, setServerBusy] = useState<string | null>(null);
@@ -302,6 +376,7 @@ export function useDesignSource(): DesignSource {
   const socketRef = useRef<WebSocket | null>(null);
   const pendingRef = useRef<Map<string, PendingCommand>>(new Map());
   const pendingDesignRef = useRef<Map<string, { kind: CommandKind; label: string }>>(new Map());
+  const autoFrontendRef = useRef(false);
 
   const dispatch = useCallback(
     (pageId: string, command: PageCommand, kind: CommandKind, label: string): void => {
@@ -535,6 +610,136 @@ export function useDesignSource(): DesignSource {
     [changeServer],
   );
 
+  const attachFrontend = useCallback(
+    (url: string): void => {
+      if (frontendBusy) return;
+      if (mode !== "live" || status !== "live") {
+        setFrontendError("Start the live bridge to attach a local frontend.");
+        return;
+      }
+      setFrontendBusy(true);
+      setFrontendError(null);
+      void fetch("/api/frontend", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ url }),
+      })
+        .then(async (response) => {
+          const payload = (await response.json().catch(() => null)) as
+            | { frontend?: FrontendSnapshot; error?: { message?: string } }
+            | null;
+          if (!response.ok || !payload?.frontend) {
+            setFrontendError(payload?.error?.message ?? "Could not attach the frontend.");
+            return;
+          }
+          setFrontend(payload.frontend);
+          try {
+            window.localStorage.setItem(
+              FRONTEND_STORAGE_KEY,
+              payload.frontend.url ?? url,
+            );
+          } catch {
+            // Storage is optional.
+          }
+        })
+        .catch((caught: unknown) => {
+          setFrontendError(messageOf(caught));
+        })
+        .finally(() => {
+          setFrontendBusy(false);
+        });
+    },
+    [frontendBusy, mode, status],
+  );
+
+  const detachFrontend = useCallback((): void => {
+    if (frontendBusy) return;
+    setFrontendBusy(true);
+    setFrontendError(null);
+    void fetch("/api/frontend", { method: "DELETE" })
+      .then(async (response) => {
+        if (!response.ok) {
+          setFrontendError("Could not detach the frontend.");
+          return;
+        }
+        setFrontend(EMPTY_FRONTEND);
+        try {
+          window.localStorage.removeItem(FRONTEND_STORAGE_KEY);
+        } catch {
+          // Storage is optional.
+        }
+      })
+      .catch((caught: unknown) => {
+        setFrontendError(messageOf(caught));
+      })
+      .finally(() => {
+        setFrontendBusy(false);
+      });
+  }, [frontendBusy]);
+
+  const refreshFrontend = useCallback((): void => {
+    if (frontend.url) attachFrontend(frontend.url);
+  }, [attachFrontend, frontend.url]);
+
+  const captureFrontend = useCallback(
+    async (request: CaptureFrontendRequest): Promise<CaptureFrontendOutcome> => {
+      if (captureBusy) return { ok: false, error: "A capture is already running." };
+      if (!frontend.url) {
+        return { ok: false, error: "Attach a local frontend first." };
+      }
+      setCaptureBusy(true);
+      try {
+        const response = await fetch("/api/frontend/capture", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(request),
+        });
+        const payload = (await response.json().catch(() => null)) as
+          | {
+              capture?: CaptureFrontendResult;
+              error?: { message?: string };
+            }
+          | null;
+        if (!response.ok || !payload?.capture) {
+          return {
+            ok: false,
+            error: payload?.error?.message ?? "Could not capture the frontend.",
+          };
+        }
+        return { ok: true, capture: payload.capture };
+      } catch (caught) {
+        return { ok: false, error: messageOf(caught) };
+      } finally {
+        setCaptureBusy(false);
+      }
+    },
+    [captureBusy, frontend.url],
+  );
+
+  useEffect(() => {
+    if (status === "disconnected") autoFrontendRef.current = false;
+  }, [status]);
+
+  useEffect(() => {
+    if (
+      autoFrontendRef.current ||
+      mode !== "live" ||
+      status !== "live" ||
+      !bridge ||
+      frontend.url
+    ) {
+      return;
+    }
+    autoFrontendRef.current = true;
+    let saved: string | null = null;
+    try {
+      saved = window.localStorage.getItem(FRONTEND_STORAGE_KEY);
+    } catch {
+      saved = null;
+    }
+    if (saved) attachFrontend(saved);
+  }, [attachFrontend, bridge, frontend.url, mode, status]);
+
   useEffect(() => {
     let disposed = false;
     let socket: WebSocket | null = null;
@@ -592,9 +797,12 @@ export function useDesignSource(): DesignSource {
             ? { ...payload.workspace, servers: payload.workspace.servers ?? [] }
             : null,
         );
+        setBridge(payload.bridge ?? null);
+        setFrontend(payload.frontend ?? EMPTY_FRONTEND);
         setRevision(payload.revision);
         setConflicts(0);
         setError(null);
+        setFrontendError(null);
         setDevError(null);
         setServerBusy(null);
         setSwitching(false);
@@ -721,6 +929,10 @@ export function useDesignSource(): DesignSource {
             updateServer(message.server);
             break;
           }
+          case "frontend": {
+            setFrontend(message.frontend);
+            break;
+          }
           case "commandResult": {
             handleCommandResult(message);
             break;
@@ -844,5 +1056,14 @@ export function useDesignSource(): DesignSource {
     movePage,
     startServer,
     stopServer,
+    bridge,
+    frontend,
+    frontendBusy,
+    frontendError,
+    captureBusy,
+    attachFrontend,
+    detachFrontend,
+    refreshFrontend,
+    captureFrontend,
   };
 }

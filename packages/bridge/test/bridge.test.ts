@@ -1,4 +1,5 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { createServer as createHttpServer } from "node:http";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -16,6 +17,7 @@ import {
   type TextNode,
 } from "@weft/core";
 import { readDesign, writeDesign, writeSnapshotFiles } from "@weft/design-io";
+import type { CapturePage } from "@weft/extract";
 import { PageSession } from "@weft/session";
 import { writeWorkspace } from "@weft/workspace";
 import {
@@ -64,6 +66,18 @@ function decode(value: string): Uint8Array {
 function sessionCookie(bridge: WeftBridge): string {
   return `weft_session=${bridge.sessionToken}`;
 }
+
+const fakeCapture: CapturePage = async (request) => ({
+  html: '<main data-weft-k="0"><h1>Frontend fixture</h1></main>',
+  css: '[data-weft-k="0"]{color:#111}',
+  source: {
+    url: request.url,
+    ...(request.selector ? { selector: request.selector } : {}),
+    viewport: { width: request.viewport.width, height: request.viewport.height },
+    capturedAt: "2026-10-25T00:00:00.000Z",
+  },
+  warnings: ["fake capture warning"],
+});
 
 function connectLive(bridge: WeftBridge): WebSocket {
   return new WebSocket(`${bridge.url.replace(/^http/, "ws")}/api/live`, {
@@ -226,6 +240,224 @@ describe("local bridge", () => {
       await bridge.close();
     }
   });
+
+  it("exposes bridge endpoints and an idle frontend target", async () => {
+    const bridge = await startBridge({
+      designDir,
+      host: "127.0.0.1",
+      port: 0,
+      webDist: null,
+    });
+    try {
+      const api = (await fetch(`${bridge.url}/api/design`, {
+        headers: { cookie: sessionCookie(bridge) },
+      }).then((response) => response.json())) as DesignPayload;
+      expect(api.bridge).toMatchObject({
+        url: bridge.url,
+        host: "127.0.0.1",
+        designPath: resolve(designDir),
+        designName: "Live",
+        mode: "single",
+      });
+      expect(api.bridge?.port).toBeGreaterThan(0);
+      expect(api.frontend).toMatchObject({ status: "idle", url: null, origin: null });
+    } finally {
+      await bridge.close();
+    }
+  });
+
+  it("attaches a loopback frontend and captures it with an explicit origin", async () => {
+    const frontendServer = createHttpServer((_request, response) => {
+      response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      response.end("<!doctype html><main><h1>Frontend fixture</h1></main>");
+    });
+    await new Promise<void>((resolveListen) =>
+      frontendServer.listen(0, "127.0.0.1", resolveListen),
+    );
+    const address = frontendServer.address();
+    const frontendPort = typeof address === "object" && address ? address.port : 0;
+    const bridge = await startBridge({
+      designDir,
+      host: "127.0.0.1",
+      port: 0,
+      webDist: null,
+      capture: fakeCapture,
+    });
+    try {
+      const headers = {
+        cookie: sessionCookie(bridge),
+        "content-type": "application/json",
+      };
+      const unauthorized = await fetch(`${bridge.url}/api/frontend`);
+      expect(unauthorized.status).toBe(401);
+
+      const rejected = await fetch(`${bridge.url}/api/frontend`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ url: "https://example.com/" }),
+      });
+      expect(rejected.status).toBe(400);
+      expect(((await rejected.json()) as { error: { code: string } }).error.code).toBe(
+        "frontend.loopback",
+      );
+
+      const attached = await fetch(`${bridge.url}/api/frontend`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ url: `http://127.0.0.1:${frontendPort}/preview?mode=design` }),
+      });
+      expect(attached.status).toBe(200);
+      const attachedPayload = (await attached.json()) as {
+        frontend: { status: string; url: string; origin: string; httpStatus: number };
+      };
+      expect(attachedPayload.frontend.status).toBe("reachable");
+      expect(attachedPayload.frontend.url).toBe(
+        `http://127.0.0.1:${frontendPort}/preview?mode=design`,
+      );
+      expect(attachedPayload.frontend.origin).toBe(`http://127.0.0.1:${frontendPort}`);
+      expect(attachedPayload.frontend.httpStatus).toBe(200);
+
+      const preview = await fetch(`${bridge.url}/api/frontend/preview`, {
+        headers: { cookie: sessionCookie(bridge) },
+        redirect: "manual",
+      });
+      expect(preview.status).toBe(302);
+      expect(preview.headers.get("location")).toBe(
+        `http://127.0.0.1:${frontendPort}/preview?mode=design`,
+      );
+      expect(preview.headers.get("x-frame-options")).toBe("SAMEORIGIN");
+      expect(preview.headers.get("content-security-policy")).toContain(
+        "frame-ancestors 'self'",
+      );
+
+      const captured = await fetch(`${bridge.url}/api/frontend/capture`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          pageId: design.pages[0].id,
+          selector: "main",
+          viewport: { width: 1024, height: 768 },
+          name: "Frontend capture",
+        }),
+      });
+      expect(captured.status).toBe(200);
+      const capturedPayload = (await captured.json()) as {
+        capture: { nodeId: string; pageId: string; warnings: string[] };
+      };
+      expect(capturedPayload.capture.pageId).toBe(design.pages[0].id);
+      expect(capturedPayload.capture.warnings).toEqual(["fake capture warning"]);
+
+      const after = (await fetch(`${bridge.url}/api/design`, {
+        headers: { cookie: sessionCookie(bridge) },
+      }).then((response) => response.json())) as DesignPayload;
+      const afterDesign = await readDesign(designDir);
+      const page = afterDesign.pages[0];
+      expect(page.nodes[capturedPayload.capture.nodeId]).toMatchObject({
+        type: "snapshot",
+        name: "Frontend capture",
+      });
+      expect(after.snapshots[capturedPayload.capture.nodeId].html).toContain(
+        "Frontend fixture",
+      );
+      expect(JSON.stringify(after.frontend)).toContain('"status":"reachable"');
+
+      const detached = await fetch(`${bridge.url}/api/frontend`, {
+        method: "DELETE",
+        headers: { cookie: sessionCookie(bridge) },
+      });
+      expect(detached.status).toBe(200);
+      expect(
+        ((await detached.json()) as { frontend: { status: string } }).frontend.status,
+      ).toBe("idle");
+    } finally {
+      await bridge.close();
+      await new Promise<void>((resolveClose) =>
+        frontendServer.close(() => resolveClose()),
+      );
+    }
+  }, 15000);
+
+  it("rejects unsafe or self-referential frontend URLs", async () => {
+    const bridge = await startBridge({
+      designDir,
+      host: "127.0.0.1",
+      port: 0,
+      webDist: null,
+    });
+    try {
+      const headers = {
+        cookie: sessionCookie(bridge),
+        "content-type": "application/json",
+      };
+      const credentials = await fetch(`${bridge.url}/api/frontend`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ url: "http://user:secret@127.0.0.1:3000/" }),
+      });
+      expect(credentials.status).toBe(400);
+      expect(
+        ((await credentials.json()) as { error: { code: string } }).error.code,
+      ).toBe("frontend.url");
+
+      const sameOrigin = await fetch(`${bridge.url}/api/frontend`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ url: bridge.url }),
+      });
+      expect(sameOrigin.status).toBe(400);
+      expect(
+        ((await sameOrigin.json()) as { error: { code: string } }).error.code,
+      ).toBe("frontend.same-origin");
+    } finally {
+      await bridge.close();
+    }
+  });
+
+  it("requires a reachable attached frontend before capture", async () => {
+    const bridge = await startBridge({
+      designDir,
+      host: "127.0.0.1",
+      port: 0,
+      webDist: null,
+      capture: fakeCapture,
+    });
+    try {
+      const headers = {
+        cookie: sessionCookie(bridge),
+        "content-type": "application/json",
+      };
+      const missing = await fetch(`${bridge.url}/api/frontend/capture`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ pageId: design.pages[0].id }),
+      });
+      expect(missing.status).toBe(400);
+      expect(((await missing.json()) as { error: { code: string } }).error.code).toBe(
+        "frontend.not-attached",
+      );
+
+      const attached = await fetch(`${bridge.url}/api/frontend`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ url: "http://127.0.0.1:1/" }),
+      });
+      expect(attached.status).toBe(200);
+      const attachedPayload = (await attached.json()) as {
+        frontend: { status: string; error: { code: string } };
+      };
+      expect(attachedPayload.frontend.status).toBe("error");
+      expect(attachedPayload.frontend.error.code).toBe("frontend.unreachable");
+
+      const capture = await fetch(`${bridge.url}/api/frontend/capture`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ pageId: design.pages[0].id }),
+      });
+      expect(capture.status).toBe(502);
+    } finally {
+      await bridge.close();
+    }
+  }, 15000);
 
   it("refuses a non-loopback host", async () => {
     await expect(

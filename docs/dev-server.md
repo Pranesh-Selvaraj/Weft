@@ -37,14 +37,14 @@ Omit `command` when the app is already running or is managed by another tool:
 }
 ```
 
-Start the app yourself, then choose **Attach to server** in the Project server panel. Weft probes the URL and marks it running. **Stop** only detaches; it never kills a process it did not start.
+Start the app yourself, then choose **Attach to server** in the Live panel's project-server section. Weft probes the URL and marks it running. **Stop** only detaches; it never kills a process it did not start.
 
 ## Start it
 
 1. Register the project root with `weft workspace add <project>` if it is not registered.
 2. Start the workspace bridge: `weft workspace dev`.
-3. Select a design from the project, open **Server** in the top bar, then **Start server**.
-4. The panel shows the declared URL, status, pid and recent stdout/stderr. The design canvas remains usable while the server runs.
+3. Select a design from the project, open **Live** in the top bar, then **Start server**.
+4. The panel shows the declared URL, status, pid and recent stdout/stderr. The design canvas remains usable while the server runs. **Use running project server** attaches that URL as the frontend target.
 5. **Stop server** terminates the managed process group. Closing the bridge stops every managed server.
 
 The bridge exposes the same operations over HTTP for automation:
@@ -84,7 +84,7 @@ If the managed command exits before readiness, Weft reports the exit code and th
 ## Current limits
 
 - No dependency installation, package-manager detection or automatic retry.
-- No persisted logs, resource limits, port allocation, multiple servers per project, health-path configuration or browser automation hook yet.
+- No persisted logs, resource limits, port allocation, multiple servers per project or health-path configuration yet. The live panel can attach an already-running URL for preview/capture without declaring it as a managed server.
 - Attach mode does not monitor the external process after the initial probe.
 - A bridge crash can leave a detached POSIX process group running. Stop it in a terminal if that happens.
 - Extraction is a later branch. The dev server is exposed first so the capture work can rely on a running, declared local app.

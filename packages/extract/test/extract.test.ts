@@ -124,6 +124,32 @@ describe("extractSnapshot", () => {
     expect(capture).not.toHaveBeenCalled();
   });
 
+  it("accepts an explicit trusted origin allowlist without project config", async () => {
+    await writeFile(join(root, "weft.project.json"), JSON.stringify({ version: 1 }));
+    const result = await extractSnapshot({
+      projectRoot: root,
+      designDir,
+      url: "http://127.0.0.1:3000/landing",
+      allowedOrigins: ["http://127.0.0.1:3000"],
+      capture: fakeCapture,
+    });
+    expect(result.node.source.url).toBe("http://127.0.0.1:3000/landing");
+  });
+
+  it("still refuses a URL outside an explicit allowlist", async () => {
+    const capture = vi.fn(fakeCapture);
+    await expect(
+      extractSnapshot({
+        projectRoot: root,
+        designDir,
+        url: "http://127.0.0.1:9999/",
+        allowedOrigins: ["http://127.0.0.1:3000"],
+        capture,
+      }),
+    ).rejects.toMatchObject({ code: "extract.origin" });
+    expect(capture).not.toHaveBeenCalled();
+  });
+
   it("requires extract.origins", async () => {
     await writeFile(join(root, "weft.project.json"), JSON.stringify({ version: 1 }));
     await expect(

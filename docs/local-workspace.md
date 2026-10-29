@@ -20,9 +20,10 @@ The bridge watches that directory and writes pages there. The design can live in
 
 What does not exist yet:
 
-- a bridge/UI Extract button (the CLI is the current entry point);
-- serving project assets and thumbnails;
+- serving project thumbnails;
 - per-project permissions and an audit trail.
+
+A bridge/UI capture action was added later by ADR 0027; the CLI remains available too.
 
 ## The model: a local workspace hub
 
@@ -135,7 +136,7 @@ snapshot files beside the target design page
 source metadata (URL, selector, viewport, timestamp)
 ```
 
-The extractor refuses non-allowlisted or non-loopback origins, blocks external HTTP/WebSocket traffic during capture, never runs captured scripts inside the editor, and treats captured text as untrusted data for agents. See [Snapshot extraction](extraction.md).
+The extractor refuses non-allowlisted or non-loopback origins, blocks external HTTP/WebSocket traffic during capture, never runs captured scripts inside the editor, and treats captured text as untrusted data for agents. The live panel adds an explicit per-session frontend attach path and a capture button over the same pipeline; see [Live session](live-session.md) and [Snapshot extraction](extraction.md).
 
 ### Agents across projects
 
@@ -206,7 +207,7 @@ Exit criteria: the browser lists only registered projects/designs; opening a pat
 
 Exit criteria: Weft can start and stop one declared dev server for a registered project; it never executes a command not declared in project config; it cannot start a server outside the root; stopping leaves no orphan process.
 
-The manager and browser Project server panel now implement this. See [Declared dev servers](dev-server.md) and ADR 0012.
+The manager and the live panel's project-server section now implement this. See [Declared dev servers](dev-server.md) and ADR 0012.
 
 ### 6. `feat/extract-snapshots` (implemented)
 
@@ -214,7 +215,7 @@ Capture allowlist, Playwright/CDP capture, sanitized snapshot files, source meta
 
 Exit criteria: a registered page from an allowlisted loopback origin becomes a snapshot frame that renders without scripts; non-allowlisted origins are refused; captured content is readable by an agent without executing it.
 
-The `weft extract` command, `@weft/extract` and the sandboxed renderer payload path now implement this. See [Snapshot extraction](extraction.md) and ADR 0013. A bridge/UI Extract action remains a follow-up.
+The `weft extract` command, `@weft/extract`, the sandboxed renderer payload path and the live panel's **Capture page** action now implement this. See [Snapshot extraction](extraction.md), [Live session](live-session.md) and ADR 0013/0027.
 
 ### 7. `feat/assets-and-thumbnails`
 

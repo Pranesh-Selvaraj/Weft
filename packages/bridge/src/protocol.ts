@@ -2,6 +2,19 @@ import type { CommandActor, DesignManifest, DocumentCommand, PageCommand } from 
 import type { SnapshotPayload } from "@weft/design-io";
 import type { DevServerSnapshot } from "@weft/dev-server";
 import type { MergeConflict } from "@weft/session";
+import type { FrontendSnapshot } from "./frontend.js";
+
+export interface BridgeInfo {
+  url: string;
+  host: string;
+  port: number;
+  designPath: string;
+  designName: string;
+  projectPath: string | null;
+  projectName: string | null;
+  workspaceFile: string | null;
+  mode: "single" | "workspace";
+}
 
 export interface WirePage {
   pageId: string;
@@ -38,6 +51,10 @@ export interface DesignPayload {
   /** Sanitized HTML/CSS for each snapshot node that has payload files. */
   snapshots: Record<string, SnapshotPayload>;
   workspace?: WorkspacePayload;
+  /** Runtime endpoints and active paths for the live panel. */
+  bridge?: BridgeInfo;
+  /** The explicitly attached local frontend target, if any. */
+  frontend?: FrontendSnapshot;
 }
 
 export interface OpenDesignRequest {
@@ -77,6 +94,11 @@ export interface PongMessage {
 export interface DevServerMessage {
   type: "dev";
   server: DevServerSnapshot;
+}
+
+export interface FrontendMessage {
+  type: "frontend";
+  frontend: FrontendSnapshot;
 }
 
 export interface CommandRequestMessage {
@@ -147,6 +169,7 @@ export type BridgeMessage =
   | ErrorMessage
   | PongMessage
   | DevServerMessage
+  | FrontendMessage
   | CommandResultMessage
   | CommandBroadcastMessage
   | DocumentCommandResultMessage

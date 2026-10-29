@@ -74,3 +74,7 @@ The process group matters because a dev server is usually a package-manager proc
 - Add resource limits or a supervised worker if Weft starts running untrusted project configs or remote agents.
 - Persist bounded logs if users need to inspect a crashed server after the bridge restarts.
 - Add dependency installation as an explicit, declared lifecycle command rather than a hidden side effect.
+
+## Update (ADR 0027)
+
+The project-server controls now live in the **Live** session panel together with endpoint details and the local frontend target. The declaration and process model in this ADR are unchanged; the panel can also attach the running server URL as a frontend target. See [ADR 0027](0027-live-endpoints-frontend-capture.md).

@@ -32,6 +32,13 @@ export interface ExtractOptions {
   viewport?: { width: number; height: number };
   /** Page id or name. Default: the first page. */
   page?: string;
+  /**
+   * Explicit capture-origin allowlist supplied by a trusted caller. The CLI
+   * does not set this and continues to require extract.origins in
+   * weft.project.json. The local bridge sets it only after the user has
+   * explicitly attached the exact loopback origin.
+   */
+  allowedOrigins?: readonly string[];
   name?: string;
   x?: number;
   y?: number;
