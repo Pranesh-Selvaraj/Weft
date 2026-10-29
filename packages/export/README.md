@@ -1,6 +1,6 @@
 # @weft/export
 
-Static HTML handoff for Weft designs. It server-renders the canonical `PageView` to standalone pages, copies snapshot payloads into sandboxed iframes without adding scripts, and writes an index, tokens and an export manifest.
+Static HTML handoff for Weft designs. It server-renders the canonical `PageView` to standalone pages, copies local manifest assets and snapshot payloads, and writes an index, tokens and an export manifest without adding scripts.
 
 ## Usage
 
@@ -23,7 +23,7 @@ weft export designs/app.weft --out dist/handoff
 
 ## Output
 
-`index.html`, `pages/<slug>.html`, optional `tokens.json`, and `weft.export.json` with design/page metadata and dimensions.
+`index.html`, `pages/<slug>.html`, `assets/<asset-id><ext>` for manifest assets, optional `tokens.json`, and `weft.export.json` with design/page/asset metadata and dimensions.
 
 ## Security
 
@@ -31,11 +31,11 @@ weft export designs/app.weft --out dist/handoff
 - Snapshot payloads remain in sandboxed iframes with their CSP.
 - Design files are validated and referenced files checked before writing.
 - A non-empty output directory is refused unless `force` is true; unrelated files are never deleted.
-- Generated paths stay under `pages/`.
+- Generated paths stay under `pages/` and `assets/`; asset ids provide output filenames.
 
 ## Limits
 
-Image nodes are placeholders; fonts/assets are not embedded; no responsive, PDF, ZIP or component generation yet. See [`docs/export.md`](../../docs/export.md) and ADR 0022.
+Image nodes render copied manifest assets; fonts are copied but not mapped to `@font-face`; no responsive, PDF, ZIP or component generation yet. See [`docs/export.md`](../../docs/export.md) and ADR 0022.
 
 ## Test
 

@@ -21,6 +21,8 @@ The command validates the design and referenced files before writing. It refuses
 ```text
 dist/handoff/
 ├── index.html
+├── assets/              # copied manifest assets
+│   └── as_….png
 ├── pages/
 │   ├── landing.html
 │   └── pricing.html
@@ -45,10 +47,11 @@ dist/handoff/
 ## What is rendered
 
 - Frames, flex layout, text, rectangles, ellipses, tokens, paints, strokes, radius, shadows and page bounds through `@weft/render`.
+- Image nodes and image paints using copied local assets under `assets/<asset-id><ext>`.
 - Snapshot payloads in their sandboxed iframes, using the sanitized HTML/CSS beside the design.
-- A page wrapper, index page and optional token tree.
+- A page wrapper, index page, optional token tree and exported-asset metadata.
 
-Image nodes render as placeholders until the asset pipeline exists. Fonts are not embedded; the exported page uses the declared CSS families with system fallbacks. There is no JavaScript runtime, navigation framework or client-side interaction.
+Fonts are not embedded or mapped to `@font-face`; the exported page uses declared CSS families with system fallbacks. There is no JavaScript runtime, navigation framework or client-side interaction.
 
 ## Security
 
@@ -60,7 +63,7 @@ Image nodes render as placeholders until the asset pipeline exists. Fonts are no
 
 ## Limits
 
-- No image/font asset copying, responsive variants, multi-viewport frames, ZIP/PDF, React component generation or design-token CSS output yet.
+- No font mapping/`@font-face`, content-addressed deduplication, thumbnails, responsive variants, multi-viewport frames, ZIP/PDF, React component generation or design-token CSS output yet.
 - Large snapshot payloads make large HTML files.
 - The output is not an editor; select/edit in Weft.
 

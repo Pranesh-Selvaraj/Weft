@@ -47,13 +47,14 @@ Start here, then follow the decision records for the reasoning.
 21. [ADR 0020](decisions/0020-alignment-and-nudge.md) for batch alignment and keyboard nudge.
 22. [ADR 0021](decisions/0021-multi-resize.md) for combined multi-selection resize.
 23. [ADR 0022](decisions/0022-static-export.md) for static HTML export.
-24. [Architecture](architecture.md) for the implementation shape.
-25. [Security model](security.md) for the trust boundaries and hardening.
-26. [Local workspace](local-workspace.md) for the project registry, picker and dev-server model.
-27. [Declared dev servers](dev-server.md) to declare and run a project server.
-28. [Snapshot extraction](extraction.md) to capture a running page.
-29. [MCP server](mcp.md) to connect a coding agent.
-30. [Static export](export.md) to hand off a design as HTML.
-31. [CLI](cli.md) to run, inspect, edit, extract and export designs.
-32. [Browser editor](../apps/web/README.md) to open and edit the starter design.
-33. [ADR index](decisions/README.md) to see which decisions are settled and which are still open.
+24. [ADR 0023](decisions/0023-static-asset-export.md) for static asset export.
+25. [Architecture](architecture.md) for the implementation shape.
+26. [Security model](security.md) for the trust boundaries and hardening.
+27. [Local workspace](local-workspace.md) for the project registry, picker and dev-server model.
+28. [Declared dev servers](dev-server.md) to declare and run a project server.
+29. [Snapshot extraction](extraction.md) to capture a running page.
+30. [MCP server](mcp.md) to connect a coding agent.
+31. [Static export](export.md) to hand off a design as HTML and assets.
+32. [CLI](cli.md) to run, inspect, edit, extract and export designs.
+33. [Browser editor](../apps/web/README.md) to open and edit the starter design.
+34. [ADR index](decisions/README.md) to see which decisions are settled and which are still open.

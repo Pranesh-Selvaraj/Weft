@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -101,6 +101,54 @@ describe("exportDesign", () => {
     await expect(
       exportDesign({ designDir, outDir: join(root, "missing"), page: "Nope" }),
     ).rejects.toMatchObject({ code: "export.page" });
+  });
+
+  it("copies image assets and rewrites image URLs", async () => {
+    const assetId = newId("as");
+    const image = createNode({
+      type: "image",
+      asset: assetId,
+      fit: "cover",
+      width: 64,
+      height: 64,
+    });
+    const updated: DesignFile = {
+      manifest: {
+        ...design.manifest,
+        assets: [
+          {
+            id: assetId,
+            file: "assets/hero.png",
+            mime: "image/png",
+            name: "Hero",
+            width: 1,
+            height: 1,
+          },
+        ],
+      },
+      pages: design.pages.map((page, index) =>
+        index === 0 ? insertNode(page, image) : page,
+      ),
+    };
+    await mkdir(join(designDir, "assets"), { recursive: true });
+    await writeFile(
+      join(designDir, "assets/hero.png"),
+      Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
+        "base64",
+      ),
+    );
+    await writeDesign(designDir, updated);
+
+    const out = join(root, "with-assets");
+    const result = await exportDesign({ designDir, outDir: out });
+    expect(result.assets).toEqual([
+      { id: assetId, name: "Hero", mime: "image/png", file: `assets/${assetId}.png` },
+    ]);
+    const html = await readFile(join(out, "pages/landing.html"), "utf8");
+    expect(html).toContain(`src="../assets/${assetId}.png"`);
+    expect(html).not.toContain(`image · ${assetId}`);
+    await expect(readFile(join(out, `assets/${assetId}.png`))).resolves.toBeDefined();
   });
 
   it("refuses a non-empty output directory unless forced", async () => {

@@ -1,7 +1,7 @@
-import { mkdir, readdir, rename, stat, unlink, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { mkdir, readdir, readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
+import { dirname, extname, resolve } from "node:path";
 import { slugify, type DesignFile, type PageDocument } from "@weft/core";
-import { readDesign, readSnapshotPayloads } from "@weft/design-io";
+import { readDesign, readSnapshotPayloads, resolveDesignPath } from "@weft/design-io";
 import { getPageBounds, PageView } from "@weft/render";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -27,10 +27,18 @@ export interface ExportedPage {
   height: number;
 }
 
+export interface ExportedAsset {
+  id: string;
+  name?: string;
+  mime: string;
+  file: string;
+}
+
 export interface ExportResult {
   design: { id: string; name: string };
   outDir: string;
   pages: ExportedPage[];
+  assets: ExportedAsset[];
   files: string[];
   exportedAt: string;
 }
@@ -44,11 +52,11 @@ function escapeHtml(value: string): string {
     .replaceAll("'", "&#39;");
 }
 
-async function writeAtomic(target: string, content: string): Promise<void> {
+async function writeAtomic(target: string, content: string | Uint8Array): Promise<void> {
   await mkdir(dirname(target), { recursive: true });
   const temp = `${target}.${process.pid}.tmp`;
   try {
-    await writeFile(temp, content, "utf8");
+    await writeFile(temp, content);
     await rename(temp, target);
   } catch (error) {
     await unlink(temp).catch(() => undefined);
@@ -179,7 +187,25 @@ export async function exportDesign(options: ExportOptions): Promise<ExportResult
   const files = pageFiles(pages);
   const exportedAt = new Date().toISOString();
   const exported: ExportedPage[] = [];
+  const exportedAssets: ExportedAsset[] = [];
+  const assetUrls = new Map<string, string>();
   const written: string[] = [];
+
+  for (const asset of design.manifest.assets ?? []) {
+    const extension = extname(asset.file).toLowerCase();
+    const safeExtension = /^\.[a-z0-9]{1,10}$/.test(extension) ? extension : "";
+    const file = `assets/${asset.id}${safeExtension}`;
+    const bytes = await readFile(resolveDesignPath(designDir, asset.file));
+    await writeAtomic(resolve(outDir, file), bytes);
+    written.push(file);
+    assetUrls.set(asset.id, file);
+    exportedAssets.push({
+      id: asset.id,
+      ...(asset.name ? { name: asset.name } : {}),
+      mime: asset.mime,
+      file,
+    });
+  }
 
   for (const page of pages) {
     const bounds = getPageBounds(page);
@@ -192,6 +218,10 @@ export async function exportDesign(options: ExportOptions): Promise<ExportResult
         width,
         height,
         snapshotPayloads: snapshots,
+        assetUrl: (assetId: string) => {
+          const file = assetUrls.get(assetId);
+          return file ? `../${file}` : undefined;
+        },
       }),
     );
     const file = files.get(page.id) ?? `pages/${slugify(page.name)}.html`;
@@ -217,6 +247,7 @@ export async function exportDesign(options: ExportOptions): Promise<ExportResult
     design: { id: design.manifest.id, name: design.manifest.name },
     exportedAt,
     pages: exported,
+    assets: exportedAssets,
   };
   await writeAtomic(
     resolve(outDir, "weft.export.json"),
@@ -228,6 +259,7 @@ export async function exportDesign(options: ExportOptions): Promise<ExportResult
     design: manifest.design,
     outDir,
     pages: exported,
+    assets: exportedAssets,
     files: written,
     exportedAt,
   };
