@@ -33,7 +33,7 @@ The static path remains the zero-process preview and the fallback.
 
 ## What you can do
 
-- Click a layer to select it; the selection box follows the rendered DOM.
+- Click a layer to select it; at page scope the top-level frame is selected. Double-click to enter a frame/group and select the clicked layer; the canvas breadcrumb shows the current path and Escape moves up one scope. Drag empty page background to marquee-select top-level layers, or drag inside a scope to select its direct children.
 - Use the left tool panel to create frames, text, rectangles and ellipses (`V`, `F`, `T`, `R`, `O`). Drag for a custom size or click for a default size; creation inside a selected frame becomes a child of that frame.
 - Move a selected layer by dragging its rendered DOM; resize it with the eight selection handles. Shift/Cmd/Ctrl-click adds layers to the selection; dragging any selected layer moves the group, and Delete removes it, each as one batch command with an inverse. Arrow keys nudge the selection (Shift: 10 px).
 - The multi-layer inspector can align selected layers left/center/right/top/middle/bottom and shows a flex-child warning when the parent layout may override x/y. Absolute-layout selections also show a combined dashed group box with resize handles; dragging scales the whole group as one batch command. The inspector switches to a multi-layer summary when more than one layer is selected.
@@ -56,7 +56,7 @@ The static preview is read-only and has no bridge, inspector edits or history.
 
 ## Not here yet
 
-- Page duplicate and cross-design drag; flex-aware resize, distribute/match-size/align-to-page, marquee/range selection, snapping/guides, rotation and aspect-ratio locks, layer reordering, bulk visibility/lock, components.
+- Page duplicate and cross-design drag; flex-aware resize, distribute/match-size/align-to-page, true isolation, autoscroll/lasso selection, snapping/guides, rotation and aspect-ratio locks, layer reordering, bulk visibility/lock, components.
 - A browser Extract button; extraction currently starts from the CLI.
 - Presence/cursors, chat, page rename/background/token commands.
 - Asset serving for image nodes and zoom controls.

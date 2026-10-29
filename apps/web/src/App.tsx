@@ -63,6 +63,40 @@ function ToolGlyph({ tool }: { tool: Tool }) {
   }
 }
 
+function topLevelNodeId(page: PageDocument, nodeId: string): string {
+  let current = nodeId;
+  while (true) {
+    const parent = getParentId(page, current);
+    if (!parent) return current;
+    current = parent;
+  }
+}
+
+function directChildWithinScope(
+  page: PageDocument,
+  nodeId: string,
+  scopeId: string,
+): string | null {
+  if (nodeId === scopeId) return scopeId;
+  let current = nodeId;
+  while (true) {
+    const parent = getParentId(page, current);
+    if (!parent) return null;
+    if (parent === scopeId) return current;
+    current = parent;
+  }
+}
+
+function nearestContainerId(page: PageDocument, nodeId: string): string | null {
+  let current: string | null = nodeId;
+  while (current) {
+    const node = page.nodes[current];
+    if (node && isContainerNode(node)) return current;
+    current = getParentId(page, current);
+  }
+  return null;
+}
+
 function absoluteOrigin(page: PageDocument, nodeId: string): { x: number; y: number } {
   let x = 0;
   let y = 0;
@@ -373,6 +407,8 @@ export function App() {
   const [serverOpen, setServerOpen] = useState(false);
   const [tool, setTool] = useState<Tool>("select");
   const [zoom, setZoom] = useState(1);
+  const [scopeId, setScopeId] = useState<string | null>(null);
+  const [marquee, setMarquee] = useState<DragState | null>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
   const [pendingSelectId, setPendingSelectId] = useState<string | null>(null);
   const [pendingPageId, setPendingPageId] = useState<string | null>(null);
@@ -395,6 +431,19 @@ export function App() {
     source.pages[0];
   const selectedNode =
     page && selectedNodeId ? page.nodes[selectedNodeId] : undefined;
+  const scopePath: Node[] = [];
+  if (page && scopeId) {
+    let current: string | null = scopeId;
+    const seen = new Set<string>();
+    while (current && !seen.has(current)) {
+      seen.add(current);
+      const node = page.nodes[current];
+      if (!node) break;
+      scopePath.unshift(node);
+      current = getParentId(page, current);
+    }
+  }
+  const scopeNode = page && scopeId ? page.nodes[scopeId] : undefined;
 
   const clearSelection = (): void => {
     setSelectedIds(new Set());
@@ -554,6 +603,12 @@ export function App() {
   }, [page, selectedIds, selectedNodeId]);
 
   useEffect(() => {
+    if (!scopeId) return;
+    const scope = page?.nodes[scopeId];
+    if (!scope || !isContainerNode(scope)) setScopeId(null);
+  }, [page, scopeId]);
+
+  useEffect(() => {
     if (pendingSelectId && page?.nodes[pendingSelectId]) {
       setSelectedIds(new Set([pendingSelectId]));
       setSelectedNodeId(pendingSelectId);
@@ -608,7 +663,11 @@ export function App() {
       if (mod && event.key.toLowerCase() === "a") {
         event.preventDefault();
         if (page && source.editable) {
-          const ids = Object.keys(page.nodes);
+          const scope = scopeId ? page.nodes[scopeId] : undefined;
+          const ids =
+            scope && isContainerNode(scope)
+              ? [...scope.children]
+              : Object.keys(page.nodes);
           setSelectedIds(new Set(ids));
           setSelectedNodeId(ids[0] ?? null);
         }
@@ -654,6 +713,14 @@ export function App() {
           setTool("select");
           return;
         }
+        if (scopeId && page) {
+          const parentId = getParentId(page, scopeId);
+          const parent = parentId ? page.nodes[parentId] : undefined;
+          setScopeId(parent && isContainerNode(parent) ? parent.id : null);
+          setSelectedIds(new Set([scopeId]));
+          setSelectedNodeId(scopeId);
+          return;
+        }
         clearSelection();
         return;
       }
@@ -670,7 +737,7 @@ export function App() {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [page, selectedIds, source, tool]);
+  }, [page, scopeId, selectedIds, source, tool]);
 
   const pageBounds = page ? getPageBounds(page) : { width: 0, height: 0 };
   const bounds = {
@@ -729,9 +796,11 @@ export function App() {
     source.mode === "static"
       ? "Static preview · run weft dev for live editing"
       : source.status === "live"
-        ? selectedIds.size > 1
-          ? `${selectedIds.size} layers selected · drag to move · Delete to remove · revision ${source.revision ?? "—"}`
-          : `Live · select a layer, or press V/F/T/R/O to create · revision ${source.revision ?? "—"}`
+        ? scopeNode
+          ? `Inside ${scopeNode.name} · Esc to exit · select a layer or press V/F/T/R/O · revision ${source.revision ?? "—"}`
+          : selectedIds.size > 1
+            ? `${selectedIds.size} layers selected · drag to move · Delete to remove · revision ${source.revision ?? "—"}`
+            : `Live · select a layer, or press V/F/T/R/O to create · revision ${source.revision ?? "—"}`
 
         : source.status === "connecting"
           ? "Connecting to the local bridge…"
@@ -779,6 +848,7 @@ export function App() {
       { type: "node.insert", node, parentId: parent?.id ?? null },
       `Create ${TOOL_META[type].label}`,
     );
+    setScopeId(parent?.id ?? null);
     setPendingSelectId(id);
   };
 
@@ -1211,22 +1281,139 @@ export function App() {
     startTransform(handle, selectedNode, event.clientX, event.clientY);
   };
 
+  const resolveScopedHit = (rawId: string): { id: string; exited: boolean } => {
+    if (!page) return { id: rawId, exited: false };
+    if (scopeId) {
+      const within =
+        rawId === scopeId || getAncestorIds(page, rawId).includes(scopeId);
+      if (within) {
+        return {
+          id: directChildWithinScope(page, rawId, scopeId) ?? scopeId,
+          exited: false,
+        };
+      }
+      return { id: topLevelNodeId(page, rawId), exited: true };
+    }
+    return { id: topLevelNodeId(page, rawId), exited: false };
+  };
+
+  const startMarquee = (
+    startClientX: number,
+    startClientY: number,
+    additive: boolean,
+    keepScope: boolean,
+  ): void => {
+    if (!page || !source.editable) return;
+    const stage = stageScaleRef.current;
+    const start = toPagePoint(startClientX, startClientY);
+    if (!stage || !start) return;
+    let current = start;
+    setMarquee({ start, current: start });
+
+    const move = (event: PointerEvent): void => {
+      const point = toPagePoint(event.clientX, event.clientY);
+      if (!point) return;
+      current = point;
+      setMarquee({ start, current: point });
+    };
+
+    const cleanup = (): void => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", finish);
+      window.removeEventListener("pointercancel", cancel);
+      setMarquee(null);
+    };
+
+    const finish = (): void => {
+      cleanup();
+      const moved =
+        Math.abs(current.x - start.x) >= 3 || Math.abs(current.y - start.y) >= 3;
+      if (!moved) {
+        if (!additive) {
+          if (keepScope && scopeId) selectSingle(scopeId);
+          else {
+            clearSelection();
+            setScopeId(null);
+          }
+        }
+        return;
+      }
+      const pageElement = document.querySelector<HTMLElement>(
+        `[data-page-id="${CSS.escape(page.id)}"]`,
+      );
+      if (!pageElement) return;
+      const pageRect = pageElement.getBoundingClientRect();
+      const left = Math.min(start.x, current.x);
+      const top = Math.min(start.y, current.y);
+      const right = Math.max(start.x, current.x);
+      const bottom = Math.max(start.y, current.y);
+      const scope = keepScope && scopeId ? page.nodes[scopeId] : undefined;
+      const candidates =
+        scope && isContainerNode(scope) ? scope.children : page.children;
+      const matched: string[] = [];
+      for (const id of candidates) {
+        const element = document.querySelector<HTMLElement>(
+          `[data-node-id="${CSS.escape(id)}"]`,
+        );
+        if (!element) continue;
+        const rect = element.getBoundingClientRect();
+        const nodeLeft = (rect.left - pageRect.left) / scale;
+        const nodeTop = (rect.top - pageRect.top) / scale;
+        const nodeRight = nodeLeft + rect.width / scale;
+        const nodeBottom = nodeTop + rect.height / scale;
+        if (nodeLeft < right && nodeRight > left && nodeTop < bottom && nodeBottom > top) {
+          matched.push(id);
+        }
+      }
+      if (additive) {
+        setSelectedIds((selected) => new Set([...selected, ...matched]));
+        setSelectedNodeId(matched[0] ?? selectedNodeId);
+      } else {
+        setSelectedIds(new Set(matched));
+        setSelectedNodeId(matched[0] ?? null);
+      }
+      suppressClickRef.current = true;
+      window.setTimeout(() => {
+        suppressClickRef.current = false;
+      }, 0);
+    };
+
+    const cancel = (): void => {
+      cleanup();
+    };
+
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", finish);
+    window.addEventListener("pointercancel", cancel);
+  };
+
   const handleStagePointerDown = (event: ReactPointerEvent<HTMLDivElement>): void => {
     if (!page || !source.editable) return;
     if (tool === "select") {
       const target = event.target as HTMLElement;
       if (target.closest("[data-resize-handle]")) return;
-      if (event.shiftKey || event.metaKey || event.ctrlKey) return;
+      const additive = event.shiftKey || event.metaKey || event.ctrlKey;
       const nodeElement = target.closest<HTMLElement>("[data-node-id]");
-      const nodeId = nodeElement?.dataset.nodeId;
-      const node = nodeId ? page.nodes[nodeId] : undefined;
+      const rawId = nodeElement?.dataset.nodeId;
+      if (!rawId) {
+        startMarquee(event.clientX, event.clientY, additive, false);
+        return;
+      }
+      if (scopeId && rawId === scopeId) {
+        startMarquee(event.clientX, event.clientY, additive, true);
+        return;
+      }
+      if (additive) return;
+      const hit = resolveScopedHit(rawId);
+      if (hit.exited) setScopeId(null);
+      const node = page.nodes[hit.id];
       if (!node || node.locked) return;
       let moveIds = selectedIds;
-      if (!selectedIds.has(node.id)) {
-        moveIds = new Set([node.id]);
+      if (!selectedIds.has(hit.id)) {
+        moveIds = new Set([hit.id]);
         setSelectedIds(moveIds);
       }
-      setSelectedNodeId(node.id);
+      setSelectedNodeId(hit.id);
       event.preventDefault();
       startMove([...moveIds], event.clientX, event.clientY);
       return;
@@ -1282,18 +1469,34 @@ export function App() {
     if (tool !== "select") return;
     const target = event.target as HTMLElement;
     const nodeElement = target.closest<HTMLElement>("[data-node-id]");
-    const nodeId = nodeElement?.dataset.nodeId;
+    const rawId = nodeElement?.dataset.nodeId;
     const additive = event.shiftKey || event.metaKey || event.ctrlKey;
-    if (!nodeId) {
-      if (!additive) clearSelection();
+    if (!rawId) {
+      if (!additive) {
+        clearSelection();
+        setScopeId(null);
+      }
       return;
     }
+    const hit = resolveScopedHit(rawId);
+    if (hit.exited) setScopeId(null);
     if (additive) {
-      toggleSelection(nodeId);
+      toggleSelection(hit.id);
       return;
     }
-    if (selectedIds.size > 1 && selectedIds.has(nodeId)) return;
-    selectSingle(nodeId);
+    if (selectedIds.size > 1 && selectedIds.has(hit.id)) return;
+    selectSingle(hit.id);
+  };
+
+  const handleStageDoubleClick = (event: ReactMouseEvent<HTMLDivElement>): void => {
+    if (tool !== "select" || !page || !source.editable) return;
+    const target = event.target as HTMLElement;
+    const rawId = target.closest<HTMLElement>("[data-node-id]")?.dataset.nodeId;
+    if (!rawId) return;
+    const containerId = nearestContainerId(page, rawId);
+    if (!containerId) return;
+    setScopeId(containerId);
+    selectSingle(rawId);
   };
 
   const dragBox = drag
@@ -1302,6 +1505,15 @@ export function App() {
         top: Math.min(drag.start.y, drag.current.y),
         width: Math.abs(drag.current.x - drag.start.x),
         height: Math.abs(drag.current.y - drag.start.y),
+      }
+    : null;
+
+  const marqueeBox = marquee
+    ? {
+        left: Math.min(marquee.start.x, marquee.current.x),
+        top: Math.min(marquee.start.y, marquee.current.y),
+        width: Math.abs(marquee.current.x - marquee.start.x),
+        height: Math.abs(marquee.current.y - marquee.start.y),
       }
     : null;
 
@@ -1427,6 +1639,7 @@ export function App() {
                 onClick={() => {
                   setActivePageId(ref.id);
                   clearSelection();
+                  setScopeId(null);
                   setPendingSelectId(null);
                   setDrag(null);
                   setTool("select");
@@ -1581,6 +1794,9 @@ export function App() {
               onSelect={(id, additive) => {
                 if (additive) toggleSelection(id);
                 else selectSingle(id);
+                const parentId = page ? getParentId(page, id) : null;
+                const parent = parentId && page ? page.nodes[parentId] : undefined;
+                setScopeId(parent && isContainerNode(parent) ? parent.id : null);
                 setTool("select");
               }}
               onToggleVisible={toggleNodeVisible}
@@ -1625,6 +1841,33 @@ export function App() {
           </div>
         </aside>
         <main className="canvas" ref={ref}>
+          {page && scopeId && (
+            <div className="canvas-breadcrumb" aria-label="Selection scope">
+              <button
+                type="button"
+                onClick={() => {
+                  setScopeId(null);
+                  clearSelection();
+                }}
+              >
+                {page.name}
+              </button>
+              {scopePath.map((node) => (
+                <span key={node.id} className="breadcrumb-segment">
+                  <span aria-hidden="true">/</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setScopeId(node.id);
+                      selectSingle(node.id);
+                    }}
+                  >
+                    {node.name}
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
           {page ? (
             <div className="stage-holder">
               <div
@@ -1641,6 +1884,7 @@ export function App() {
                   }}
                   onPointerDown={handleStagePointerDown}
                   onClick={handleStageClick}
+                  onDoubleClick={handleStageDoubleClick}
                 >
                   <PageView
                     page={page}
@@ -1667,6 +1911,17 @@ export function App() {
                       scale={scale}
                       editable={source.editable && selectedNode.locked !== true}
                       onResizeStart={handleResizeStart}
+                    />
+                  )}
+                  {marqueeBox && (marqueeBox.width > 0 || marqueeBox.height > 0) && (
+                    <div
+                      className="marquee-preview"
+                      style={{
+                        left: marqueeBox.left,
+                        top: marqueeBox.top,
+                        width: Math.max(1, marqueeBox.width),
+                        height: Math.max(1, marqueeBox.height),
+                      }}
                     />
                   )}
                   {dragBox && tool !== "select" && (dragBox.width > 0 || dragBox.height > 0) && (
