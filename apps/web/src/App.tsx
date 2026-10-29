@@ -1547,6 +1547,7 @@ export function App() {
                     width={bounds.width}
                     height={bounds.height}
                     snapshotPayloads={source.snapshots}
+                    assetUrl={source.assetUrl}
                   />
                   {!transformPreview && selectedIds.size > 1 && (
                     <MultiSelectionOverlay

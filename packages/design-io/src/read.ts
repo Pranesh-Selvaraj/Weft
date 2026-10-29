@@ -20,6 +20,12 @@ import { resolveDesignPath } from "./paths.js";
 
 export const MANIFEST_FILE = "weft.json";
 const MAX_SNAPSHOT_FILE_BYTES = 4 * 1024 * 1024;
+const MAX_ASSET_FILE_BYTES = 10 * 1024 * 1024;
+
+export interface ReadAssetResult {
+  bytes: Uint8Array;
+  mime: string;
+}
 
 /** Captured HTML/CSS keyed by snapshot node id, ready for the sandboxed renderer. */
 export interface SnapshotPayload {
@@ -69,6 +75,70 @@ async function readSnapshotFile(
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
     throw error;
   }
+}
+
+function safeMime(value: string): string {
+  return /^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*$/i.test(value)
+    ? value
+    : "application/octet-stream";
+}
+
+/** Read one manifest asset by its design-relative path, with a symlink/size guard. */
+export async function readAssetFile(
+  directory: string,
+  asset: Asset,
+  maxBytes = MAX_ASSET_FILE_BYTES,
+): Promise<ReadAssetResult> {
+  const root = resolve(directory);
+  const target = resolveDesignPath(root, asset.file);
+  let info;
+  try {
+    info = await lstat(target);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      throw new WeftIoError("asset.missing", asset.file, `Asset ${asset.id} does not exist.`);
+    }
+    throw error;
+  }
+  if (info.isSymbolicLink()) {
+    throw new WeftIoError(
+      "asset.symlink",
+      asset.file,
+      `Asset ${asset.id} must not be a symbolic link.`,
+    );
+  }
+  if (!info.isFile()) {
+    throw new WeftIoError("asset.file", asset.file, `Asset ${asset.id} is not a regular file.`);
+  }
+  if (info.size > maxBytes) {
+    throw new WeftIoError(
+      "asset.too-large",
+      asset.file,
+      `Asset ${asset.id} is larger than ${maxBytes} bytes.`,
+    );
+  }
+  const bytes = await readFile(target);
+  if (bytes.byteLength > maxBytes) {
+    throw new WeftIoError(
+      "asset.too-large",
+      asset.file,
+      `Asset ${asset.id} is larger than ${maxBytes} bytes.`,
+    );
+  }
+  return { bytes: new Uint8Array(bytes), mime: safeMime(asset.mime) };
+}
+
+/** Read manifest assets as data URLs for the static Vite preview. */
+export async function readAssetDataUrls(
+  directory: string,
+  assets: readonly Asset[],
+): Promise<Record<string, string>> {
+  const result: Record<string, string> = {};
+  for (const asset of assets) {
+    const { bytes, mime } = await readAssetFile(directory, asset);
+    result[asset.id] = `data:${mime};base64,${Buffer.from(bytes).toString("base64")}`;
+  }
+  return result;
 }
 
 /**

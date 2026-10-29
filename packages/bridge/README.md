@@ -45,6 +45,7 @@ The built web app must exist at `apps/web/dist`; `pnpm build` produces it. Set `
 - `GET /api/dev` → `{ ok, servers }` returns snapshots for every registered project. Requires the session cookie.
 - `POST /api/dev/start` → `{ projectPath }` starts a declared managed server, or attaches to an already-running URL when the project has no command. Requires the session cookie and Origin check.
 - `POST /api/dev/stop` → `{ projectPath }` stops a managed server process group or detaches from an attached one. Requires the session cookie and Origin check.
+- `GET/HEAD /api/asset/<asset-id>` serves a manifest asset after cookie authorization. Only `image/*`, `font/*`, `video/*` and `audio/*` types are allowed; the path is resolved through the design-relative safe-path resolver, symlinks/size violations are rejected, and responses are `no-store`, same-origin and script-free CSP protected.
 
 ### WebSocket: `/api/live`
 
@@ -141,4 +142,4 @@ Without a bridge, it falls back to the embedded Vite design and shows `read only
 pnpm --filter @weft/bridge test
 ```
 
-The suite covers HTTP design/health, session-cookie authorization, cross-origin rejection, loopback-only hosts, workspace listing and switching, rejecting unregistered paths, starting and stopping a declared project server, serving snapshot payloads, document page creation/removal, WebSocket init, live Yjs updates from file writes, browser commands and undo writes, invalid-write recovery, and the missing-web-build error.
+The suite covers HTTP design/health, asset serving/authorization/CSP, session-cookie authorization, cross-origin rejection, loopback-only hosts, workspace listing and switching, rejecting unregistered paths, starting and stopping a declared project server, serving snapshot payloads, document page creation/removal, WebSocket init, live Yjs updates from file writes, browser commands and undo writes, invalid-write recovery, and the missing-web-build error.

@@ -17,6 +17,7 @@ Start here, then follow the decision records for the reasoning.
 | [Snapshot extraction](extraction.md) | Capture allowlists, browser setup, sanitization, asset inlining, snapshot files and prompt-injection limits. |
 | [MCP server](mcp.md) | `weft mcp`, client configuration, tools, allowlisting, context packets and read-only mode. |
 | [Static export](export.md) | `weft export`, output layout, rendered content, handoff metadata and limits. |
+| [Assets](assets.md) | Manifest assets in the live editor, static preview, export and the asset-serving security boundary. |
 | [Security model](security.md) | Threat model, current controls, known gaps, and the security branch order. |
 | [Decision records](decisions/README.md) | What we chose, why, what we rejected, and what it costs. |
 | [Project history](HISTORY.md) | The timeline linking eras, stack changes, and decisions. |
@@ -48,13 +49,15 @@ Start here, then follow the decision records for the reasoning.
 22. [ADR 0021](decisions/0021-multi-resize.md) for combined multi-selection resize.
 23. [ADR 0022](decisions/0022-static-export.md) for static HTML export.
 24. [ADR 0023](decisions/0023-static-asset-export.md) for static asset export.
-25. [Architecture](architecture.md) for the implementation shape.
-26. [Security model](security.md) for the trust boundaries and hardening.
-27. [Local workspace](local-workspace.md) for the project registry, picker and dev-server model.
-28. [Declared dev servers](dev-server.md) to declare and run a project server.
-29. [Snapshot extraction](extraction.md) to capture a running page.
-30. [MCP server](mcp.md) to connect a coding agent.
-31. [Static export](export.md) to hand off a design as HTML and assets.
-32. [CLI](cli.md) to run, inspect, edit, extract and export designs.
-33. [Browser editor](../apps/web/README.md) to open and edit the starter design.
-34. [ADR index](decisions/README.md) to see which decisions are settled and which are still open.
+25. [ADR 0024](decisions/0024-local-asset-serving.md) for live/static asset serving.
+26. [Architecture](architecture.md) for the implementation shape.
+27. [Security model](security.md) for the trust boundaries and hardening.
+28. [Local workspace](local-workspace.md) for the project registry, picker and dev-server model.
+29. [Declared dev servers](dev-server.md) to declare and run a project server.
+30. [Snapshot extraction](extraction.md) to capture a running page.
+31. [MCP server](mcp.md) to connect a coding agent.
+32. [Static export](export.md) to hand off a design as HTML and assets.
+33. [Assets](assets.md) for manifest asset rendering and serving.
+34. [CLI](cli.md) to run, inspect, edit, extract and export designs.
+35. [Browser editor](../apps/web/README.md) to open and edit the starter design.
+36. [ADR index](decisions/README.md) to see which decisions are settled and which are still open.
