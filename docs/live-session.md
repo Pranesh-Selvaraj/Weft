@@ -27,7 +27,7 @@ The bridge, not the browser, probes it:
 - schemes must be `http` or `https`;
 - the host must literally be `127.0.0.1`, `localhost` or `::1`;
 - credentials and fragments are rejected;
-- redirects are not followed and response bodies are cancelled;
+- the reachability probe targets only the validated origin root (not the path or query), does not follow redirects and cancels response bodies;
 - any HTTP status below 500 counts as reachable, so 401/403/404 behind a router or login still attach;
 - a timeout or connection failure is shown as an error with a code.
 

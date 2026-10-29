@@ -87,16 +87,24 @@ export interface FrontendProbeResult {
  * considered reachable because the app may sit behind auth or use a router.
  */
 export async function probeFrontend(url: string): Promise<FrontendProbeResult> {
-  // Re-validate at the network boundary, not only in the route. This keeps a
-  // direct caller of the probe on the same loopback-only allowlist.
+  // Re-validate at the network boundary, not only in the route. The probe
+  // targets the origin root so a user-supplied path/query never becomes the
+  // request URL. The host and scheme are constants selected from the
+  // loopback allowlist; encodeURIComponent clears the dynamic port.
   const target = normalizeFrontendUrl(url);
   const parsed = new URL(target.url);
+  const scheme = parsed.protocol === "https:" ? "https:" : "http:";
+  const host = parsed.hostname.startsWith("[")
+    ? "[::1]"
+    : parsed.hostname.toLowerCase() === "localhost"
+      ? "localhost"
+      : "127.0.0.1";
+  const port = parsed.port ? `:${encodeURIComponent(parsed.port)}` : "";
+  const probeUrl = `${scheme}//${host}${port}/`;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
   try {
-    // codeql[js/request-forgery] The target is re-normalized above and limited
-    // to a loopback literal. Redirects are manual and the body is cancelled.
-    const response = await fetch(parsed, {
+    const response = await fetch(probeUrl, {
       method: "GET",
       redirect: "manual",
       signal: controller.signal,
