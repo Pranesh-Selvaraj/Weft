@@ -252,6 +252,9 @@ importers:
       '@weft/design-io':
         specifier: workspace:*
         version: link:../design-io
+      '@weft/export':
+        specifier: workspace:*
+        version: link:../export
       '@weft/extract':
         specifier: workspace:*
         version: link:../extract
@@ -283,6 +286,31 @@ importers:
         version: link:../core
 
   packages/dev-server: {}
+
+  packages/export:
+    dependencies:
+      '@weft/core':
+        specifier: workspace:*
+        version: link:../core
+      '@weft/design-io':
+        specifier: workspace:*
+        version: link:../design-io
+      '@weft/render':
+        specifier: workspace:*
+        version: link:../render
+      react:
+        specifier: ^19.3.1
+        version: 19.3.1
+      react-dom:
+        specifier: ^19.3.1
+        version: 19.3.1(react@19.3.1)
+    devDependencies:
+      '@types/react':
+        specifier: ^19.3.0
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: ^19.3.0
+        version: 19.3.0(@types/react@19.3.0)
 
   packages/extract:
     dependencies:

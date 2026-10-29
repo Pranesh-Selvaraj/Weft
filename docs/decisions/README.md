@@ -38,6 +38,7 @@ This directory is the project's long-form memory: **what we chose, why, what we 
 | [0019](0019-multi-selection.md) | Multi-selection and batch commands | Accepted | Contract / UI |
 | [0020](0020-alignment-and-nudge.md) | Batch alignment and keyboard nudge | Accepted | UI / editing |
 | [0021](0021-multi-resize.md) | Combined multi-selection resize | Accepted | UI / editing |
+| [0022](0022-static-export.md) | Static HTML export and handoff | Accepted | Export / handoff |
 
 ## Decision map
 
@@ -63,7 +64,7 @@ graph TD
     R --> S["0019 · Multi-selection<br/>batch commands"]
     S --> T["0020 · Alignment + nudge<br/>batch transforms"]
     T --> U["0021 · Multi-resize<br/>combined bounds"]
-    U --> V["0022 · Export + handoff<br/>(next)"]
+    U --> V["0022 · Static HTML export<br/>handoff · tokens · no scripts"]
 ```
 
 ## Adding a record
