@@ -39,7 +39,7 @@ Captured HTML / assets                    Project directories
 - captured markup/CSS are sanitized in the browser and then verified by a dependency-free Node pass that fails closed on executable tags, event attributes or non-data URLs; images are inlined as data URLs;
 - snapshot payloads render in `sandbox=""` iframes with a CSP that allows only inline styles and `data:` images;
 - the MCP server is stdio-only, accepts only designs in its startup workspace/single-design allowlist, can run with `--read-only`, reuses the same command validation/atomic writes, and attributes writes to the fixed MCP actor;
-- static export adds no scripts, keeps snapshot payloads in sandboxed iframes, validates referenced files, and preserves unrelated files in a non-empty output directory;
+- static export adds no scripts, keeps snapshot payloads in sandboxed iframes, validates referenced files, copies only manifest assets into `assets/`, and preserves unrelated files in a non-empty output directory;
 - dev-server URLs are loopback HTTP(S) only, cwd is checked lexically and through `realpath`, the config file is a capped regular file that rejects symlinks, and managed children are stopped as a process group;
 - `/api/dev/start` and `/api/dev/stop` require the session cookie and Origin check;
 - Host and Origin checks against the loopback host and port;

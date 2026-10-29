@@ -3,6 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-10-25
 - **Area:** Export / handoff
+- **Extended by:** [0023](0023-static-asset-export.md) (static asset export)
 
 ## Context
 
