@@ -1,5 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import type { Node, PageCommand, PageDocument, TextNode } from "@weft/core";
+import {
+  getParentId,
+  isContainerNode,
+  type Node,
+  type PageCommand,
+  type PageDocument,
+  type TextNode,
+} from "@weft/core";
 import type { DesignSource } from "./live";
 
 interface InspectorProps {
@@ -83,6 +90,9 @@ function LayerEditor({
   }, [node.id, source.revision]);
 
   const editable = source.editable;
+  const parentId = getParentId(page, node.id);
+  const parent = parentId ? page.nodes[parentId] : undefined;
+  const flexChild = Boolean(parent && isContainerNode(parent) && parent.layout?.mode === "flex");
   const solid = node.style?.fills?.find((paint) => paint.type === "solid");
   const currentFill = solid?.type === "solid" ? solid.color : "";
 
@@ -177,6 +187,13 @@ function LayerEditor({
       {!editable && (
         <div className="inspector-banner">
           Read-only. Start <code>weft dev</code> to edit and undo live.
+        </div>
+      )}
+
+      {flexChild && (
+        <div className="inspector-banner">
+          Flex child: the parent layout may override x/y changes. Width and height
+          still affect its flex size.
         </div>
       )}
 

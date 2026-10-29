@@ -4,6 +4,7 @@
 - **Date:** 2026-10-25
 - **Area:** Contract / UI
 - **Extends:** ADR 0010, ADR 0017
+- **Extended by:** [0020](0020-alignment-and-nudge.md) (batch alignment and keyboard nudge)
 
 ## Context
 
