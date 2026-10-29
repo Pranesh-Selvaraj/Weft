@@ -32,17 +32,18 @@ Captured HTML / assets                    Project directories
 
 - loopback-only bind hosts; non-loopback hosts are rejected;
 - per-run 256-bit session token in an `HttpOnly`, `SameSite=Strict` cookie;
-- required session cookie on `/api/design`, `/api/open`, `/api/live` and `/api/dev`;
+- required session cookie on `/api/design`, `/api/open`, `/api/live`, `/api/dev` and `/api/frontend`;
 - workspace `/api/open` accepts only design paths discovered inside registered project roots; `weft dev <dir>` remains the explicit single-design escape hatch;
 - project dev servers are declared as argv arrays in `weft.project.json`; the bridge never accepts a command from the browser;
-- extraction requires an exact loopback origin in `extract.origins`; the capture browser routes HTTP/WebSocket traffic to allowlisted origins only, blocks service workers/dialogs/popups and uses a fresh context;
+- extraction requires an exact loopback origin in `extract.origins`; the capture browser routes HTTP/WebSocket traffic to allowlisted origins only, blocks service workers/dialogs/popups and uses a fresh context. The live panel's frontend attach is a separate explicit approval: the exact attached loopback origin becomes the capture allowlist for that action, with the same sanitizer and browser gates;
+- frontend attach accepts only loopback literal HTTP(S) URLs, rejects credentials/fragments, does not follow redirects or read response bodies, and never supplies a command or proxy. The preview iframe is cross-origin and sandboxed; frontend URLs are saved in browser localStorage, not project files;
 - captured markup/CSS are sanitized in the browser and then verified by a dependency-free Node pass that fails closed on executable tags, event attributes or non-data URLs; images are inlined as data URLs;
 - snapshot payloads render in `sandbox=""` iframes with a CSP that allows only inline styles and `data:` images;
 - the MCP server is stdio-only, accepts only designs in its startup workspace/single-design allowlist, can run with `--read-only`, reuses the same command validation/atomic writes, and attributes writes to the fixed MCP actor;
 - static export adds no scripts, keeps snapshot payloads in sandboxed iframes, validates referenced files, copies only manifest assets into `assets/`, and preserves unrelated files in a non-empty output directory;
 - live assets are served only for manifest ids, after cookie auth, with safe-path/symlink/10 MiB checks, a media MIME allowlist, `no-store`, same-origin policy and a script-free sandboxed CSP; static preview uses embedded data URLs;
 - dev-server URLs are loopback HTTP(S) only, cwd is checked lexically and through `realpath`, the config file is a capped regular file that rejects symlinks, and managed children are stopped as a process group;
-- `/api/dev/start` and `/api/dev/stop` require the session cookie and Origin check;
+- `/api/dev/start`, `/api/dev/stop`, frontend attach and frontend capture require the session cookie and Origin check;
 - Host and Origin checks against the loopback host and port;
 - constant-time token comparison and a 1 MiB WebSocket payload limit;
 - security headers (`nosniff`, no-referrer, frame-ancestors, object/base restrictions);
@@ -65,8 +66,9 @@ These are deliberately tracked before Weft is used on real projects:
 - no per-project read/write permissions or audit log;
 - no sandbox, resource limit, network policy or credential isolation for declared dev-server commands; they run as the user;
 - extraction fidelity is partial: external fonts/assets are blocked, canvas/video/iframes are omitted, and captured text can still carry prompt-injection instructions (treated as untrusted data, not executable code);
+- frontend attach and capture are session-scoped and not audited; a local URL can point at any service the user names, and capture launches that app's scripts in a fresh browser context. Capture writes the page outside command undo;
 - capture requires a local Chromium/Chrome binary and executes the allowlisted app's own scripts during capture;
-- no bridge/UI Extract action or git-commit metadata yet;
+- no git-commit metadata, audit log, rate limit or undoable capture yet; the live panel's attach/capture actions are session-scoped;
 - page removal has no filesystem journal: a crash between manifest write and file unlink can leave an orphan page file; the page content needed for undo lives in the command inverse and in git history, not a durable transaction log;
 - no asset upload/import, thumbnails, content hashing or font-family mapping; assets are served only from the manifest;
 - MCP has no per-project/tool permissions, durable audit log, rate limits or remote auth; a writable server can edit every design in its allowlist;

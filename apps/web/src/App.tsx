@@ -13,7 +13,7 @@ import {
 import { Inspector } from "./Inspector";
 import { LayerTree } from "./LayerTree";
 import { MultiInspector, type AlignMode } from "./MultiInspector";
-import { ServerPanel } from "./ServerPanel";
+import { SessionPanel } from "./SessionPanel";
 import {
   CursorIcon,
   EllipseIcon,
@@ -182,7 +182,11 @@ function makeEditorNode(
       });
   }
 }
-import { useDesignSource } from "./live";
+import {
+  useDesignSource,
+  type CaptureFrontendOutcome,
+  type CaptureFrontendRequest,
+} from "./live";
 import { useTheme } from "./theme";
 
 function useFitScale(width: number, height: number) {
@@ -404,7 +408,7 @@ export function App() {
   );
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [serverOpen, setServerOpen] = useState(false);
+  const [sessionOpen, setSessionOpen] = useState(false);
   const [tool, setTool] = useState<Tool>("select");
   const [zoom, setZoom] = useState(1);
   const [scopeId, setScopeId] = useState<string | null>(null);
@@ -740,6 +744,26 @@ export function App() {
   }, [page, scopeId, selectedIds, source, tool]);
 
   const pageBounds = page ? getPageBounds(page) : { width: 0, height: 0 };
+  const selectedFrame =
+    selectedNode?.type === "frame" &&
+    page &&
+    getParentId(page, selectedNode.id) === null
+      ? selectedNode
+      : undefined;
+  const firstRootFrame = page?.children
+    .map((id) => page.nodes[id])
+    .find((node) => node?.type === "frame");
+  const captureFrame = selectedFrame ?? firstRootFrame;
+  const pageViewport = {
+    width: Math.max(
+      320,
+      Math.min(20_000, Math.round(captureFrame?.width ?? pageBounds.width ?? 1440)),
+    ),
+    height: Math.max(
+      240,
+      Math.min(20_000, Math.round(captureFrame?.height ?? pageBounds.height ?? 900)),
+    ),
+  };
   const bounds = {
     width: Math.max(800, pageBounds.width),
     height: Math.max(600, pageBounds.height),
@@ -752,6 +776,17 @@ export function App() {
   const fitView = (): void => setZoom(1);
   const actualSize = (): void =>
     setZoom(fitScale > 0 ? Math.min(4, 1 / fitScale) : 1);
+  const captureFrontend = async (
+    request: CaptureFrontendRequest,
+  ): Promise<CaptureFrontendOutcome> => {
+    const outcome = await source.captureFrontend(request);
+    if (outcome.ok) {
+      setScopeId(null);
+      setActivePageId(outcome.capture.pageId);
+      setPendingSelectId(outcome.capture.nodeId);
+    }
+    return outcome;
+  };
   useEffect(() => {
     const canvas = ref.current;
     if (!canvas) return;
@@ -1679,23 +1714,36 @@ export function App() {
         </nav>
 
         <div className="topbar-right">
-          {source.workspace && activeProject && (
-            <button
-              type="button"
-              className={`server-toggle${activeServer?.status === "running" ? " is-running" : ""}`}
-              onClick={() => setServerOpen((open) => !open)}
-              aria-expanded={serverOpen}
-              aria-label="Project server"
-              title="Project server"
-            >
-              <ServerIcon />
-              <span className="server-toggle-label">Server</span>
-              <span
-                className={`server-status-dot is-${activeServer?.status ?? "stopped"}`}
-                aria-hidden="true"
-              />
-            </button>
-          )}
+          <button
+            type="button"
+            className={`server-toggle live-toggle${
+              source.status === "live" ? " is-running" : ""
+            }`}
+            onClick={() => setSessionOpen((open) => !open)}
+            aria-expanded={sessionOpen}
+            aria-label="Live session, endpoints and frontend"
+            title="Live session, endpoints and frontend"
+          >
+            <ServerIcon />
+            <span className="server-toggle-label">
+              {source.mode === "live" ? "Live" : "Preview"}
+            </span>
+            <span className="live-endpoint">{window.location.host}</span>
+            <span
+              className={`server-status-dot is-${
+                activeServer?.status === "running"
+                  ? "running"
+                  : source.status === "live"
+                    ? "running"
+                    : source.status === "connecting"
+                      ? "starting"
+                      : source.status === "disconnected"
+                        ? "error"
+                        : "stopped"
+              }`}
+              aria-hidden="true"
+            />
+          </button>
           <button
             type="button"
             className="theme-toggle"
@@ -1747,15 +1795,21 @@ export function App() {
         </div>
       </header>
 
-      {serverOpen && source.workspace && activeProject && (
-        <ServerPanel
-          project={activeProject}
+      {sessionOpen && (
+        <SessionPanel
+          source={source}
+          page={page}
+          pageViewport={pageViewport}
+          project={activeProject ?? null}
           server={activeServer}
-          busy={source.serverBusy === activeProject.path}
-          error={source.devError}
-          onStart={() => source.startServer(activeProject.path)}
-          onStop={() => source.stopServer(activeProject.path)}
-          onClose={() => setServerOpen(false)}
+          serverBusy={
+            activeProject ? source.serverBusy === activeProject.path : false
+          }
+          devError={source.devError}
+          onStartServer={(projectPath) => source.startServer(projectPath)}
+          onStopServer={(projectPath) => source.stopServer(projectPath)}
+          onCapture={captureFrontend}
+          onClose={() => setSessionOpen(false)}
         />
       )}
 

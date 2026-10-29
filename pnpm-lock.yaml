@@ -224,6 +224,9 @@ importers:
       '@weft/dev-server':
         specifier: workspace:*
         version: link:../dev-server
+      '@weft/extract':
+        specifier: workspace:*
+        version: link:../extract
       '@weft/session':
         specifier: workspace:*
         version: link:../session

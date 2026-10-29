@@ -4,7 +4,7 @@
 
 ## Configure the project
 
-Add the capture origin to `weft.project.json`:
+For the **CLI**, add the capture origin to `weft.project.json`:
 
 ```json
 {
@@ -15,7 +15,7 @@ Add the capture origin to `weft.project.json`:
 }
 ```
 
-Origins must be loopback HTTP(S) and contain no path, query or credentials. A design cannot capture an origin that is not listed, even if the app is already running.
+Origins must be loopback HTTP(S) and contain no path, query or credentials. A design cannot capture an origin that is not listed, even if the app is already running. The live-session panel has a separate explicit-attach path; see [Capture from the live panel](#capture-from-the-live-panel).
 
 ## Install a browser
 
@@ -53,7 +53,21 @@ Options:
 | `--max-asset-bytes <n>` | Per-asset data URL cap; default 2 MiB. |
 | `--json` | Machine-readable result including node id, files and warnings. |
 
-Start the app before extracting. The project server panel can start a declared server; extraction itself does not start one yet.
+Start the app before extracting. The live-session panel's project-server section can start a declared server; extraction itself does not start one.
+
+## Capture from the live panel
+
+The editor's **Live** panel can capture a running frontend without editing `weft.project.json`:
+
+1. Open **Live** in the top bar.
+2. Enter a loopback URL such as `http://127.0.0.1:3000/` and choose **Use frontend**.
+3. The bridge probes it and shows reachable/error state.
+4. Optionally enter a CSS selector, choose the active page, and press **Capture page**.
+5. The snapshot is inserted into the page, selected on the canvas, and warnings are shown.
+
+The exact attached origin is the capture allowlist for that action. Attaching is the explicit approval, but it is session-scoped: the CLI still refuses to capture without `extract.origins` in the project config. The browser stores the URL locally and reattaches after reload; it does not write project config.
+
+Capture is static, is not a live DOM bridge, and is not undoable through the command history. Re-capture after the frontend changes. See [Live session](live-session.md).
 
 ## What gets written
 
@@ -88,7 +102,7 @@ The files are committed with the design. `weft validate` checks that they exist.
 
 ## What the capture does
 
-1. Refuses any URL whose origin is not in `extract.origins` before launching a browser.
+1. Refuses any URL whose origin is not in the configured/explicit allowlist before launching a browser.
 2. Opens a fresh headless Chromium context with a loopback-only request route and WebSocket gate.
 3. Waits for the page and selector, then collects the selected subtree and computed styles.
 4. Inlines same-origin images and CSS background assets as `data:` URLs within size budgets.
@@ -109,7 +123,8 @@ Current limits and cautions:
 - Canvas, video, iframes, form behavior and complex pseudo-elements are not reproduced.
 - The HTML/CSS payload is capped at 4 MiB each, with 2 MiB per asset and 8 MiB total assets. Oversized payloads fail; skipped assets are warned about.
 - Snapshots are static. Re-extract after the app changes; there is no live capture stream.
-- No git commit is recorded yet, and the bridge does not expose an Extract button yet.
+- No git commit is recorded yet. Capture is a direct file write, not a command with an inverse; re-capture to update.
+- The live panel's capture path is available; the CLI still uses project config.
 
 ## Inspect the result
 

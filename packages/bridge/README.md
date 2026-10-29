@@ -28,7 +28,7 @@ The built web app must exist at `apps/web/dist`; `pnpm build` produces it. Set `
 ## Security
 
 - The app page sets a random per-run `weft_session` cookie: `HttpOnly; SameSite=Strict; Path=/`.
-- `/api/design`, `/api/live` and `/api/dev` require the cookie. `/api/health` is public but Host-checked.
+- `/api/design`, `/api/live`, `/api/dev` and `/api/frontend` require the cookie. `/api/health` is public but Host-checked.
 - The `Host` header must be a loopback host and port; a present `Origin` must match the loopback origin. This blocks DNS rebinding and cross-site browser access.
 - WebSocket payloads are capped at 1 MiB.
 - Responses carry `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`, a restrictive `Content-Security-Policy` and `Permissions-Policy`.
@@ -38,9 +38,13 @@ The built web app must exist at `apps/web/dist`; `pnpm build` produces it. Set `
 
 ### HTTP
 
-- `GET /api/design` → `{ revision, manifest, pages: [{ pageId, update }], snapshots }`
-  - Requires the session cookie. `update` is a base64-encoded Yjs state update for that page.
+- `GET /api/design` → `{ revision, manifest, pages: [{ pageId, update }], snapshots, bridge, frontend }`
+  - Requires the session cookie. `update` is a base64-encoded Yjs state update for that page. `bridge` names the actual URL and active paths; `frontend` is the attached local target.
 - `GET /api/health` → `{ ok, revision, pages }`
+- `GET /api/frontend` → `{ ok, frontend }` returns the attached target state. Requires the session cookie.
+- `POST /api/frontend` → `{ url }` validates and probes a loopback frontend, records reachable/error state, and broadcasts it. Requires the session cookie and Origin check.
+- `DELETE /api/frontend` detaches the target. Requires the session cookie.
+- `POST /api/frontend/capture` → `{ pageId, selector?, viewport?, name? }` re-probes the attached target and captures it through `@weft/extract` into the active page. Requires the session cookie and Origin check. The exact attached origin is the explicit allowlist for this action; no URL is accepted from the request body.
 - `POST /api/open` → `{ designPath }` opens another registered design. Requires the session cookie; paths outside the workspace are rejected. All connected clients receive a fresh `init` with the newly active design.
 - `GET /api/dev` → `{ ok, servers }` returns snapshots for every registered project. Requires the session cookie.
 - `POST /api/dev/start` → `{ projectPath }` starts a declared managed server, or attaches to an already-running URL when the project has no command. Requires the session cookie and Origin check.
@@ -60,13 +64,14 @@ On connect the server sends:
 }
 ```
 
-`snapshots` maps snapshot node ids to sanitized `{ html, css? }` payloads loaded from the design directory. In workspace mode `init` also carries `workspace.file`, `workspace.activeDesignPath`, the registered projects/designs, and `workspace.servers` snapshots. Then the bridge may send:
+`snapshots` maps snapshot node ids to sanitized `{ html, css? }` payloads loaded from the design directory. `bridge` contains the runtime URL/host/port, design path and optional workspace/project paths. `frontend` contains the attached loopback URL, origin, status, HTTP probe result and error. In workspace mode `init` also carries `workspace.file`, `workspace.activeDesignPath`, the registered projects/designs, and `workspace.servers` snapshots. Then the bridge may send:
 
 ```json
 { "type": "update", "revision": 2, "pageId": "pg_…", "update": "base64…" }
 { "type": "conflict", "revision": 2, "pageId": "pg_…", "conflicts": [] }
 { "type": "error", "revision": 2, "message": "…" }
 { "type": "dev", "server": { "projectPath": "/abs/project", "status": "running", "…": "…" } }
+{ "type": "frontend", "frontend": { "status": "reachable", "url": "http://127.0.0.1:3000/", "…": "…" } }
 { "type": "command", "revision": 2, "pageId": "pg_…", "commandId": "cm_…", "command": {}, "createdNodeIds": [], "actor": {} }
 ```
 
@@ -120,7 +125,7 @@ The web app fetches `/api/design`; if the response is JSON, it:
 2. connects to `/api/live`;
 3. applies `update` messages and re-materializes pages;
 4. shows the project/design picker when the bridge has a workspace;
-5. shows a Project server panel that can start, attach to and stop declared dev servers;
+5. shows a **Live** panel with the actual endpoints, design/workspace paths, project-server controls, and a loopback frontend attach/preview/capture flow;
 6. passes snapshot payloads to the renderer's sandboxed iframes;
 7. shows `live`, `connecting` or `offline` in the top bar.
 
@@ -128,10 +133,10 @@ Without a bridge, it falls back to the embedded Vite design and shows `read only
 
 ## Not here yet
 
-- Page-level commands (page name, background, tokens).
-- Capture from the bridge panel (the CLI is the current entry point).
+- Page name/background/token commands.
+- Undoable capture; live DOM capture instead of static snapshots.
+- Periodic frontend health monitoring, an audit log and per-project permissions.
 - Presence/cursors, team authentication, remote bind.
-- Asset and snapshot payload serving.
 - Persisted Yjs state or a durable operation log.
 - Optimistic concurrency or serialization of simultaneous writers.
 - Bridge-backed agent sessions; the MCP server currently reads/writes files directly.
@@ -142,4 +147,4 @@ Without a bridge, it falls back to the embedded Vite design and shows `read only
 pnpm --filter @weft/bridge test
 ```
 
-The suite covers HTTP design/health, asset serving/authorization/CSP, session-cookie authorization, cross-origin rejection, loopback-only hosts, workspace listing and switching, rejecting unregistered paths, starting and stopping a declared project server, serving snapshot payloads, document page creation/removal, WebSocket init, live Yjs updates from file writes, browser commands and undo writes, invalid-write recovery, and the missing-web-build error.
+The suite covers HTTP design/health, runtime bridge info, asset serving/authorization/CSP, session-cookie authorization, cross-origin rejection, loopback-only hosts, workspace listing and switching, rejecting unregistered paths, starting and stopping a declared project server, serving snapshot payloads, frontend attach/probe/detach, explicit-origin capture, rejecting non-loopback frontends, document page creation/removal, WebSocket init, live Yjs updates from file writes, browser commands and undo writes, invalid-write recovery, and the missing-web-build error.
