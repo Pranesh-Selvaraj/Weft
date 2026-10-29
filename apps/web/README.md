@@ -33,7 +33,7 @@ The static path remains the zero-process preview and the fallback.
 
 ## What you can do
 
-- Click a layer to select it; at page scope the top-level frame is selected. Double-click to enter a frame/group and select the clicked layer; the canvas breadcrumb shows the current path and Escape moves up one scope. Drag empty page background to marquee-select top-level layers, or drag inside a scope to select its direct children.
+- Click a layer to select it; at page scope the top-level frame is selected. Top-level frames/groups carry screen-sized name labels: click one to select the frame or double-click it to enter. Hover outlines use the same scope-aware hit testing as clicks and label the layer that would be selected. Double-click inside a frame to enter it and select the clicked layer; the canvas breadcrumb shows the current path and Escape moves up one scope. Drag empty page background to marquee-select top-level layers, or drag inside a scope to select its direct children.
 - Use the left tool panel to create frames, text, rectangles and ellipses (`V`, `F`, `T`, `R`, `O`). Drag for a custom size or click for a default size; creation inside a selected frame becomes a child of that frame.
 - Move a selected layer by dragging its rendered DOM; resize it with the eight selection handles. Shift/Cmd/Ctrl-click adds layers to the selection; dragging any selected layer moves the group, and Delete removes it, each as one batch command with an inverse. Arrow keys nudge the selection (Shift: 10 px).
 - The multi-layer inspector can align selected layers left/center/right/top/middle/bottom and shows a flex-child warning when the parent layout may override x/y. Absolute-layout selections also show a combined dashed group box with resize handles; dragging scales the whole group as one batch command. The inspector switches to a multi-layer summary when more than one layer is selected.
@@ -44,7 +44,7 @@ The static path remains the zero-process preview and the fallback.
 - Delete a layer, undo with Cmd/Ctrl+Z, redo with Cmd/Ctrl+Shift+Z. Every creation is a normal command with an inverse.
 - See live file changes from the CLI or an agent, and the last editor's attribution.
 - Switch pages; the inspector stays in sync with the active page.
-- Zoom with the toolbar controls (fit/actual/±), Cmd/Ctrl+0/=/−, or Ctrl/Cmd+wheel; the canvas scrolls when the stage exceeds the viewport.
+- Zoom with the toolbar controls (fit/actual/±), Cmd/Ctrl+0/=/−, or Ctrl/Cmd+wheel anchored at the pointer; pan with Space-drag or middle-button drag when the stage exceeds the viewport. The stage follows content bounds, with an 800×600 placeholder only for an empty page. Frame and selection labels stay at a readable screen size at every zoom.
 - Show/hide or lock layers from the layer-row actions; locked layers are excluded from structural edits.
 - Cmd/Ctrl+A selects all layers; Cmd/Ctrl+D duplicates unlocked selection roots.
 - Toggle the UI between light and dark from the toolbar. The choice follows the system preference by default and persists locally; design content keeps its own colors.
@@ -64,4 +64,4 @@ The static preview is read-only and has no bridge, inspector edits or history.
 - Undoable capture commands and an audit log.
 - Shadow-DOM isolation, large-document culling, mobile editing layout.
 
-See ADR 0008 for the stack and renderer, ADR 0009 for the bridge, ADR 0010 for selection/the inspector/undo, ADR 0012 for declared dev servers, ADR 0013 for snapshot extraction, and ADR 0014 for creation tools and the layer tree, and ADR 0015 for page-level document commands, and ADR 0017 for direct layout manipulation, and ADR 0018 for page organization, and ADR 0019 for multi-selection and batch commands, and ADR 0020 for alignment/nudge, ADR 0021 for combined multi-resize, ADR 0026 for selection scopes, and ADR 0027 for the live endpoints/frontend capture panel.
+See ADR 0008 for the stack and renderer, ADR 0009 for the bridge, ADR 0010 for selection/the inspector/undo, ADR 0012 for declared dev servers, ADR 0013 for snapshot extraction, and ADR 0014 for creation tools and the layer tree, and ADR 0015 for page-level document commands, and ADR 0017 for direct layout manipulation, and ADR 0018 for page organization, and ADR 0019 for multi-selection and batch commands, and ADR 0020 for alignment/nudge, ADR 0021 for combined multi-resize, ADR 0026 for selection scopes, ADR 0027 for the live endpoints/frontend capture panel, and ADR 0028 for the canvas workspace rework.

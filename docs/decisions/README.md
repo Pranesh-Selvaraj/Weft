@@ -44,6 +44,7 @@ This directory is the project's long-form memory: **what we chose, why, what we 
 | [0025](0025-canvas-navigation-layer-controls.md) | Canvas navigation and layer controls | Accepted | UI / editing |
 | [0026](0026-selection-scope-marquee.md) | Selection scopes and marquee | Accepted | UI / editing |
 | [0027](0027-live-endpoints-frontend-capture.md) | Live endpoints panel and frontend capture | Accepted | UI / local bridge |
+| [0028](0028-canvas-workspace-rework.md) | Canvas workspace rework | Accepted | UI / editing |
 
 ## Decision map
 
@@ -75,6 +76,7 @@ graph TD
     X --> Y["0025 · Canvas navigation<br/>zoom · layers · shortcuts"]
     Y --> Z["0026 · Selection scope<br/>marquee · breadcrumb"]
     Z --> AA["0027 · Live endpoints<br/>frontend attach · capture"]
+    AA --> AB["0028 · Canvas workspace<br/>frame labels · pan · zoom"]
 ```
 
 ## Adding a record
