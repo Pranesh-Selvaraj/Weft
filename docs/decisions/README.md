@@ -42,6 +42,7 @@ This directory is the project's long-form memory: **what we chose, why, what we 
 | [0023](0023-static-asset-export.md) | Static asset export | Accepted | Export |
 | [0024](0024-local-asset-serving.md) | Local asset serving | Accepted | Rendering / security |
 | [0025](0025-canvas-navigation-layer-controls.md) | Canvas navigation and layer controls | Accepted | UI / editing |
+| [0026](0026-selection-scope-marquee.md) | Selection scopes and marquee | Accepted | UI / editing |
 
 ## Decision map
 
@@ -71,6 +72,7 @@ graph TD
     V --> W["0023 · Static asset export<br/>images · local bytes"]
     W --> X["0024 · Local asset serving<br/>manifest · bridge · data URLs"]
     X --> Y["0025 · Canvas navigation<br/>zoom · layers · shortcuts"]
+    Y --> Z["0026 · Selection scope<br/>marquee · breadcrumb"]
 ```
 
 ## Adding a record

@@ -1082,6 +1082,70 @@ body,
   line-height: 1.55;
 }
 
+.canvas-breadcrumb {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  max-width: calc(100% - 28px);
+  padding: 5px 8px;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--chrome);
+  box-shadow: 0 3px 12px var(--shadow-1);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.canvas-breadcrumb button {
+  max-width: 140px;
+  padding: 2px 4px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--ink-soft);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.canvas-breadcrumb button:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.canvas-breadcrumb button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.breadcrumb-segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  color: var(--muted-2);
+}
+
+.breadcrumb-segment > span {
+  color: var(--muted-2);
+}
+
+.marquee-preview {
+  position: absolute;
+  z-index: 4;
+  border: 1px solid var(--selection);
+  background: var(--selection-halo);
+  pointer-events: none;
+}
+
 .canvas-error {
   position: absolute;
   top: 16px;

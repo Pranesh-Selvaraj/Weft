@@ -51,14 +51,15 @@ Start here, then follow the decision records for the reasoning.
 24. [ADR 0023](decisions/0023-static-asset-export.md) for static asset export.
 25. [ADR 0024](decisions/0024-local-asset-serving.md) for live/static asset serving.
 26. [ADR 0025](decisions/0025-canvas-navigation-layer-controls.md) for zoom, scrolling and layer controls.
-27. [Architecture](architecture.md) for the implementation shape.
-28. [Security model](security.md) for the trust boundaries and hardening.
-29. [Local workspace](local-workspace.md) for the project registry, picker and dev-server model.
-30. [Declared dev servers](dev-server.md) to declare and run a project server.
-31. [Snapshot extraction](extraction.md) to capture a running page.
-32. [MCP server](mcp.md) to connect a coding agent.
-33. [Static export](export.md) to hand off a design as HTML and assets.
-34. [Assets](assets.md) for manifest asset rendering and serving.
-35. [CLI](cli.md) to run, inspect, edit, extract and export designs.
-36. [Browser editor](../apps/web/README.md) to open and edit the starter design.
-37. [ADR index](decisions/README.md) to see which decisions are settled and which are still open.
+27. [ADR 0026](decisions/0026-selection-scope-marquee.md) for hierarchical selection and marquee.
+28. [Architecture](architecture.md) for the implementation shape.
+29. [Security model](security.md) for the trust boundaries and hardening.
+30. [Local workspace](local-workspace.md) for the project registry, picker and dev-server model.
+31. [Declared dev servers](dev-server.md) to declare and run a project server.
+32. [Snapshot extraction](extraction.md) to capture a running page.
+33. [MCP server](mcp.md) to connect a coding agent.
+34. [Static export](export.md) to hand off a design as HTML and assets.
+35. [Assets](assets.md) for manifest asset rendering and serving.
+36. [CLI](cli.md) to run, inspect, edit, extract and export designs.
+37. [Browser editor](../apps/web/README.md) to open and edit the starter design.
+38. [ADR index](decisions/README.md) to see which decisions are settled and which are still open.
