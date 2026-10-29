@@ -37,6 +37,7 @@ import {
   type DesignSummary,
 } from "@weft/design-io";
 import { startBridge, WeftBridgeError, type WeftBridge } from "@weft/bridge";
+import { exportDesign, ExportError } from "@weft/export";
 import { extractSnapshot, ExtractError } from "@weft/extract";
 import { McpError, runWeftMcpStdio } from "@weft/mcp";
 import {
@@ -87,6 +88,7 @@ Commands:
   id        Generate Weft ids for new entities or commands
   extract   Capture an allowlisted running page into a snapshot frame
   page      Create, remove or apply a page-level document command
+  export    Render a static HTML handoff of a design
   mcp       Serve the document contract as MCP tools over stdio
   dev       Serve the live preview and watch a design directory
   workspace Register local projects and discover their designs
@@ -106,6 +108,7 @@ Examples:
   weft apply designs/marketing --command change.json
   weft extract designs/marketing http://127.0.0.1:3000/ --project ~/projects/marketing
   weft page create designs/marketing --name About
+  weft export designs/marketing --out dist/handoff
   weft mcp --workspace ~/.weft/workspace.json
   weft dev designs/marketing
   weft workspace add ~/projects/marketing
@@ -221,6 +224,18 @@ Options:
   --json            Machine-readable output
   --help            Show this help`;
 
+const EXPORT_USAGE = `Usage: weft export <design> --out <dir> [options]
+
+Render pages to standalone HTML with an index, tokens.json and a weft.export.json
+manifest. Snapshot payloads stay in sandboxed iframes; no scripts are added.
+
+Options:
+  --out <dir>       Output directory (required)
+  --page <id|name>  Export one page (default: all pages)
+  --force           Allow writing into a non-empty output directory
+  --json            Machine-readable output
+  --help            Show this help`;
+
 const MCP_USAGE = `Usage: weft mcp [options]
 
 Serve the Weft document contract as MCP tools over stdio. Stdout is reserved
@@ -279,6 +294,7 @@ const USAGE_BY_COMMAND: Record<string, string> = {
   id: ID_USAGE,
   extract: EXTRACT_USAGE,
   page: PAGE_USAGE,
+  export: EXPORT_USAGE,
   mcp: MCP_USAGE,
   dev: DEV_USAGE,
   workspace: WORKSPACE_USAGE,
@@ -332,6 +348,12 @@ const PAGE_OPTIONS: OptionConfig = {
   page: { type: "string" },
   index: { type: "string" },
   command: { type: "string" },
+  ...JSON_OPTION,
+};
+const EXPORT_OPTIONS: OptionConfig = {
+  out: { type: "string" },
+  page: { type: "string" },
+  force: { type: "boolean" },
   ...JSON_OPTION,
 };
 const MCP_OPTIONS: OptionConfig = {
@@ -422,6 +444,7 @@ function handleError(
     error instanceof WeftBridgeError ||
     error instanceof WorkspaceError ||
     error instanceof ExtractError ||
+    error instanceof ExportError ||
     error instanceof McpError
   ) {
     if (json) emitJson(out, { ok: false, error: { code: error.code, message: error.message } });
@@ -1118,6 +1141,47 @@ async function pageCommand(
   }
 }
 
+async function exportCommand(
+  argv: string[],
+  cwd: string,
+  out: Writer,
+  err: Writer,
+): Promise<number> {
+  const parsed = parseCommand(argv, EXPORT_OPTIONS, EXPORT_USAGE, err);
+  if (!parsed) return 2;
+  if (parsed.values.help) {
+    out(EXPORT_USAGE);
+    return 0;
+  }
+  const directory = directoryFrom(parsed.positionals, cwd, EXPORT_USAGE, err);
+  if (!directory) return 2;
+  if (typeof parsed.values.out !== "string" || parsed.values.out.length === 0) {
+    err("--out <dir> is required.");
+    return 2;
+  }
+  const json = parsed.values.json === true;
+  try {
+    const result = await exportDesign({
+      designDir: directory,
+      outDir: resolve(cwd, parsed.values.out),
+      ...(typeof parsed.values.page === "string" ? { page: parsed.values.page } : {}),
+      force: parsed.values.force === true,
+    });
+    if (json) {
+      emitJson(out, { ok: true, ...result });
+    } else {
+      out(`Exported ${result.design.name} to ${result.outDir}`);
+      for (const page of result.pages) {
+        out(`  ${page.name} · ${page.width}×${page.height} · ${page.file}`);
+      }
+      out(`Files: ${result.files.join(", ")}`);
+    }
+    return 0;
+  } catch (error) {
+    return handleError(error, json, out, err);
+  }
+}
+
 async function mcpCommand(
   argv: string[],
   cwd: string,
@@ -1468,6 +1532,8 @@ export async function runCli(argv: string[], io: CliIO = {}): Promise<number> {
         return await extractCommand(rest, cwd, out, err);
       case "page":
         return await pageCommand(rest, cwd, out, err, io.stdin ?? readStdinDefault);
+      case "export":
+        return await exportCommand(rest, cwd, out, err);
       case "mcp":
         return await mcpCommand(rest, cwd, out, err);
       case "dev":

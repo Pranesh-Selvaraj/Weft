@@ -30,6 +30,7 @@
     "@weft/bridge": "workspace:*",
     "@weft/core": "workspace:*",
     "@weft/design-io": "workspace:*",
+    "@weft/export": "workspace:*",
     "@weft/extract": "workspace:*",
     "@weft/mcp": "workspace:*",
     "@weft/workspace": "workspace:*"

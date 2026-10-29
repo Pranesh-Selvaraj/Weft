@@ -451,6 +451,29 @@ describe("weft CLI", () => {
     expect(design.manifest.pages.map((page) => page.name)).toEqual(["Pricing", "Page 1"]);
   });
 
+  it("exports a static HTML handoff", async () => {
+    await init();
+    expect(
+      await run(["export", "demo.weft", "--out", "handoff", "--json"]),
+    ).toBe(0);
+    const payload = jsonOut<{
+      ok: boolean;
+      pages: Array<{ name: string; file: string }>;
+      files: string[];
+    }>();
+    expect(payload.ok).toBe(true);
+    expect(payload.pages[0].name).toBe("Page 1");
+    expect(payload.files).toContain("index.html");
+    const index = await readFile(join(root, "handoff/index.html"), "utf8");
+    expect(index).toContain("Demo");
+    const page = await readFile(
+      join(root, "handoff", payload.pages[0].file),
+      "utf8",
+    );
+    expect(page).toContain("<!doctype html>");
+    expect(page).not.toContain("<script");
+  });
+
   it("exposes MCP help without starting the stdio server", async () => {
     expect(await run(["mcp", "--help"])).toBe(0);
     expect(out.join("\n")).toContain("weft mcp");
