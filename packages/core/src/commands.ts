@@ -35,7 +35,8 @@ export type PageCommand =
   | { type: "node.replace"; node: Node }
   | { type: "node.move"; nodeId: string; parentId: string | null; index?: number }
   | { type: "node.remove"; nodeId: string }
-  | { type: "node.duplicate"; nodeId: string; parentId?: string | null; index?: number };
+  | { type: "node.duplicate"; nodeId: string; parentId?: string | null; index?: number }
+  | { type: "batch"; commands: PageCommand[] };
 
 export interface CommandActor {
   id: string;
@@ -195,6 +196,22 @@ export function readPageCommand(input: unknown): PageCommand {
         ...(index === undefined ? {} : { index }),
       };
     }
+    case "batch": {
+      if (!Array.isArray(value.commands) || value.commands.length === 0) {
+        throw commandError("command.batch", "batch.commands must be a non-empty array.");
+      }
+      if (value.commands.length > 200) {
+        throw commandError("command.batch", "batch.commands may contain at most 200 commands.");
+      }
+      const commands = value.commands.map((command, index) => {
+        const parsed = readPageCommand(command);
+        if (parsed.type === "batch") {
+          throw commandError("command.batch", `batch.commands[${index}] must not be a nested batch.`);
+        }
+        return parsed;
+      });
+      return { type, commands };
+    }
     default:
       throw commandError("command.type", `Unknown command type ${JSON.stringify(type)}.`);
   }
@@ -219,6 +236,22 @@ function sameChildren(left: string[], right: string[]): boolean {
 /** Apply one command to a page and return the inverse command. */
 export function applyPageCommand(page: PageDocument, command: PageCommand): AppliedCommand {
   switch (command.type) {
+    case "batch": {
+      let current = page;
+      const inverses: PageCommand[] = [];
+      const created = new Set<string>();
+      for (const subcommand of command.commands) {
+        const result = applyPageCommand(current, subcommand);
+        current = result.page;
+        inverses.unshift(result.inverse);
+        for (const id of result.createdNodeIds) created.add(id);
+      }
+      return {
+        page: current,
+        inverse: { type: "batch", commands: inverses },
+        createdNodeIds: [...created],
+      };
+    }
     case "node.insert": {
       const next = insertNode(page, command.node, {
         parentId: command.parentId,

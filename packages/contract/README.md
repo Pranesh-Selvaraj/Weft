@@ -85,7 +85,7 @@ if (!ok) console.error(validate.errors);
 - `schemaInvalid` — must fail the schema and the core, with the listed core code;
 - `semanticInvalid` — must pass the schema but fail the core, with the listed core code.
 
-The fixture suite covers manifests, pages, command requests, command envelopes, every node type, and every page command type. A direct contract test also publishes `page.create`, `page.remove`, `page.rename` and `page.move` document commands and their request envelope. The repository test also validates `examples/starter.weft`.
+The fixture suite covers manifests, pages, command requests, command envelopes, every node type, every page command type (including the non-nested `batch` command), and the page document commands. A direct contract test also publishes `page.create`, `page.remove`, `page.rename` and `page.move` document commands and their request envelope. The repository test also validates `examples/starter.weft`.
 
 Add a fixture by writing the JSON, adding it to the index, and running:
 

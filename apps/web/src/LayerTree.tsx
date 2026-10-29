@@ -19,7 +19,8 @@ import {
 interface LayerTreeProps {
   page: PageDocument;
   selectedId: string | null;
-  onSelect(id: string | null): void;
+  selectedIds: ReadonlySet<string>;
+  onSelect(id: string, additive: boolean): void;
 }
 
 function NodeIcon({ node }: { node: Node }) {
@@ -47,15 +48,18 @@ function LayerRow({
   id,
   depth,
   selectedId,
+  selectedIds,
   onSelect,
 }: LayerTreeProps & { id: string; depth: number }) {
   const node = page.nodes[id];
   const [expanded, setExpanded] = useState(true);
   const rowRef = useRef<HTMLDivElement>(null);
   const container = node ? isContainerNode(node) : false;
-  const containsSelection =
-    selectedId !== null &&
-    (selectedId === id || getAncestorIds(page, selectedId).includes(id));
+  const selected = selectedIds.has(id);
+  const containsSelection = [...selectedIds].some(
+    (candidate) =>
+      candidate === id || getAncestorIds(page, candidate).includes(id),
+  );
 
   useEffect(() => {
     if (containsSelection) setExpanded(true);
@@ -68,15 +72,17 @@ function LayerRow({
   if (!node) return null;
 
   return (
-    <div role="treeitem" aria-selected={selectedId === id}>
+    <div role="treeitem" aria-selected={selected}>
       <div
-        className={`layer-row${selectedId === id ? " is-selected" : ""}`}
+        className={`layer-row${selected ? " is-selected" : ""}`}
         style={{ paddingLeft: 8 + depth * 14 }}
-        onClick={() => onSelect(id)}
+        onClick={(event) =>
+          onSelect(id, event.shiftKey || event.metaKey || event.ctrlKey)
+        }
         onKeyDown={(event) => {
           if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
-            onSelect(id);
+            onSelect(id, event.shiftKey);
           }
         }}
         role="button"
@@ -113,6 +119,7 @@ function LayerRow({
               id={childId}
               depth={depth + 1}
               selectedId={selectedId}
+              selectedIds={selectedIds}
               onSelect={onSelect}
             />
           ))}
@@ -122,7 +129,12 @@ function LayerRow({
   );
 }
 
-export function LayerTree({ page, selectedId, onSelect }: LayerTreeProps) {
+export function LayerTree({
+  page,
+  selectedId,
+  selectedIds,
+  onSelect,
+}: LayerTreeProps) {
   return (
     <section className="layers" aria-label="Layers">
       <div className="layers-head">
@@ -143,6 +155,7 @@ export function LayerTree({ page, selectedId, onSelect }: LayerTreeProps) {
               id={id}
               depth={0}
               selectedId={selectedId}
+              selectedIds={selectedIds}
               onSelect={onSelect}
             />
           ))

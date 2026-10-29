@@ -4,6 +4,7 @@
 - **Date:** 2026-10-25
 - **Area:** UI / editing
 - **Extends:** ADR 0010, ADR 0014
+- **Extended by:** [0019](0019-multi-selection.md) (multi-selection and batch commands)
 
 ## Context
 

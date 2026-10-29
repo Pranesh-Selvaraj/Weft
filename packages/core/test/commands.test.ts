@@ -201,6 +201,35 @@ describe("command parsing", () => {
     expect(rooted.type === "node.duplicate" && rooted.parentId).toBeNull();
   });
 
+  it("applies a batch as one command with a batch inverse", () => {
+    const { design, page, ids } = buildDesign();
+    const title = page.nodes[ids.title] as TextNode;
+    const applied = undoRoundTrip(page, {
+      type: "batch",
+      commands: [
+        { type: "node.update", nodeId: ids.title, patch: { x: title.x + 40 } },
+        { type: "node.update", nodeId: ids.body, patch: { y: 120 } },
+      ],
+    });
+    expect(applied.inverse.type).toBe("batch");
+    if (applied.inverse.type === "batch") {
+      expect(applied.inverse.commands).toHaveLength(2);
+    }
+    expect(validateDesign(design.manifest, [applied.page])).toEqual([]);
+  });
+
+  it("rejects empty or nested batches", () => {
+    expectCode(() => readPageCommand({ type: "batch", commands: [] }), "command.batch");
+    expectCode(
+      () =>
+        readPageCommand({
+          type: "batch",
+          commands: [{ type: "batch", commands: [{ type: "node.remove", nodeId: "nd_x" }] }],
+        }),
+      "command.batch",
+    );
+  });
+
   it("rejects malformed commands", () => {
     expectCode(() => readPageCommand(null), "command.type");
     expectCode(() => readPageCommand({ type: "nope" }), "command.type");
