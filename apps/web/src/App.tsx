@@ -27,6 +27,19 @@ import {
 
 type Tool = "select" | "frame" | "text" | "rect" | "ellipse";
 type CreateTool = Exclude<Tool, "select">;
+type CanvasBackgroundMode = "canvas" | "page";
+
+const CANVAS_BACKGROUND_KEY = "weft.canvas.background";
+
+function initialCanvasBackgroundMode(): CanvasBackgroundMode {
+  try {
+    return window.localStorage.getItem(CANVAS_BACKGROUND_KEY) === "page"
+      ? "page"
+      : "canvas";
+  } catch {
+    return "canvas";
+  }
+}
 
 interface DragState {
   start: { x: number; y: number };
@@ -505,6 +518,9 @@ export function App() {
   const [sessionOpen, setSessionOpen] = useState(false);
   const [tool, setTool] = useState<Tool>("select");
   const [zoom, setZoom] = useState(1);
+  const [canvasBackgroundMode, setCanvasBackgroundMode] = useState<CanvasBackgroundMode>(
+    initialCanvasBackgroundMode,
+  );
   const [scopeId, setScopeId] = useState<string | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [spaceHeld, setSpaceHeld] = useState(false);
@@ -717,6 +733,14 @@ export function App() {
   }, [page, scopeId]);
 
   useEffect(() => {
+    try {
+      window.localStorage.setItem(CANVAS_BACKGROUND_KEY, canvasBackgroundMode);
+    } catch {
+      // Storage is optional.
+    }
+  }, [canvasBackgroundMode]);
+
+  useEffect(() => {
     setHoveredNodeId(null);
   }, [page?.id, scopeId, tool]);
 
@@ -906,7 +930,9 @@ export function App() {
           height: Math.max(1, pageBounds.height),
         };
   const pageBackdropStyle =
-    page?.background !== undefined && page.background !== null
+    canvasBackgroundMode === "page" &&
+    page?.background !== undefined &&
+    page.background !== null
       ? backgroundStyle(page.background, source.manifest.tokens, source.assetUrl)
       : null;
   const { ref, scale: fitScale } = useFitScale(bounds.width, bounds.height);
@@ -2054,6 +2080,26 @@ export function App() {
           )}
           {source.revision !== null && <span className="meta">rev {source.revision}</span>}
           <span className="meta">{nodeCount} nodes</span>
+          <div className="canvas-mode-switch" role="group" aria-label="Canvas background">
+            <button
+              type="button"
+              className={canvasBackgroundMode === "canvas" ? "is-active" : ""}
+              aria-pressed={canvasBackgroundMode === "canvas"}
+              onClick={() => setCanvasBackgroundMode("canvas")}
+              title="Canvas: dotted workspace without the page background"
+            >
+              Canvas
+            </button>
+            <button
+              type="button"
+              className={canvasBackgroundMode === "page" ? "is-active" : ""}
+              aria-pressed={canvasBackgroundMode === "page"}
+              onClick={() => setCanvasBackgroundMode("page")}
+              title="Page: fill the workspace with the page background paint"
+            >
+              Page
+            </button>
+          </div>
           <div className="zoom-controls" aria-label="Canvas zoom">
             <button type="button" onClick={() => zoomBy(1 / 1.2)} title="Zoom out" aria-label="Zoom out">−</button>
             <button type="button" className="zoom-value" onClick={actualSize} title="Actual size">

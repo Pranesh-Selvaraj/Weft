@@ -27,14 +27,19 @@ Zoom is anchored at the pointer, so the page point under the cursor stays under 
 
 A non-empty page's stage covers the page's content bounds. There is no arbitrary minimum width or height, so a small frame does not float inside a large empty artboard. An empty page uses an 800×600 placeholder so the empty-page hint is visible; the first created layer replaces it with real content bounds.
 
-A non-empty page is not drawn as a bordered sheet. Its background paint fills the workspace behind the frames, and the page renderer still clips content at the page bounds. This avoids a page background looking like a second frame behind the real frame. If the page has no background, the dotted workspace shows through. An empty page keeps a dashed 800×600 placeholder for the empty-page hint.
+A non-empty page is not drawn as a bordered sheet. The top-bar **Canvas / Page** switch chooses the workspace treatment:
+
+- **Canvas** (default) shows the dotted workspace and does not paint the page background.
+- **Page** resolves the page background paint and fills the workspace behind the frames.
+
+The page renderer still clips content at the page bounds. This avoids a page background looking like a second frame behind the real frame while keeping a fidelity view available. An empty page keeps a dashed 800×600 placeholder for the empty-page hint, and both modes leave frame fills intact.
 
 ## Known limits
 
 - The canvas is finite page bounds, not an infinite artboard workspace.
-- Page backgrounds are full-bleed in the editor, so their page-boundary relationship is only exact in export.
+- Canvas mode hides the page background; Page mode shows it full-bleed. Frame fills and fixed frame sizes are never hidden by this switch.
 - No rulers, guides, snapping, zoom-to-selection, minimap or inertia.
 - No true frame-isolation mode that hides or dims surrounding layers.
 - Labels can overlap in very dense designs; only top-level frames have persistent labels.
 
-See [ADR 0029](decisions/0029-full-bleed-page-background.md), [ADR 0028](decisions/0028-canvas-workspace-rework.md), [selection scopes](decisions/0026-selection-scope-marquee.md) and [canvas navigation](decisions/0025-canvas-navigation-layer-controls.md).
+See [ADR 0030](decisions/0030-canvas-page-view-modes.md), [ADR 0029](decisions/0029-full-bleed-page-background.md), [ADR 0028](decisions/0028-canvas-workspace-rework.md), [selection scopes](decisions/0026-selection-scope-marquee.md) and [canvas navigation](decisions/0025-canvas-navigation-layer-controls.md).
