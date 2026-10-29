@@ -39,7 +39,7 @@ The static path remains the zero-process preview and the fallback.
 - The multi-layer inspector can align selected layers left/center/right/top/middle/bottom and shows a flex-child warning when the parent layout may override x/y. Absolute-layout selections also show a combined dashed group box with resize handles; dragging scales the whole group as one batch command. The inspector switches to a multi-layer summary when more than one layer is selected.
 - Browse the nested layer tree, expand/collapse containers, and select any layer. The tree auto-expands to the selected node.
 - Create a blank page with **+ Page**, rename it with **Rename** or by double-clicking its tab, drag tabs to reorder, and delete the active page with **Delete** (confirmation, last page protected). Page commands share the same undo/redo history as node commands.
-- Empty pages show an in-artboard hint explaining that the visible area is a blank page and pointing to the creation tools.
+- Page backgrounds fill the workspace behind the frames instead of drawing a second bordered sheet; pages without a background keep the dotted canvas. Empty pages use a dashed 800×600 placeholder with an in-artboard hint pointing to the creation tools.
 - Edit name, position, size, opacity, fill and text content in the inspector. Changes commit on blur/Enter.
 - Delete a layer, undo with Cmd/Ctrl+Z, redo with Cmd/Ctrl+Shift+Z. Every creation is a normal command with an inverse.
 - See live file changes from the CLI or an agent, and the last editor's attribution.

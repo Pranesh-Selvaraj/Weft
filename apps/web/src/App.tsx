@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
-import { getPageBounds, PageView } from "@weft/render";
+import { backgroundStyle, getPageBounds, PageView } from "@weft/render";
 import {
   createNode,
   getAncestorIds,
@@ -905,6 +905,10 @@ export function App() {
           width: Math.max(1, pageBounds.width),
           height: Math.max(1, pageBounds.height),
         };
+  const pageBackdropStyle =
+    page?.background !== undefined && page.background !== null
+      ? backgroundStyle(page.background, source.manifest.tokens, source.assetUrl)
+      : null;
   const { ref, scale: fitScale } = useFitScale(bounds.width, bounds.height);
   const scale = fitScale * zoom;
   const zoomBy = (factor: number): void => {
@@ -1633,6 +1637,10 @@ export function App() {
     };
     const finish = (): void => {
       setPanning(false);
+      suppressClickRef.current = true;
+      window.setTimeout(() => {
+        suppressClickRef.current = false;
+      }, 0);
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", finish);
       window.removeEventListener("pointercancel", finish);
@@ -1777,6 +1785,23 @@ export function App() {
     if (!containerId) return;
     setScopeId(containerId);
     selectSingle(rawId);
+  };
+
+  const handleCanvasClick = (event: ReactMouseEvent<HTMLElement>): void => {
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      return;
+    }
+    const target = event.target as HTMLElement;
+    if (
+      target.closest(".stage") ||
+      target.closest(".canvas-breadcrumb") ||
+      target.closest(".server-panel")
+    ) {
+      return;
+    }
+    clearSelection();
+    setScopeId(null);
   };
 
   const dragBox = drag
@@ -2153,7 +2178,11 @@ export function App() {
             canvasHoverRef.current = false;
             setHoveredNodeId(null);
           }}
+          onClick={handleCanvasClick}
         >
+          {pageBackdropStyle && (
+            <div className="canvas-backdrop" style={pageBackdropStyle} aria-hidden="true" />
+          )}
           {page && scopeId && (
             <div className="canvas-breadcrumb" aria-label="Selection scope">
               <button
@@ -2184,7 +2213,7 @@ export function App() {
           {page ? (
             <div className="stage-holder">
               <div
-                className="stage"
+                className={`stage${page.children.length === 0 ? " is-empty" : ""}`}
                 style={{ width: bounds.width * scale, height: bounds.height * scale }}
               >
                 <div
@@ -2208,6 +2237,7 @@ export function App() {
                     height={bounds.height}
                     snapshotPayloads={source.snapshots}
                     assetUrl={source.assetUrl}
+                    showBackground={false}
                   />
                   {frameLabels.map(({ node, origin }) => (
                     <button

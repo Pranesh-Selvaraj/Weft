@@ -81,3 +81,7 @@ Hover uses the same `resolveScopedHit` function as click selection, so the highl
 - True selection/frame isolation that dims or hides surrounding layers.
 - A hand tool and configurable zoom presets.
 - Layer context menus on hover.
+
+## Update (ADR 0029)
+
+The bounded page-surface treatment described in section 2 was replaced by the full-bleed page background in ADR 0029: non-empty pages no longer draw a bordered sheet behind their frames. The frame-label, stage-bounds, hover and navigation decisions in this record remain in force.

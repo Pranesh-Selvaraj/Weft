@@ -30,6 +30,8 @@ export interface PageViewProps {
   height?: number;
   /** Resolve asset ids to browser URLs. Without it, images render as placeholders. */
   assetUrl?: AssetUrlResolver;
+  /** Render the page background. The editor renders it as a full workspace backdrop instead. */
+  showBackground?: boolean;
   /** Snapshot payloads keyed by node id. Without one, a snapshot renders as a placeholder. */
   snapshotPayloads?: Record<string, SnapshotPayload>;
   className?: string;
@@ -50,14 +52,17 @@ export function PageView({
   assetUrl,
   snapshotPayloads,
   className,
+  showBackground = true,
 }: PageViewProps) {
   const tokens = manifest.tokens;
   const bounds = getPageBounds(page);
   const pageWidth = width ?? bounds.width;
   const pageHeight = height ?? bounds.height;
-  const pageBackground = page.background
-    ? backgroundStyle(page.background, tokens, assetUrl)
-    : { backgroundColor: "#ffffff" };
+  const pageBackground = showBackground
+    ? page.background
+      ? backgroundStyle(page.background, tokens, assetUrl)
+      : { backgroundColor: "#ffffff" }
+    : {};
 
   const renderNode = (
     id: string,
