@@ -3,7 +3,7 @@ set -euo pipefail
 
 repo="${1:-$(gh repo view --json nameWithOwner -q .nameWithOwner)}"
 branch="${2:-main}"
-checks="${REQUIRED_CHECKS:-verify}"
+checks="${REQUIRED_CHECKS:-verify,analyze,dependency-review,e2e,CodeQL}"
 approvals="${REQUIRED_APPROVALS:-0}"
 codeowner_reviews="${REQUIRE_CODEOWNER_REVIEWS:-false}"
 

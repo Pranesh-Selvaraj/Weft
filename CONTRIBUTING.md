@@ -66,7 +66,7 @@ pnpm weft fmt examples/starter.weft --check
 - Use a reviewer subagent when the harness exposes one; otherwise record the structured self-review in the PR.
 - The maintainer must approve the specific change set before commit, tag, push or merge. Checks passing is not approval.
 - The current repository is maintained by one person, so branch protection requires zero human approvals. This is a documented solo-maintainer exception, not a claim that review is optional. When a second maintainer joins, raise `REQUIRED_APPROVALS` to `1` and require code-owner review.
-- Merge only after required checks are green, the branch is current, review findings are fixed, and approval is explicit. Prefer squash merges to keep `main` linear.
+- Merge only after the required `verify`, `analyze`, `dependency-review`, `e2e` and `CodeQL` checks are green, the branch is current, review findings are fixed, and approval is explicit. Prefer squash merges to keep `main` linear.
 
 ## Pull requests
 
