@@ -134,7 +134,7 @@ The layout is the intended shape; packages are added as decisions land. Founding
 
 ## Contributing
 
-`main` is protected. Changes land through a feature branch and a pull request with the required `verify` check; see [CONTRIBUTING.md](CONTRIBUTING.md). Report security issues privately per [SECURITY.md](SECURITY.md), never in a public issue.
+`main` is protected. Changes land through a feature branch and a pull request with the required `verify`, `analyze`, `dependency-review`, `e2e` and `CodeQL` checks; see [CONTRIBUTING.md](CONTRIBUTING.md). Report security issues privately per [SECURITY.md](SECURITY.md), never in a public issue.
 
 ## License
 

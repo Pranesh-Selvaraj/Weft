@@ -54,7 +54,7 @@ Captured HTML / assets                    Project directories
 - command parsing, stable error codes, and inverse-based rollback on write failure;
 - sandboxed snapshot iframes in the renderer;
 - no database, no cloud dependency, no remote bind;
-- GitHub CI, CodeQL, Dependabot, dependency review and branch protection for the repository.
+- GitHub CI (package, workflow and browser E2E jobs), CodeQL, Dependabot, dependency review and branch protection for the repository.
 
 ## Known gaps
 
