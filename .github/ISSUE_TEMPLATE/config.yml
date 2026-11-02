@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/Pranesh-Selvaraj/Weft/security/policy
+    about: Report security issues privately; never open a public issue with exploit details.
+  - name: Contribution rules
+    url: https://github.com/Pranesh-Selvaraj/Weft/blob/main/CONTRIBUTING.md
+    about: Branch, review, validation, release and approval rules.
+  - name: Documentation
+    url: https://github.com/Pranesh-Selvaraj/Weft/tree/main/docs
+    about: Architecture, decisions, CLI, extraction, export and workflow documentation.

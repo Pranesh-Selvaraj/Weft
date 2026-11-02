@@ -61,7 +61,7 @@ Hover uses the same `resolveScopedHit` function as click selection, so the highl
 - Zoom-at-cursor changes scroll in a layout effect, so extreme rapid wheel input can settle at a slightly different offset than a single event.
 - The page surface itself is still a visible sheet because page background is document content; it is not a pure infinite workspace.
 - No rulers, snapping, guides, zoom-to-selection, inertia, lasso or frame isolation yet.
-- UI-only change: no new automated browser test, manual checks plus the existing 250-test gate.
+- UI-only change: no new automated browser test, manual checks plus the then-existing 250-test gate.
 
 ## Alternatives considered
 
