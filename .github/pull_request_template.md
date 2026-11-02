@@ -20,6 +20,7 @@ Explicit non-goals / follow-ups:
 ## Validation
 
 - [ ] `pnpm verify`
+- [ ] `pnpm test:e2e` for editor/browser changes
 - [ ] `pnpm audit --audit-level high`
 - [ ] Browser/E2E or manual checks (describe exact paths and viewports)
 - [ ] Design changes: `pnpm weft validate <design>` and `pnpm weft fmt <design> --check`

@@ -21,6 +21,7 @@ Start here, then follow the decision records for the reasoning.
 | [Static export](export.md) | `weft export`, output layout, rendered content, handoff metadata and limits. |
 | [Assets](assets.md) | Manifest assets in the live editor, static preview, export and the asset-serving security boundary. |
 | [Security model](security.md) | Threat model, current controls, known gaps, and the security branch order. |
+| [Testing](testing.md) | Package tests, browser E2E, CI jobs, fixtures and failure artifacts. |
 | [Releasing](releasing.md) | Versioning, changelog/release-body parity, publishing, post-release sweep and branch cleanup. |
 | [Decision records](decisions/README.md) | What we chose, why, what we rejected, and what it costs. |
 | [Project history](HISTORY.md) | The timeline linking eras, stack changes, and decisions. |
