@@ -46,7 +46,14 @@ pnpm verify
 pnpm audit --audit-level high
 ```
 
-`pnpm verify` runs the workflow-rule tests, build, typecheck, package tests, and validates/canonicalizes the starter design. Use browser/E2E checks for editor changes and include the exact paths and viewports in the PR. If a change needs a design fixture:
+`pnpm verify` runs the workflow-rule tests, build, typecheck (including E2E sources), package tests, and validates/canonicalizes the starter design. Browser E2E is a separate required CI job:
+
+```bash
+pnpm test:e2e:install   # once per machine
+pnpm test:e2e
+```
+
+Use browser/E2E checks for editor changes and include exact paths/viewports in the PR. If a change needs a design fixture:
 
 ```bash
 pnpm weft validate examples/starter.weft

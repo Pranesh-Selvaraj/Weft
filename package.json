@@ -14,11 +14,15 @@
     "typecheck": "pnpm -r build && pnpm -r typecheck",
     "test": "pnpm -r build && pnpm -r test",
     "weft": "node packages/cli/dist/main.js",
-    "verify": "pnpm build && pnpm typecheck && pnpm test:workflow && pnpm test && pnpm weft validate examples/starter.weft && pnpm weft fmt examples/starter.weft --check",
+    "verify": "pnpm build && pnpm typecheck && pnpm typecheck:e2e && pnpm test:workflow && pnpm test && pnpm weft validate examples/starter.weft && pnpm weft fmt examples/starter.weft --check",
     "audit": "pnpm audit --audit-level high",
-    "test:workflow": "node --test scripts/check-pr-workflow.test.mjs"
+    "test:workflow": "node --test scripts/check-pr-workflow.test.mjs",
+    "test:e2e": "pnpm build && pnpm typecheck:e2e && playwright test",
+    "test:e2e:install": "playwright install chromium",
+    "typecheck:e2e": "tsc -p tsconfig.e2e.json --noEmit"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@types/node": "^22.10.2",
     "typescript": "^5.9.3",
     "vitest": "^5.0.5"

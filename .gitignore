@@ -11,3 +11,8 @@ coverage/
 
 # Local bridge state and caches. Design files themselves are always committed.
 .weft-cache/
+
+# Playwright E2E artifacts
+test-results/
+playwright-report/
+blob-report/
