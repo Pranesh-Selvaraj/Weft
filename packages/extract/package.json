@@ -27,6 +27,6 @@
     "@weft/core": "workspace:*",
     "@weft/design-io": "workspace:*",
     "@weft/dev-server": "workspace:*",
-    "playwright-core": "^1.64.1"
+    "playwright-core": "^1.65.0"
   }
 }
